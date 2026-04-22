@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: coach-db
+    environment:
+      POSTGRES_USER: coach
+      POSTGRES_PASSWORD: coach
+      POSTGRES_DB: coachdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - coach-db-data:/var/lib/postgresql/data
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: coach-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - coach-redis-data:/data
+    restart: always
+    command: redis-server --appendonly yes
+
+volumes:
+  coach-db-data:
+  coach-redis-data:

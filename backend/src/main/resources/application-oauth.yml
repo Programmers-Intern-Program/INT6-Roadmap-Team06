@@ -1,0 +1,13 @@
+# OAuth2 프로필 — GITHUB_CLIENT_ID/SECRET 환경변수 설정 후 활성화
+# 사용법: spring.profiles.active=local,oauth
+spring:
+  autoconfigure:
+    exclude: []  # 기본 프로필의 exclude를 해제하여 OAuth2 자동설정 복원
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            clientId: ${GITHUB_CLIENT_ID}
+            clientSecret: ${GITHUB_CLIENT_SECRET}
+            scope: user:email,read:user

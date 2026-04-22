@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: coach-backend
+  profiles:
+    active: local
+  threads:
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      timeout: 3s
+  cache:
+    type: caffeine
+
+  # OAuth2 설정은 환경변수가 있을 때만 활성화 (application-oauth.yml 참고)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_batch_fetch_size: 100
+
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:dev-jwt-secret-key-change-in-production-f8e7d6c5b4a39281706958473625140a}
+    access-ttl-seconds: 900
+    refresh-ttl-seconds: 86400
+  cookie:
+    secure: false
+  oauth2:
+    frontend-redirect-url: ${FRONTEND_URL:http://localhost:3000}
+
+ai:
+  glm:
+    api-key: ${GLM_API_KEY:}
+    base-url: ${GLM_BASE_URL:https://open.bigmodel.cn/api/paas/v4}
+    model: ${GLM_MODEL:glm-4-flash}
+    timeout:
+      connect: 5s
+      read: 120s
+    retry:
+      max-attempts: 1
+  concurrency:
+    max-concurrent-calls: 4
+    queue-timeout-seconds: 180

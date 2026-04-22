@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+  jpa:
+    show-sql: false
+
+security:
+  cookie:
+    secure: true
+
+logging:
+  level:
+    com.back.coach: INFO

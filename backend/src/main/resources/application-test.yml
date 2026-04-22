@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:15-alpine:///testdb
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+ai:
+  glm:
+    api-key: test-key
+    base-url: http://localhost:${wiremock.server.port}
