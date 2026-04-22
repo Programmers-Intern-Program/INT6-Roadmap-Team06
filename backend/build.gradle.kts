@@ -49,7 +49,9 @@ dependencies {
 
   // Redis
   implementation("org.springframework.boot:spring-boot-starter-data-redis")
-  implementation("org.springframework.boot:spring-boot-starter-cache")
+
+  // GLM (Zhipu) LLM
+  implementation("ai.z.openapi:zai-sdk:0.3.3")
 
   // JSON Schema Validation (LLM 응답 검증)
   implementation("com.networknt:json-schema-validator:1.5.6")
@@ -72,8 +74,8 @@ dependencies {
 
   // Test
   testImplementation("org.springframework.boot:spring-boot-starter-test")
-  testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
-  testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-data-jpa")
+  testImplementation("org.springframework.boot:spring-boot-starter-web")
   testImplementation("org.springframework.boot:spring-boot-testcontainers")
   testImplementation("org.springframework.security:spring-security-test")
   testImplementation("org.testcontainers:postgresql:1.20.6")

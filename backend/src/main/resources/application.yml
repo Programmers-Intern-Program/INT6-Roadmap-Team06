@@ -12,12 +12,7 @@ spring:
       port: ${REDIS_PORT:6380}
       timeout: 3s
   cache:
-    type: caffeine
-
-  # OAuth2 설정은 환경변수가 있을 때만 활성화 (application-oauth.yml 참고)
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+    type: redis
 
   servlet:
     multipart:
