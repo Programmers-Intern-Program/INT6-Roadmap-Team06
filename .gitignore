@@ -19,3 +19,7 @@ node_modules/
 
 # Logs
 *.log
+
+# 개인 문서
+.local/
+AGENTS.md
