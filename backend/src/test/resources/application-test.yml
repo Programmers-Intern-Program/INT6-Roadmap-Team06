@@ -1,0 +1,21 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+
+# 컨텍스트 로드용 더미 값. 실제 호출은 stub 또는 mock 으로 대체.
+ai:
+  glm:
+    api-key: test-dummy
+    base-url: http://localhost:0
+    model: glm-4-flash
+
+security:
+  jwt:
+    secret: test-jwt-secret-key-for-tests-only-do-not-use-in-production-0123456789
+
+logging:
+  level:
+    com.back.coach: DEBUG
