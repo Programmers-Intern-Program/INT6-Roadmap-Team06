@@ -2,7 +2,7 @@
 
 ## 1. 문서 목적
 
-이 문서는 기존 API 명세를 DB 물리 스키마 문서와 계약 부록 문서 기준에 맞춰 정렬한 버전이다.
+이 문서는 기존 API 명세를 아키텍처 문서, DB 물리 스키마 문서, 계약 부록 문서 기준에 맞춰 정렬한 버전이다.
 
 핵심 목적
 - 요청/응답 필드 해석 차이 제거
@@ -29,12 +29,10 @@
 ### 2.2 콘텐츠 타입
 
 - 기본: `application/json`
-- 파일 업로드: `multipart/form-data`
 
 ### 2.3 식별자와 시간 포맷
 
 - `id` 계열: 문자열
-- `uploadId`: UUID 문자열
 - 날짜/시간: ISO-8601 문자열
 - `targetDate`: `YYYY-MM-DD`
 
@@ -66,7 +64,6 @@
 - `FORBIDDEN`
 - `RESOURCE_NOT_FOUND`
 - `CONFLICT`
-- `UNSUPPORTED_FILE_FORMAT`
 - `ANALYSIS_FAILED`
 - `ROADMAP_GENERATION_FAILED`
 - `INTERNAL_SERVER_ERROR`
@@ -103,9 +100,10 @@
     }
   ],
   "interestAreas": ["백엔드", "성능 최적화"],
-  "githubUrl": "https://github.com/example",
   "weeklyStudyHours": 10,
-  "targetDate": "2026-08-31"
+  "targetDate": "2026-08-31",
+  "resumeAssetId": "1001",
+  "portfolioAssetId": "2001"
 }
 ```
 
@@ -116,16 +114,16 @@
 - `skills[].skillName`: 필수, 최대 100자
 - `skills[].proficiencyLevel`: 선택, `proficiency_level` enum
 - `interestAreas`: 선택, 최대 10개
-- `githubUrl`: 선택, GitHub URL 형식
 - `weeklyStudyHours`: 선택, 1~40
 - `targetDate`: 선택, 오늘 이후 날짜
+- `resumeAssetId`, `portfolioAssetId`: 선택
 
 응답 body
 ```json
 {
   "data": {
     "profileId": "101",
-    "savedAt": "2026-04-22T14:10:00Z",
+    "savedAt": "2026-04-24T14:10:00Z",
     "message": "프로필이 저장되었습니다."
   }
 }
@@ -140,7 +138,6 @@
 ```json
 {
   "data": {
-    "userId": "1",
     "profileId": "101",
     "targetRole": "BACKEND_ENGINEER",
     "currentLevel": "JUNIOR",
@@ -152,83 +149,64 @@
       }
     ],
     "interestAreas": ["백엔드", "성능 최적화"],
-    "githubUrl": "https://github.com/example",
     "weeklyStudyHours": 10,
-    "targetDate": "2026-08-31"
+    "targetDate": "2026-08-31",
+    "resumeAssetId": "1001",
+    "portfolioAssetId": "2001"
   }
 }
 ```
 
 ---
 
-## 3.2 역량 진단 API
+## 3.2 GitHub 연결 API
 
-### 3.2.1 역량 진단 실행
+### 3.2.1 GitHub 연결 등록
 
 - Method: `POST`
-- Path: `/api/diagnoses`
+- Path: `/api/github/connections`
 
 요청 body
 ```json
 {
-  "profileId": "101"
+  "authorizationCode": "oauth-code-from-github"
 }
 ```
-
-필드 규칙
-- `profileId`: 필수, 현재 로그인 사용자 소유 프로필이어야 함
 
 응답 body
 ```json
 {
   "data": {
-    "diagnosisId": "301",
-    "version": 1,
-    "profileId": "101",
-    "targetRole": "BACKEND_ENGINEER",
-    "currentLevel": "JUNIOR",
-    "summary": "백엔드 기본기는 있으나 Redis, Kafka 경험이 부족합니다.",
-    "missingSkills": [
-      {
-        "skillName": "Redis",
-        "severity": "HIGH",
-        "reason": "캐시/세션 설계 경험 부족",
-        "priorityOrder": 1
-      }
-    ],
-    "createdAt": "2026-04-22T14:20:00Z"
+    "githubConnectionId": "201",
+    "githubLogin": "example-user",
+    "connectedAt": "2026-04-24T14:15:00Z"
   }
 }
 ```
 
-### 3.2.2 역량 진단 결과 조회
+규칙
+- 연결 방식은 OAuth만 허용한다
+- 이미 연결된 계정이면 기존 연결을 재사용할 수 있다
+
+### 3.2.2 연결된 저장소 목록 조회
 
 - Method: `GET`
-- Path: `/api/diagnoses/{diagnosisId}`
+- Path: `/api/github/repositories?githubConnectionId={id}`
 
 응답 body
 ```json
 {
   "data": {
-    "diagnosisId": "301",
-    "version": 1,
-    "profileId": "101",
-    "targetRole": "BACKEND_ENGINEER",
-    "currentLevel": "JUNIOR",
-    "summary": "백엔드 기본기는 있으나 Redis, Kafka 경험이 부족합니다.",
-    "missingSkills": [
+    "githubConnectionId": "201",
+    "repositories": [
       {
-        "skillName": "Redis",
-        "severity": "HIGH",
-        "reason": "캐시/세션 설계 경험 부족",
-        "priorityOrder": 1
+        "repositoryId": "9001",
+        "repoFullName": "team06/ai-growth-coach",
+        "repoUrl": "https://github.com/team06/ai-growth-coach",
+        "primaryLanguage": "Java",
+        "defaultBranch": "main"
       }
-    ],
-    "strengths": ["Spring Boot", "JPA"],
-    "recommendations": [
-      "Redis 캐시와 TTL 기반 설계를 먼저 학습"
-    ],
-    "createdAt": "2026-04-22T14:20:00Z"
+    ]
   }
 }
 ```
@@ -245,15 +223,16 @@
 요청 body
 ```json
 {
-  "githubUrl": "https://github.com/example",
-  "diagnosisId": "301"
+  "githubConnectionId": "201",
+  "selectedRepositoryIds": ["9001", "9002"],
+  "coreRepositoryIds": ["9001"]
 }
 ```
 
 필드 규칙
-- `githubUrl`: 필수
-- `diagnosisId`: 선택
-- `diagnosisId`가 있으면 현재 사용자 소유 진단 결과여야 함
+- `githubConnectionId`: 필수
+- `selectedRepositoryIds`: 필수, 최소 1개
+- `coreRepositoryIds`: 선택, `selectedRepositoryIds`의 부분집합
 
 v1 처리 기준
 - 현재 명세의 기본 외부 계약은 동기 응답이다
@@ -263,142 +242,157 @@ v1 처리 기준
 ```json
 {
   "data": {
-    "analysisId": "401",
+    "githubAnalysisId": "401",
     "version": 1,
-    "diagnosisId": "301",
-    "extractedSkills": ["Java", "Spring Boot", "Redis"],
+    "staticSignals": {
+      "primaryLanguages": [
+        {
+          "lang": "Java",
+          "ratio": 0.6
+        }
+      ],
+      "activeRepos": 12,
+      "commitFrequency": "WEEKLY",
+      "contributionPattern": "CONSISTENT"
+    },
     "repoSummaries": [
       {
-        "repoName": "ai-growth-coach",
-        "primaryLanguage": "Java",
-        "summary": "Spring Boot 기반 백엔드 서비스"
+        "repoId": "9001",
+        "repoName": "team06/ai-growth-coach",
+        "summary": "Spring Boot 기반 백엔드 서비스",
+        "highlights": ["Redis 캐시 적용", "배치 처리 구성"]
       }
     ],
-    "evidence": [
+    "techTags": [
       {
-        "repoName": "ai-growth-coach",
-        "type": "README",
-        "source": "README.md",
-        "snippet": "Redis 캐시를 사용"
+        "skillName": "Redis",
+        "tagReason": "캐시 설정과 TTL 관련 코드가 확인됨"
       }
     ],
-    "comparisonResult": {
-      "matchedSkills": ["Java", "Spring Boot"],
-      "missingInGithub": ["Kafka"],
-      "newFromGithub": ["Redis"]
+    "depthEstimates": [
+      {
+        "skillName": "Redis",
+        "level": "APPLIED",
+        "reason": "설정과 실제 사용 코드가 함께 존재"
+      }
+    ],
+    "evidences": [
+      {
+        "repoName": "team06/ai-growth-coach",
+        "type": "CODE",
+        "source": "src/main/java/.../CacheConfig.java",
+        "summary": "RedisTemplate과 TTL 설정 사용"
+      }
+    ],
+    "userCorrections": [],
+    "finalTechProfile": {
+      "confirmedSkills": ["Java", "Spring Boot"],
+      "focusAreas": ["백엔드"]
     },
-    "adjustedDiagnosisSummary": "실사용 근거 기준으로 Redis 경험은 일부 보유",
-    "createdAt": "2026-04-22T14:25:00Z"
+    "createdAt": "2026-04-24T14:25:00Z"
   }
 }
 ```
 
-### 3.3.2 GitHub 분석 결과 조회
+### 3.3.2 GitHub 분석 보정 저장
+
+- Method: `PATCH`
+- Path: `/api/github-analyses/{githubAnalysisId}/corrections`
+
+요청 body
+```json
+{
+  "userCorrections": [
+    {
+      "skillName": "Redis",
+      "correction": "캐시에만 사용했고 Pub/Sub은 사용하지 않음"
+    }
+  ],
+  "finalTechProfile": {
+    "confirmedSkills": ["Java", "Spring Boot", "Redis"],
+    "focusAreas": ["백엔드", "성능 최적화"]
+  }
+}
+```
+
+응답 body
+```json
+{
+  "data": {
+    "githubAnalysisId": "401",
+    "savedAt": "2026-04-24T14:28:00Z",
+    "finalTechProfile": {
+      "confirmedSkills": ["Java", "Spring Boot", "Redis"],
+      "focusAreas": ["백엔드", "성능 최적화"]
+    }
+  }
+}
+```
+
+### 3.3.3 GitHub 분석 결과 조회
 
 - Method: `GET`
-- Path: `/api/github-analyses/{analysisId}`
+- Path: `/api/github-analyses/{githubAnalysisId}`
 
 응답 body
 - `POST /api/github-analyses`의 `data`와 동일 구조
 
 ---
 
-## 3.4 코딩테스트 API
+## 3.4 역량 진단 API
 
-### 3.4.1 코딩테스트 이력 업로드
-
-- Method: `POST`
-- Path: `/api/coding-tests/submissions`
-
-요청 방식
-- `multipart/form-data`
-- 또는 `application/json`
-
-JSON 요청 body 예시
-```json
-{
-  "submissions": [
-    {
-      "problemId": "BOJ-1000",
-      "problemTitle": "A+B",
-      "problemType": "IMPLEMENTATION",
-      "difficulty": "EASY",
-      "isCorrect": true,
-      "attemptNumber": 1,
-      "solveTimeSeconds": 120,
-      "submittedAt": "2026-04-22T13:00:00Z"
-    }
-  ]
-}
-```
-
-응답 body
-```json
-{
-  "data": {
-    "uploadId": "a6c0bb7d-f6db-4bc5-9de4-99b159d2ad54",
-    "totalCount": 10,
-    "acceptedCount": 10,
-    "rejectedCount": 0
-  }
-}
-```
-
-### 3.4.2 코딩테스트 분석 실행
+### 3.4.1 역량 진단 실행
 
 - Method: `POST`
-- Path: `/api/coding-tests/analyses`
+- Path: `/api/diagnoses`
 
 요청 body
 ```json
 {
-  "uploadId": "a6c0bb7d-f6db-4bc5-9de4-99b159d2ad54"
+  "profileId": "101",
+  "githubAnalysisId": "401"
 }
 ```
 
 필드 규칙
-- `uploadId`: 선택
-- `uploadId`가 있으면 해당 업로드 배치만 분석
-- `uploadId`가 없으면 현재 사용자의 전체 제출 이력을 분석
-- `userId`는 받지 않는다
+- `profileId`: 필수, 현재 로그인 사용자 소유 프로필이어야 함
+- `githubAnalysisId`: 필수, 현재 로그인 사용자 소유 GitHub 분석 결과여야 함
 
 응답 body
 ```json
 {
   "data": {
-    "analysisId": "501",
+    "diagnosisId": "301",
     "version": 1,
-    "uploadId": "a6c0bb7d-f6db-4bc5-9de4-99b159d2ad54",
-    "stats": [
+    "profileId": "101",
+    "githubAnalysisId": "401",
+    "targetRole": "BACKEND_ENGINEER",
+    "currentLevel": "JUNIOR",
+    "summary": "백엔드 기본기는 있으나 Redis와 캐시 설계 경험을 더 강화할 필요가 있습니다.",
+    "missingSkills": [
       {
-        "problemType": "DP",
-        "accuracy": 0.42,
-        "averageSolveTimeSeconds": 1800,
-        "retryCount": 3,
-        "weaknessScore": 87
+        "skillName": "Redis",
+        "severity": "HIGH",
+        "reason": "캐시 설계를 프로젝트 수준으로 설명할 근거가 더 필요함",
+        "priorityOrder": 1
       }
     ],
-    "weakTypes": ["DP", "GRAPH"],
-    "recommendedProblems": [
-      {
-        "problemId": "BOJ-1234",
-        "title": "예시 문제",
-        "problemType": "DP"
-      }
+    "strengths": ["Spring Boot", "JPA"],
+    "recommendations": [
+      "Redis 캐시와 TTL 기반 설계를 먼저 학습"
     ],
-    "recommendation": "DP와 GRAPH 유형을 우선 보완하는 것이 좋습니다.",
-    "analyzedAt": "2026-04-22T14:30:00Z"
+    "createdAt": "2026-04-24T14:30:00Z"
   }
 }
 ```
 
-### 3.4.3 코딩테스트 분석 결과 조회
+### 3.4.2 역량 진단 결과 조회
 
 - Method: `GET`
-- Path: `/api/coding-tests/analyses/{analysisId}`
+- Path: `/api/diagnoses/{diagnosisId}`
 
 응답 body
-- `POST /api/coding-tests/analyses`의 `data`와 동일 구조
+- `POST /api/diagnoses`의 `data`와 동일 구조
 
 ---
 
@@ -413,8 +407,6 @@ JSON 요청 body 예시
 ```json
 {
   "diagnosisId": "301",
-  "githubAnalysisId": "401",
-  "codingTestAnalysisId": "501",
   "weeklyStudyHours": 10,
   "targetDate": "2026-08-31"
 }
@@ -422,8 +414,6 @@ JSON 요청 body 예시
 
 필드 규칙
 - `diagnosisId`: 필수
-- `githubAnalysisId`: 선택
-- `codingTestAnalysisId`: 선택
 - `weeklyStudyHours`: 선택, 프로필 값 override 용도
 - `targetDate`: 선택, 프로필 값 override 용도
 
@@ -434,27 +424,35 @@ JSON 요청 body 예시
     "roadmapId": "601",
     "version": 1,
     "diagnosisId": "301",
-    "githubAnalysisId": "401",
-    "codingTestAnalysisId": "501",
     "totalWeeks": 12,
-    "summary": "Redis와 코딩테스트 DP 보완을 중심으로 12주 계획을 생성했습니다.",
+    "summary": "Redis 중심의 백엔드 실무 역량 보완 로드맵을 생성했습니다.",
     "weeks": [
       {
         "roadmapWeekId": "7001",
         "weekNumber": 1,
         "topic": "Redis 기초",
-        "subtopics": ["자료구조", "캐시 전략", "TTL"],
-        "resources": [
+        "reason": "백엔드 포지션에서 실무 활용도와 포트폴리오 활용도가 높음",
+        "tasks": [
           {
-            "type": "LECTURE",
-            "title": "Redis 입문",
-            "url": "https://example.com/redis"
+            "type": "READ_DOCS",
+            "title": "Redis 공식 문서에서 자료구조와 TTL 개념 읽기"
+          },
+          {
+            "type": "BUILD_EXAMPLE",
+            "title": "간단한 캐시 예제를 구현해 보기"
+          }
+        ],
+        "materials": [
+          {
+            "type": "DOCS",
+            "title": "Redis Documentation",
+            "url": "https://redis.io/docs"
           }
         ],
         "estimatedHours": 8.0
       }
     ],
-    "createdAt": "2026-04-22T14:40:00Z"
+    "createdAt": "2026-04-24T14:40:00Z"
   }
 }
 ```
@@ -476,27 +474,33 @@ JSON 요청 body 예시
     "roadmapId": "601",
     "version": 1,
     "totalWeeks": 12,
-    "summary": "Redis와 코딩테스트 DP 보완을 중심으로 12주 계획을 생성했습니다.",
+    "summary": "Redis 중심의 백엔드 실무 역량 보완 로드맵을 생성했습니다.",
     "weeks": [
       {
         "roadmapWeekId": "7001",
         "weekNumber": 1,
         "topic": "Redis 기초",
-        "subtopics": ["자료구조", "캐시 전략", "TTL"],
-        "resources": [
+        "reason": "백엔드 포지션에서 실무 활용도와 포트폴리오 활용도가 높음",
+        "tasks": [
           {
-            "type": "LECTURE",
-            "title": "Redis 입문",
-            "url": "https://example.com/redis"
+            "type": "READ_DOCS",
+            "title": "Redis 공식 문서 읽기"
+          }
+        ],
+        "materials": [
+          {
+            "type": "DOCS",
+            "title": "Redis Documentation",
+            "url": "https://redis.io/docs"
           }
         ],
         "estimatedHours": 8.0,
         "progressStatus": "IN_PROGRESS",
         "progressNote": "캐시 전략 학습 중",
-        "progressUpdatedAt": "2026-04-22T15:00:00Z"
+        "progressUpdatedAt": "2026-04-24T15:00:00Z"
       }
     ],
-    "createdAt": "2026-04-22T14:40:00Z"
+    "createdAt": "2026-04-24T14:40:00Z"
   }
 }
 ```
@@ -532,7 +536,7 @@ JSON 요청 body 예시
     "progressLogId": "9001",
     "roadmapWeekId": "7001",
     "status": "DONE",
-    "savedAt": "2026-04-22T15:10:00Z"
+    "savedAt": "2026-04-24T15:10:00Z"
   }
 }
 ```
@@ -557,8 +561,8 @@ JSON 요청 body 예시
   "data": {
     "sessionId": "10001",
     "profileVersion": 3,
-    "planVersion": 2,
-    "startedAt": "2026-04-22T16:00:00Z"
+    "roadmapVersion": 2,
+    "startedAt": "2026-04-24T16:00:00Z"
   }
 }
 ```
@@ -608,27 +612,6 @@ event: done
 data: {"sessionId":"10001"}
 ```
 
-## 4.4 오늘의 데일리 퀘스트 조회
-
-- Method: `GET`
-- Path: `/api/coach/daily-quests/today`
-
-응답 body
-```json
-{
-  "data": {
-    "quests": [
-      {
-        "questType": "ROADMAP",
-        "title": "1주차 Redis 자료 1개 정리",
-        "isCompleted": false
-      }
-    ],
-    "streak": 3
-  }
-}
-```
-
 ---
 
 ## 5. 상태 및 버전 규칙
@@ -638,7 +621,6 @@ data: {"sessionId":"10001"}
 적용 대상
 - `capability_diagnoses`
 - `github_analyses`
-- `coding_test_analyses`
 - `learning_roadmaps`
 
 규칙
@@ -678,16 +660,16 @@ data: {"sessionId":"10001"}
 - BIGINT PK는 API에서 문자열로 반환한다
 - enum 허용값은 계약 부록 문서를 기준으로 통일한다
 - `targetRole`은 자유 텍스트가 아니라 `job_roles.role_code` 기준이다
-- `coding-tests/analyses`는 `uploadId`가 없으면 전체 제출 이력을 분석한다
+- GitHub 분석 입력은 `githubConnectionId`, `selectedRepositoryIds`, `coreRepositoryIds`를 사용한다
+- 로드맵 생성은 `diagnosisId` 중심으로 처리한다
 - `roadmap_payload`는 보조 결과이고, 진도 원본은 `progress_logs`다
 - v2 코치 API는 세션 생성 후 메시지 전송 순서를 따른다
 
 ## 7. 이번 정렬본에서 핵심 수정한 부분
 
-- `userId` 기반 요청 제거
-- `uploadId` 없는 코테 분석 범위 명확화
-- `targetRole`, `currentLevel`, `status` 등 enum 계약 명확화
-- ID 응답 타입 문자열로 고정
-- 로드맵 진도 원본을 `progress_logs`로 명확화
-- v2 코치 세션 생성 API 추가
-- version을 결과 이력 개념으로 명확화
+- GitHub 연결 입력을 OAuth 기반 계약으로 변경
+- GitHub 분석 결과 구조를 `staticSignals`, `repoSummaries`, `techTags`, `depthEstimates`, `evidences`, `userCorrections`, `finalTechProfile` 기준으로 정리
+- 역량 진단 입력을 `profileId + githubAnalysisId`로 변경
+- 로드맵 생성 입력을 `diagnosisId` 중심으로 단순화
+- 코치 세션 응답 버전 필드를 `roadmapVersion` 기준으로 정리
+- 코딩테스트 API를 현재 v1 공식 계약 범위에서 제거
