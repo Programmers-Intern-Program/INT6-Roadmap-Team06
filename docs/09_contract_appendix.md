@@ -14,6 +14,7 @@
 - 상세 SQL DDL
 - 화면 와이어프레임
 - API 전문
+- Function Calling 세부 인터페이스
 
 ## 2. 공통 계약 원칙
 
@@ -22,6 +23,7 @@
 - JSONB는 자유형 텍스트 묶음이 아니라, 이 문서에 정의된 key shape를 따른다.
 - 새 결과 생성 시 기존 row를 덮어쓰지 않고 새 version row를 생성한다.
 - 로드맵 원본은 `learning_roadmaps + roadmap_weeks + progress_logs`이며, `roadmap_payload`는 보조 결과다.
+- GitHub 분석에서 AI 추정값과 사용자 보정값은 구분해 저장한다.
 
 ## 3. enum / code 사전
 
@@ -38,7 +40,7 @@
 | --- | --- | --- |
 | current_level | BEGINNER, BASIC, JUNIOR, INTERMEDIATE, ADVANCED | 현재 수준 |
 | proficiency_level | NONE, BASIC, WORKING, STRONG | 사용자 기술 숙련도 |
-| skill_source_type | USER_INPUT, GITHUB_EXTRACTED, SYSTEM_DERIVED | 기술 스택 출처 |
+| skill_source_type | USER_INPUT, GITHUB_ESTIMATED, SYSTEM_DERIVED | 기술 스택 출처 |
 | requirement_importance | 1, 2, 3, 4, 5 | 직무 기준 중요도 |
 | diagnosis_severity | LOW, MEDIUM, HIGH | 부족 기술 심각도 |
 
@@ -46,38 +48,32 @@
 
 | 코드명 | 허용값 | 설명 |
 | --- | --- | --- |
-| github_access_type | PUBLIC_URL, OAUTH | GitHub 연결 방식 |
-| github_evidence_type | README, CODE, TOPIC, LANGUAGE, DESCRIPTION | 근거 타입 |
+| github_access_type | OAUTH | GitHub 연결 방식 |
+| github_evidence_type | README, CODE, CONFIG, REPO_METADATA, COMMIT | 근거 타입 |
+| github_depth_level | INTRO, APPLIED, PRACTICAL, DEEP | 사용 깊이 후보 |
 
-### 3.4 코딩테스트
-
-| 코드명 | 허용값 | 설명 |
-| --- | --- | --- |
-| problem_type | ARRAY, STRING, HASH, SORT, STACK_QUEUE, BFS_DFS, BINARY_SEARCH, DP, GREEDY, GRAPH, TREE, PREFIX_SUM, IMPLEMENTATION, ETC | 문제 유형 |
-| difficulty | EASY, MEDIUM, HARD | 난이도 |
-| analysis_strength_level | NORMAL, WEAK, CRITICAL | 분석용 내부 등급 |
-
-### 3.5 로드맵/진도
+### 3.4 로드맵/진도
 
 | 코드명 | 허용값 | 설명 |
 | --- | --- | --- |
 | progress_status | TODO, IN_PROGRESS, DONE, SKIPPED | 주차별 진도 상태 |
-| resource_type | LECTURE, ARTICLE, PROBLEM, PROJECT, DOCS | 학습 자료 타입 |
+| roadmap_task_type | READ_DOCS, BUILD_EXAMPLE, WRITE_NOTE, APPLY_PROJECT, REVIEW | 실행 작업 타입 |
+| material_type | DOCS, ARTICLE, REPOSITORY, VIDEO, TEMPLATE | 참고 자료 타입 |
 
-### 3.6 비동기 작업 상태
+### 3.5 비동기 작업 상태
 
 | 코드명 | 허용값 | 설명 |
 | --- | --- | --- |
 | job_status | REQUESTED, RUNNING, SUCCEEDED, FAILED | 장시간 분석 작업 상태 |
 
-### 3.7 v2 확장
+### 3.6 v2 확장
 
 | 코드명 | 허용값 | 설명 |
 | --- | --- | --- |
-| context_type | PROFILE, PLAN, ACTIVITY | snapshot 종류 |
+| context_type | PROFILE, PLAN, CONVERSATION | snapshot 종류 |
 | message_type | USER, ASSISTANT, SYSTEM | 대화 메시지 종류 |
-| detected_intent | CHECK_TODAY_PLAN, CHECK_PROGRESS, REQUEST_REPLAN, ASK_EXPLANATION, GENERAL_CHAT | 코치 의도 분류 |
-| pattern_type | CONSECUTIVE_MISS, REPEATED_FAILURE, LOW_ACTIVITY | 감지 패턴 |
+| detected_intent | CHECK_TODAY_PLAN, CHECK_PROGRESS, REQUEST_REPLAN, REQUEST_REANALYSIS, ASK_EXPLANATION, GENERAL_CHAT | 코치 의도 분류 |
+| pattern_type | CONSECUTIVE_INCOMPLETE, REPEATED_FAILURE, INTEREST_SHIFT | 감지 패턴 |
 | pattern_severity | LOW, MEDIUM, HIGH | 패턴 심각도 |
 
 ## 4. JSONB shape 정의
@@ -98,6 +94,7 @@
 - `missingSkills`
 - `strengths`
 - `recommendations`
+- `githubInsights`
 
 shape
 ```json
@@ -113,8 +110,12 @@ shape
   "strengths": ["Spring Boot", "JPA"],
   "recommendations": [
     "Redis 캐시와 TTL 기반 설계를 먼저 학습",
-    "실무형 장애 대응 사례를 추가 학습"
-  ]
+    "예제 구현 후 미니 프로젝트에 캐시 적용"
+  ],
+  "githubInsights": {
+    "confirmedSkills": ["Java", "Spring Boot"],
+    "newFromGithub": ["Redis"]
+  }
 }
 ```
 
@@ -126,81 +127,76 @@ shape
 ## 4.3 github_analyses.analysis_payload
 
 필수 key
-- `extractedSkills`
+- `staticSignals`
 - `repoSummaries`
-- `evidence`
-- `comparisonResult`
-- `adjustedDiagnosisSummary`
+- `techTags`
+- `depthEstimates`
+- `evidences`
+- `userCorrections`
+- `finalTechProfile`
 
 shape
 ```json
 {
-  "extractedSkills": ["Java", "Spring Boot", "Redis"],
+  "staticSignals": {
+    "primaryLanguages": [
+      {
+        "lang": "Java",
+        "ratio": 0.6
+      }
+    ],
+    "activeRepos": 12,
+    "commitFrequency": "WEEKLY",
+    "contributionPattern": "CONSISTENT"
+  },
   "repoSummaries": [
     {
-      "repoName": "ai-growth-coach",
-      "primaryLanguage": "Java",
-      "summary": "Spring Boot 기반 백엔드 서비스"
+      "repoId": "9001",
+      "repoName": "team06/ai-growth-coach",
+      "summary": "Spring Boot 기반 백엔드 서비스",
+      "highlights": ["Redis 캐시 적용", "배치 로직 구성"]
     }
   ],
-  "evidence": [
+  "techTags": [
     {
-      "repoName": "ai-growth-coach",
-      "type": "README",
-      "source": "README.md",
-      "snippet": "Redis 캐시를 사용"
+      "skillName": "Redis",
+      "tagReason": "캐시 설정, TTL 관련 코드와 설정 파일 확인"
     }
   ],
-  "comparisonResult": {
-    "matchedSkills": ["Java", "Spring Boot"],
-    "missingInGithub": ["Kafka"],
-    "newFromGithub": ["Redis"]
-  },
-  "adjustedDiagnosisSummary": "실사용 근거 기준으로 Redis 경험은 일부 보유"
+  "depthEstimates": [
+    {
+      "skillName": "Redis",
+      "level": "APPLIED",
+      "reason": "단순 의존성 추가를 넘어 캐시 키 설계와 TTL 사용 흔적이 있음"
+    }
+  ],
+  "evidences": [
+    {
+      "repoName": "team06/ai-growth-coach",
+      "type": "CODE",
+      "source": "src/main/java/.../CacheConfig.java",
+      "summary": "RedisTemplate과 TTL 설정 사용"
+    }
+  ],
+  "userCorrections": [
+    {
+      "skillName": "Redis",
+      "correction": "캐시에만 사용했고 Pub/Sub은 사용하지 않음"
+    }
+  ],
+  "finalTechProfile": {
+    "confirmedSkills": ["Java", "Spring Boot", "Redis"],
+    "focusAreas": ["백엔드", "성능 최적화"]
+  }
 }
 ```
 
 규칙
-- `evidence.type`은 `github_evidence_type` enum 사용
-- `comparisonResult` 내부 key 이름은 고정
-- `adjustedDiagnosisSummary`는 문자열 1개로 고정
+- `evidences.type`은 `github_evidence_type` enum 사용
+- `depthEstimates.level`은 `github_depth_level` enum 사용
+- AI가 만든 후보와 사용자가 확정한 값은 같은 key 아래에 섞어 저장하지 않는다
 
-## 4.4 coding_test_analyses.analysis_payload
-
-필수 key
-- `stats`
-- `weakTypes`
-- `recommendedProblems`
-
-shape
-```json
-{
-  "stats": [
-    {
-      "problemType": "DP",
-      "accuracy": 0.42,
-      "averageSolveTimeSeconds": 1800,
-      "retryCount": 3,
-      "weaknessScore": 87
-    }
-  ],
-  "weakTypes": ["DP", "GRAPH"],
-  "recommendedProblems": [
-    {
-      "problemId": "BOJ-1234",
-      "title": "예시 문제",
-      "problemType": "DP"
-    }
-  ]
-}
-```
-
-규칙
-- `accuracy`는 0 이상 1 이하
-- `weaknessScore`는 0 이상 100 이하
-- `problemType`은 `problem_type` enum 사용
-
-## 4.5 learning_roadmaps.roadmap_payload
+## 4.4 learning_roadmaps.roadmap_payload
 
 주의
 - 이 필드는 원본 데이터가 아니다.
@@ -216,12 +212,22 @@ shape
     {
       "weekNumber": 1,
       "topic": "Redis 기초",
-      "subtopics": ["자료구조", "캐시 전략", "TTL"],
-      "resources": [
+      "reason": "백엔드 포지션에서 실무 활용도와 포트폴리오 활용도가 높음",
+      "tasks": [
         {
-          "type": "LECTURE",
-          "title": "Redis 입문",
-          "url": "https://example.com/redis"
+          "type": "READ_DOCS",
+          "title": "Redis 공식 문서에서 자료구조와 TTL 개념 읽기"
+        },
+        {
+          "type": "BUILD_EXAMPLE",
+          "title": "간단한 캐시 예제를 구현해 보기"
+        }
+      ],
+      "materials": [
+        {
+          "type": "DOCS",
+          "title": "Redis Documentation",
+          "url": "https://redis.io/docs"
         }
       ],
       "estimatedHours": 8
@@ -232,22 +238,30 @@ shape
 
 규칙
 - `weekNumber`는 `roadmap_weeks.week_number`와 동일해야 한다
-- `resources.type`은 `resource_type` enum 사용
+- `tasks[].type`은 `roadmap_task_type` enum 사용
+- `materials[].type`은 `material_type` enum 사용
 - 진도 상태는 `roadmap_payload` 안에 저장하지 않는다
 - 진도 상태는 `progress_logs` 최신 row 기준으로 계산한다
 
-## 4.6 roadmap_weeks.subtopics_json / resources_json
+## 4.5 roadmap_weeks.tasks_json / materials_json
 
-### subtopics_json
-- 타입: `string[]`
-
-### resources_json
+### tasks_json
 ```json
 [
   {
-    "type": "LECTURE",
-    "title": "Redis 입문",
-    "url": "https://example.com/redis"
+    "type": "READ_DOCS",
+    "title": "Redis 공식 문서 읽기"
+  }
+]
+```
+
+### materials_json
+```json
+[
+  {
+    "type": "DOCS",
+    "title": "Redis Documentation",
+    "url": "https://redis.io/docs"
   }
 ]
 ```
@@ -255,16 +269,16 @@ shape
 규칙
 - `title`은 필수
 - `url`은 선택
-- `type`은 `resource_type` enum 사용
+- `type`은 각각 `roadmap_task_type`, `material_type` enum 사용
 
-## 4.7 v2 JSONB 최소 shape
+## 4.6 v2 JSONB 최소 shape
 
 ### user_context_snapshots.payload
 ```json
 {
   "profile": {},
   "plan": {},
-  "activity": {}
+  "conversation": {}
 }
 ```
 
@@ -272,7 +286,8 @@ shape
 ```json
 {
   "requestId": "optional-string",
-  "reason": "재계획 요청 이유"
+  "triggerReason": "interest_shift",
+  "changedSnapshotType": "PLAN"
 }
 ```
 
@@ -280,7 +295,8 @@ shape
 ```json
 {
   "count": 3,
-  "windowDays": 7
+  "windowDays": 7,
+  "lastDetectedAt": "2026-04-24T09:00:00Z"
 }
 ```
 
@@ -296,8 +312,9 @@ shape
 | currentLevel | 필수, `current_level` enum |
 | weeklyStudyHours | 선택, 1~40 |
 | targetDate | 선택, 오늘 이후 날짜 |
-| githubUrl | 선택, `https://github.com/`로 시작하는 profile/repo URL |
 | interestAreas | 선택, 최대 10개, 항목당 최대 50자 |
+| resumeAssetId | 선택, 숫자 문자열 |
+| portfolioAssetId | 선택, 숫자 문자열 |
 
 ## 5.2 기술 스택 입력
 
@@ -312,30 +329,24 @@ shape
 
 | 항목 | 규칙 |
 | --- | --- |
-| githubUrl | 필수 |
-| diagnosisId | 선택 |
-| private repo | v1에서는 OAuth 연결이 없으면 분석 제외 가능 |
+| githubConnectionId | 필수 |
+| selectedRepositoryIds | 최소 1개 |
+| coreRepositoryIds | 선택, `selectedRepositoryIds` 부분집합 |
+| core repo 개수 | 최대 5개 권장 |
 | repo summary 길이 | 1000자 이하 |
 
-## 5.4 코딩테스트 입력
+## 5.4 역량 진단 입력
 
 | 항목 | 규칙 |
 | --- | --- |
-| problemId | 필수, 최대 100자 |
-| problemTitle | 필수, 최대 255자 |
-| problemType | 필수, `problem_type` enum |
-| difficulty | 선택, `difficulty` enum |
-| attemptNumber | 1 이상 |
-| solveTimeSeconds | 0 이상 |
-| upload batch | 업로드 방식일 때 같은 배치는 같은 `upload_id` 사용 |
+| profileId | 필수, 현재 사용자 소유 |
+| githubAnalysisId | 필수, 현재 사용자 소유 |
 
 ## 5.5 로드맵 입력/생성
 
 | 항목 | 규칙 |
 | --- | --- |
 | diagnosisId | 필수 |
-| githubAnalysisId | 선택 |
-| codingTestAnalysisId | 선택 |
 | totalWeeks | 기본 12, 허용 범위 1~24 |
 | estimatedHours | 주차별 0 초과, 소수 1자리 허용 |
 
@@ -354,7 +365,6 @@ shape
 
 적용 대상
 - GitHub 분석
-- 코딩테스트 분석
 - 로드맵 생성의 장시간 작업 모드
 
 허용 전이
@@ -365,7 +375,7 @@ shape
 규칙
 - `FAILED`는 종료 상태다
 - 재시도는 기존 row를 되살리지 않고 새 실행으로 시작한다
-- v1에서 동기 처리하더라도 내부적으로는 이 상태 모델을 기준으로 삼는다
+- v1에서 동기 처리하더라도 내부적으로는 이 상태 모델을 기준으로 삼을 수 있다
 
 ## 6.2 주차별 진도 상태
 
@@ -388,7 +398,6 @@ shape
 적용 대상
 - `capability_diagnoses`
 - `github_analyses`
-- `coding_test_analyses`
 - `learning_roadmaps`
 
 규칙
@@ -396,7 +405,7 @@ shape
 - 새 실행 결과는 기존 row update가 아니라 새 row insert
 - 기본 조회는 최신 version 반환
 - 과거 조회가 필요하면 version 지정 조회 허용
-- v2 `chat_sessions.profile_version`, `plan_version`은 세션 시작 시 snapshot version을 고정한다
+- v2 `chat_sessions.profile_version`, `roadmap_version`은 세션 시작 시 snapshot version을 고정한다
 
 ## 7. 구현 체크포인트
 
@@ -405,6 +414,7 @@ shape
 - validation은 프론트와 백엔드가 둘 다 수행하되, 최종 기준은 백엔드다
 - `roadmap_payload`와 `roadmap_weeks` 내용이 불일치하면 `roadmap_weeks`를 우선한다
 - progress 최신 상태 조회 규칙을 팀 전체가 동일하게 사용해야 한다
+- GitHub 분석에서 AI 후보와 사용자 보정값은 구분해 취급해야 한다
 
 ## 8. 최종 요약
 
