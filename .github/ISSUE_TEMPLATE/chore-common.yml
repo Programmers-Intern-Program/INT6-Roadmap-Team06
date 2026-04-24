@@ -1,0 +1,47 @@
+name: 공통 작업
+description: 공통 기반, 운영 규칙, 설정 작업을 등록합니다.
+title: "[Chore] "
+body:
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 목적
+      description: 왜 이 공통 작업이 필요한지 적어주세요.
+      placeholder: 예) dev/main 브랜치 전략에 맞는 운영 기준을 정리한다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: target
+    attributes:
+      label: 대상 영역
+      description: 설정/도구/문서/CI 중 어디를 다루는지 적어주세요.
+      placeholder: 예) GitHub Actions, branch protection, PR template
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 이 작업이 끝났다고 볼 수 있는 기준을 적어주세요.
+      placeholder: |
+        - dev 대상 PR에서 CI가 돈다
+        - PR 템플릿이 자동 적용된다
+    validations:
+      required: true
+
+  - type: textarea
+    id: related
+    attributes:
+      label: 관련 설정 또는 문서
+      description: 영향받는 설정이나 문서를 적어주세요.
+      placeholder: 예) .github/workflows/backend-ci.yml, README.md
+
+  - type: checkboxes
+    id: ops
+    attributes:
+      label: 운영 체크
+      options:
+        - label: GitHub UI에서 별도 적용해야 하는 설정이 있는지 확인했다.
+        - label: secret 또는 권한 설정이 필요한지 확인했다.
