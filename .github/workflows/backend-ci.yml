@@ -5,10 +5,20 @@ on:
     branches:
       - dev
       - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
   push:
     branches:
       - dev
       - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+concurrency:
+  group: backend-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -30,16 +40,18 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
-          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
 
       - name: Run backend tests with Jacoco
-        run: ./gradlew --no-daemon test jacocoTestReport
+        run: ./gradlew test
 
       - name: Upload Jacoco HTML report
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: jacoco-html-report
@@ -47,7 +59,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload Jacoco XML report
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: jacoco-xml-report
