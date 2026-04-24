@@ -667,9 +667,9 @@ data: {"sessionId":"10001"}
 
 ## 7. 이번 정렬본에서 핵심 수정한 부분
 
-- GitHub URL 수기 입력 계약을 OAuth 기반 GitHub 연결 계약으로 변경
+- GitHub 연결 입력을 OAuth 기반 계약으로 변경
 - GitHub 분석 결과 구조를 `staticSignals`, `repoSummaries`, `techTags`, `depthEstimates`, `evidences`, `userCorrections`, `finalTechProfile` 기준으로 정리
 - 역량 진단 입력을 `profileId + githubAnalysisId`로 변경
-- 로드맵 생성 입력에서 GitHub 분석 ID와 코딩테스트 분석 ID를 제거
+- 로드맵 생성 입력을 `diagnosisId` 중심으로 단순화
 - 코치 세션 응답 버전 필드를 `roadmapVersion` 기준으로 정리
 - 코딩테스트 API를 현재 v1 공식 계약 범위에서 제거
