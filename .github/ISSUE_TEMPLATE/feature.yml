@@ -23,35 +23,10 @@ body:
       required: true
 
   - type: textarea
-    id: impact
-    attributes:
-      label: 영향 범위
-      description: backend, frontend, infra, docs 중 영향 범위를 적어주세요.
-      placeholder: 예) backend, infra
-    validations:
-      required: true
-
-  - type: textarea
     id: verification
     attributes:
-      label: 테스트 및 검증 기준
+      label: 완료 조건
       description: 완료 여부를 어떻게 확인할지 적어주세요.
       placeholder: 예) dev 대상 PR 생성 시 backend-ci가 자동 실행된다.
     validations:
       required: true
-
-  - type: textarea
-    id: docs
-    attributes:
-      label: 관련 문서
-      description: 수정해야 할 문서가 있으면 적어주세요.
-      placeholder: 예) README, docs/03_api_spec_aligned.md
-
-  - type: checkboxes
-    id: checklist
-    attributes:
-      label: 체크리스트
-      options:
-        - label: target branch는 dev를 기본으로 한다.
-        - label: 문서/설정 영향 여부를 확인했다.
-        - label: secret 또는 외부 설정 영향 여부를 확인했다.
