@@ -6,7 +6,7 @@ body:
     id: symptom
     attributes:
       label: 증상
-      description: 어떤 문제가 발생했는지 적어주세요.
+      description: 어떤 문제가 발생했고 현재 실제로 어떻게 동작하는지 적어주세요.
       placeholder: 예) dev 대상 PR에서 backend-ci가 실행되지 않는다.
     validations:
       required: true
@@ -31,27 +31,3 @@ body:
       placeholder: 예) backend-ci가 자동 실행되어야 한다.
     validations:
       required: true
-
-  - type: textarea
-    id: actual
-    attributes:
-      label: 실제 결과
-      description: 실제로 어떤 동작이 나왔는지 적어주세요.
-      placeholder: 예) workflow가 전혀 실행되지 않았다.
-    validations:
-      required: true
-
-  - type: textarea
-    id: impact
-    attributes:
-      label: 영향 범위
-      description: 어느 영역에 영향이 있는지 적어주세요.
-      placeholder: 예) backend-ci, GitHub Actions, release PR
-    validations:
-      required: true
-
-  - type: textarea
-    id: extra
-    attributes:
-      label: 참고 정보
-      description: 로그, 스크린샷, 관련 커밋이 있으면 적어주세요.
