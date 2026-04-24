@@ -1,4 +1,4 @@
-name: CI
+name: backend-ci
 
 on:
   pull_request:
@@ -24,8 +24,9 @@ permissions:
   contents: read
 
 jobs:
-  backend-ci:
-    name: backend-ci
+  backend-pr-check:
+    name: backend-pr-check
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -47,14 +48,14 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
 
-      - name: Run backend tests with Jacoco
-        run: ./gradlew test
+      - name: Run fast backend tests
+        run: ./gradlew --no-daemon test
 
       - name: Upload Jacoco HTML report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: jacoco-html-report
+          name: jacoco-html-report-pr
           path: backend/build/reports/jacoco/test/html
           if-no-files-found: warn
 
@@ -62,6 +63,49 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: jacoco-xml-report
+          name: jacoco-xml-report-pr
+          path: backend/build/reports/jacoco/test/jacocoTestReport.xml
+          if-no-files-found: warn
+
+  backend-full-verification:
+    name: backend-full-verification
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x ./gradlew
+
+      - name: Run full backend verification
+        run: ./gradlew --no-daemon fullVerification
+
+      - name: Upload Jacoco HTML report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-html-report-full
+          path: backend/build/reports/jacoco/test/html
+          if-no-files-found: warn
+
+      - name: Upload Jacoco XML report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-xml-report-full
           path: backend/build/reports/jacoco/test/jacocoTestReport.xml
           if-no-files-found: warn
