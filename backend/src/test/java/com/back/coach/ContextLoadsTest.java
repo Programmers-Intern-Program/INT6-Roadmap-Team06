@@ -1,19 +1,45 @@
 package com.back.coach;
 
-import com.back.coach.support.ApiTestBase;
+import com.back.coach.global.logging.TraceIdFilter;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * 테스트 스캐폴드 스모크: Spring 컨텍스트가 뜨고 MockMvc 가 동작하는지만 확인.
- * 실패 시 Docker Desktop / application-test.yml / Testcontainers 설정 점검.
+ * 경량 스모크: MockMvc 와 TraceIdFilter 가 빠르게 동작하는지만 확인.
  */
-class ContextLoadsTest extends ApiTestBase {
+class ContextLoadsTest {
+
+    private final MockMvc mockMvc = MockMvcBuilders
+            .standaloneSetup(new TestController())
+            .addFilters(new TraceIdFilter())
+            .build();
 
     @Test
-    void contextLoadsAndMockMvcServesRequests() throws Exception {
-        // 매핑되지 않은 경로라도 MockMvc 가 응답하면 컨텍스트는 정상.
-        mockMvc.perform(get("/__nonexistent__"));
+    @DisplayName("MockMvc 와 TraceId 필터가 빠르게 동작한다")
+    void mockMvcAndTraceIdFilterWork() throws Exception {
+        mockMvc.perform(get("/__test__/ping"))
+                .andExpect(status().isOk())
+                .andExpect(header().exists(TraceIdFilter.HEADER))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+                .andExpect(content().string("ok"));
+    }
+
+    @RestController
+    public static class TestController {
+
+        @GetMapping(path = "/__test__/ping", produces = MediaType.TEXT_PLAIN_VALUE)
+        String ping() {
+            return "ok";
+        }
     }
 }
