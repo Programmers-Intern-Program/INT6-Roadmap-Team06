@@ -1,3 +1,6 @@
+import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.testing.Test
+
 plugins {
   java
   id("org.springframework.boot") version "4.0.3"
@@ -84,9 +87,34 @@ dependencies {
   testImplementation("org.wiremock:wiremock-standalone:3.12.1")
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
   useJUnitPlatform()
+}
+
+tasks.test {
+  useJUnitPlatform {
+    excludeTags("integration")
+  }
   finalizedBy(tasks.jacocoTestReport)
+}
+
+val testSourceSet = the<JavaPluginExtension>().sourceSets.getByName("test")
+
+val integrationTest = tasks.register<Test>("integrationTest") {
+  description = "Runs integration tests that require Spring Boot and Testcontainers."
+  group = "verification"
+  testClassesDirs = testSourceSet.output.classesDirs
+  classpath = testSourceSet.runtimeClasspath
+  useJUnitPlatform {
+    includeTags("integration")
+  }
+  shouldRunAfter(tasks.test)
+}
+
+tasks.register("fullVerification") {
+  description = "Runs fast tests, integration tests, and JaCoCo report generation."
+  group = "verification"
+  dependsOn(tasks.test, integrationTest, tasks.jacocoTestReport)
 }
 
 jacoco {
