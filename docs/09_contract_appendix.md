@@ -347,6 +347,8 @@ shape
 | 항목 | 규칙 |
 | --- | --- |
 | diagnosisId | 필수 |
+| githubAnalysisId | 선택. Planner에 추가 GitHub 맥락을 제공할 때 사용 |
+| codingTestAnalysisId | 선택 |
 | totalWeeks | 기본 12, 허용 범위 1~24 |
 | estimatedHours | 주차별 0 초과, 소수 1자리 허용 |
 

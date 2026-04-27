@@ -407,6 +407,8 @@ v1 처리 기준
 ```json
 {
   "diagnosisId": "301",
+  "githubAnalysisId": "401",
+  "codingTestAnalysisId": "501",
   "weeklyStudyHours": 10,
   "targetDate": "2026-08-31"
 }
@@ -414,6 +416,8 @@ v1 처리 기준
 
 필드 규칙
 - `diagnosisId`: 필수
+- `githubAnalysisId`: 선택. Planner에 추가 GitHub 맥락을 제공할 때 사용
+- `codingTestAnalysisId`: 선택
 - `weeklyStudyHours`: 선택, 프로필 값 override 용도
 - `targetDate`: 선택, 프로필 값 override 용도
 
