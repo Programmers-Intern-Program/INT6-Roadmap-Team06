@@ -156,41 +156,131 @@ Analyzer/Planner 재실행 같은 무거운 작업의 비동기 처리는 별도
 - 필요한 컨텍스트만 조립해 비용을 줄인다.
 - 오래된 대화와 활동 로그를 압축해도 대화 품질을 유지한다.
 
-### 5.2 3-Tier Context 구조
+### 5.2 조립 원칙
 
-#### Tier 1. Profile Context
-- 상대적으로 변화가 적은 사용자 기본 맥락이다.
-- 목표 직무, 현재 수준, 주요 기술 스택, 최신 진단 요약, gap 요약을 포함한다.
-- Analyzer와 Planner, Coach가 공통으로 참조한다.
+- 원본은 PostgreSQL에서 읽는다.
+- 정규화 데이터와 JSONB 결과를 함께 읽는다.
+- snapshot은 읽기 최적화된 조립 결과이며 원본을 대체하지 않는다.
+- `ChatSession.profileVersion`, `roadmapVersion`은 세션 시작 시 고정한다.
 
-#### Tier 2. Plan Context
-- 현재 활성 로드맵과 실행 계획 중심의 맥락이다.
-- 주차별 계획 요약, 이번 주 목표, 최근 학습 활동 요약을 포함한다.
-- Planner와 Coach가 주로 사용한다.
+컨텍스트 조립 방식: use-case 템플릿 기반
 
-#### Tier 3. Conversation Context
-- 현재 대화 세션에 가까운 짧은 주기 맥락이다.
-- 최근 대화, 오늘의 활동 데이터, Pattern Detector 감지 이벤트를 포함한다.
-- Coach 전용에 가깝고 가장 자주 갱신된다.
+Context Manager는 호출 컴포넌트(Coach, Analyzer, Planner)와 처리 경로에 1:1로 대응하는 use-case 템플릿 단위로 컨텍스트를 조립한다. 각 컴포넌트는 템플릿 이름만 전달하면 Context Manager가 해당 슬롯을 조립해 반환한다.
 
-### 5.3 에이전트별 로딩 패턴
+**Coach 대화 템플릿**
 
-- `Analyzer.loadContext()`는 기본적으로 Tier 1을 읽는다.
-- `Planner.loadContext()`는 Tier 1과 Tier 2를 읽는다.
-- `Coach.loadContext()`는 Tier 1, Tier 2, Tier 3을 모두 읽는다.
+| 템플릿 | 처리 경로 | 포함 슬롯 | 권장 토큰 예산 |
+|--------|----------|-----------|----------------|
+| `COACH_LIGHTWEIGHT` | 단순 질문/조언 | 기본 프로필(목표 직무, 현재 수준) + 현재 주차 태스크 + 최근 진도 상태 | ~500 |
+| `COACH_PROGRESS_CHECK` | 진도 점검 / 캐시 조회 | LIGHTWEIGHT 슬롯 + 전체 로드맵 개요 + 최근 N주 진도 이력 + 역량 진단 요약 | ~1000 |
+| `COACH_FULL_CONTEXT` | 재분석/재계획 요청, 자율 트리거 판단 | PROGRESS_CHECK 슬롯 + 최근 대화 이력 + `user_signals` 미처리 신호 + GitHub 분석 요약 + 상세 진단 결과 | ~2000 |
 
-### 5.4 세션 일관성 원칙
+**Analyzer 템플릿**
+
+| 템플릿 | 처리 경로 | 포함 슬롯 | 권장 토큰 예산 |
+|--------|----------|-----------|----------------|
+| `ANALYZER_GITHUB_SUMMARY` | 핵심 리포 LLM 요약 생성 | 기본 프로필(목표 직무) + 선택된 저장소 메타데이터(README, 파일 구조, 언어) | ~1500 |
+| `ANALYZER_DIAGNOSIS` | 역량 진단 실행 | 기본 프로필(전체) + GitHub 정적 분석 결과 + GitHub LLM 요약(선택) + 직무 기준표 | ~2000 |
+
+**Planner 템플릿**
+
+| 템플릿 | 처리 경로 | 포함 슬롯 | 권장 토큰 예산 |
+|--------|----------|-----------|----------------|
+| `PLANNER_INITIAL` | 로드맵 최초 생성 | 역량 진단 결과(전체) + 코딩테스트 분석 요약(선택) + 학습 가능 시간 + 목표 날짜 | ~1500 |
+| `PLANNER_REPLAN` | 로드맵 재생성 (v2) | 역량 진단 결과(최신) + 현재 로드맵 + 전체 진도 이력 + `user_signals` 트리거 신호 + 학습 가능 시간 | ~2000 |
+
+슬롯별 캐싱 정책
+
+| 슬롯 | Redis TTL | 무효화 기준 |
+|------|-----------|-------------|
+| 기본 프로필 | 24h | 프로필 수정 |
+| 현재 주차 태스크 + 진도 상태 | 1h | `progress_logs` insert |
+| 전체 로드맵 개요 + 진도 이력 | 6h | `roadmap.updated` |
+| 역량 진단 결과 | 24h | `analysis.completed` |
+| GitHub 정적 분석 결과 | 24h | `analysis.completed` |
+| GitHub LLM 요약 | 24h | `analysis.completed` |
+| 최근 대화 이력 | 1h | 매 턴 갱신 |
+| `user_signals` 미처리 신호 | 캐싱 없음 | 매 턴 DB 직접 조회 |
+| 저장소 메타데이터 (README 등) | 6h | `user.portfolio.updated` |
+
+토큰 예산은 기준값이며 운영 중 비용·품질 trade-off를 관찰하며 조정한다. 슬롯 구성은 팀 협의로 추가하거나 변경할 수 있다.
+
+### 5.2.1 대안 설계 (구현 시 선택 가능)
+
+위 use-case 템플릿 방식 외에 두 가지 대안을 검토할 수 있다. 구현 담당자가 상황에 맞게 선택한다.
+
+---
+
+**대안 A: Slot 기반 조립**
+
+템플릿 이름 대신 필요한 슬롯을 호출자가 직접 명시한다.
+
+```
+contextManager.assemble(userId, [SLOT.PROFILE, SLOT.CURRENT_WEEK, SLOT.SIGNALS])
+```
+
+장점
+- 가장 유연. 템플릿에 없는 조합도 즉시 가능
+- 새 슬롯 추가 시 호출자 코드만 변경
+
+단점
+- Coach/Analyzer/Planner가 각자 어떤 슬롯이 필요한지 알아야 함 → 컴포넌트 간 결합 증가
+- 슬롯 목록이 흩어지면 전체 파악이 어려워짐
+
+적합한 상황
+- v2 후반 확장 단계에서 Coach 처리 경로가 더 세분화될 때
+
+---
+
+**대안 B: Tier 기반 조립**
+
+컨텍스트를 무게별로 3개 계층으로 나누고 번호로 호출한다.
+
+| Tier | 내용 | 권장 토큰 |
+|------|------|-----------|
+| Tier 1 | 기본 프로필 + 현재 주차 태스크 + 최근 진도 | ~500 |
+| Tier 2 | Tier 1 + 전체 로드맵 + 진단 요약 | ~1000 |
+| Tier 3 | Tier 2 + 대화 이력 + user_signals + GitHub 요약 | ~2000 |
+
+```
+contextManager.load(userId, tier=2)
+```
+
+각 Tier의 상세 구성:
+- **Tier 1 (Profile Context)**: 목표 직무, 현재 수준, 주요 기술 스택, 최신 진단 요약, gap 요약. Analyzer·Planner·Coach가 공통으로 참조한다.
+- **Tier 2 (Plan Context)**: 현재 활성 로드맵과 실행 계획, 주차별 계획 요약, 이번 주 목표, 최근 학습 활동 요약. Planner와 Coach가 주로 사용한다.
+- **Tier 3 (Conversation Context)**: 최근 대화, 오늘의 활동 데이터, Pattern Detector 감지 신호. Coach 전용에 가깝고 가장 자주 갱신된다.
+
+에이전트별 기본 로딩: Analyzer → Tier 1, Planner → Tier 1+2, Coach → Tier 1+2+3
+
+장점
+- 구현 단순. 번호 하나로 로딩 범위 결정
+- 캐싱 계층이 명확히 나뉨
+
+단점
+- Analyzer/Planner 전용 컨텍스트(GitHub 메타데이터, 직무 기준표 등)를 담기 어려움 → Coach 대화에만 자연스럽게 맞음
+- 중간 무게 조합(예: Tier 1 + 신호만)이 필요하면 Tier 경계를 어기거나 새 Tier를 추가해야 함
+
+적합한 상황
+- Coach 대화에만 Context Manager를 쓰는 초기 단계
+
+---
+
+세 방식 비교
+
+| 항목 | use-case 템플릿 (현재) | Slot 기반 | Tier 기반 |
+|------|----------------------|-----------|-----------|
+| 유연성 | 중간 | 높음 | 낮음 |
+| 구현 단순도 | 중간 | 낮음 | 높음 |
+| Coach/Analyzer/Planner 모두 커버 | ✅ | ✅ | △ (Coach 위주) |
+| 슬롯 추가 비용 | 템플릿 1개 추가 | 호출자 수정 | Tier 재정의 |
+
+### 5.3 세션 일관성 원칙
 
 - Coach 세션이 시작될 때 현재 활성 `profileVersion`, `roadmapVersion`을 세션에 기록한다.
 - 대화 세션이 유지되는 동안에는 같은 버전을 계속 읽는다.
 - 세션 중간에 새 로드맵이 생성되어도 진행 중인 대화는 자동으로 기준 버전을 바꾸지 않는다.
-- 새 버전 반영은 다음 대화 진입 또는 명시적 사용자 확인 이후에 처리한다.
-
-### 5.3 세션 일관성 원칙
-
-- 세션 생성 시점의 활성 `profileVersion`, `roadmapVersion`을 고정해 읽는다.
-- 세션 진행 중 새 version의 결과가 생성되어도 기존 세션 기준 버전은 자동 변경하지 않는다.
-- 새 version 반영 UX는 다음 두 가지 중 선택한다:
+- 새 버전 반영은 다음 대화 진입 또는 명시적 사용자 확인 이후에 처리한다. 옵션:
   - (a) 다음 대화 진입 시점에 시스템 메시지로 알림 + 사용자가 적용 여부 선택 (기본값)
   - (b) 세션 종료 후 다음 세션부터 자동 적용
 
