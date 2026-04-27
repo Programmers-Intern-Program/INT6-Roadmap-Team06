@@ -1,8 +1,12 @@
 spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   datasource:
-    url: jdbc:postgresql://localhost:5433/coachdb
-    username: coach
-    password: coach
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/coachdb}
+    username: ${DATABASE_USERNAME:coach}
+    password: ${DATABASE_PASSWORD:coach}
   jpa:
     hibernate:
       ddl-auto: none
