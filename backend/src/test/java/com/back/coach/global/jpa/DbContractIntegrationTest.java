@@ -57,6 +57,37 @@ class DbContractIntegrationTest {
                 .doesNotContain("createDate", "modifyDate");
     }
 
+    @Test
+    @DisplayName("기본 백엔드 직무와 기술 요구사항 seed data가 생성된다")
+    void jobRoleSeedDataExists() {
+        Long backendRoleId = jdbcTemplate.queryForObject("""
+                SELECT id
+                FROM job_roles
+                WHERE role_code = 'BACKEND_DEVELOPER'
+                """, Long.class);
+
+        assertThat(backendRoleId).isNotNull();
+
+        Set<String> skillNames = Set.copyOf(jdbcTemplate.queryForList("""
+                SELECT skill_name
+                FROM skill_requirements
+                WHERE job_role_id = ?
+                """, String.class, backendRoleId));
+
+        assertThat(skillNames)
+                .contains("Java", "Spring Boot", "REST API", "PostgreSQL", "Redis")
+                .hasSizeGreaterThanOrEqualTo(10);
+
+        Integer springBootImportance = jdbcTemplate.queryForObject("""
+                SELECT importance
+                FROM skill_requirements
+                WHERE job_role_id = ?
+                  AND skill_name = 'Spring Boot'
+                """, Integer.class, backendRoleId);
+
+        assertThat(springBootImportance).isEqualTo(5);
+    }
+
     private boolean tableExists(String tableName) {
         Boolean exists = jdbcTemplate.queryForObject("""
                 SELECT EXISTS (
