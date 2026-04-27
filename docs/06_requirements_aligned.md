@@ -75,17 +75,23 @@
 - 학습 가능 시간, 관심 분야 반영 강화
 - 장시간 분석 작업의 비동기 확장
 
-### 5.3 v2 확장
+### 5.3 v2 핵심 확장
 
 - Analyzer, Planner, Coach 역할 분리
 - Context Manager 기반 상태 관리
-- 이벤트 기반 피드백 루프
-- AI 코치 채팅
+- Pattern Detector + user_signals 기반 피드백 루프
+- AI 코치 채팅 (Coach)
 - Pattern Detector 기반 재분석 / 재계획
-- Planner의 Function Calling 기반 검증 자료 결합
+- Planner의 Function Calling 기반 검증 자료 결합 (v2 후순위)
 - Daily Quest, Streak, Activity Heatmap
 - 코딩테스트 분석 draft
 - Observability 고도화
+
+### 5.4 v2 추가 검토 (후순위)
+
+- 포트폴리오 도우미
+- 잔소리 알림
+- 코딩테스트 약점 분석 v2 draft (외부 API 미확보, v1에서 끌어올리지 않음)
 
 ---
 
@@ -142,14 +148,17 @@
 - AI 코치는 세션 생성 후 대화를 시작해야 한다
 - 세션 생성 시점의 `profileVersion`, `roadmapVersion`은 고정돼야 한다
 - AI 코치는 최신 진단 결과와 로드맵을 읽어 오늘의 할 일과 진도 점검을 제공해야 한다
-- 필요 시 재분석 또는 재계획 이벤트를 발행할 수 있어야 한다
+- Coach는 사용자 발화 의도에 따라 경량 응답, 캐시 조회, 동기 재분석, 자율 트리거 4가지 처리 경로를 분기해야 한다
+- Pattern Detector는 LLM을 사용하지 않고 SQL 기반 배치(@Scheduled)로 패턴을 감지하여 `user_signals` 테이블에 저장해야 한다
+- Coach는 수치 기반 패턴을 직접 감지하지 않는다. `user_signals` 미처리 신호를 매 turn 조회하여 사용자 발화와 종합해 판단해야 한다
 - 재계획 결과가 생성되어도 진행 중인 세션은 자동으로 새 버전으로 전환되지 않아야 한다
+- LLM 호출 계층은 Spring AI 기반으로 구현하며, 도구 선택은 아키텍처 적합성을 기준으로 유동적으로 결정한다
 
 ### 6.7 v2 Context / Event 기준
 
-- Context Manager는 Tier 조립, 버전 관리, 캐싱, 압축 오케스트레이션을 담당해야 한다
+- Context Manager는 use-case 템플릿 기반 컨텍스트 조립, 버전 관리, 캐싱, 압축 오케스트레이션을 담당해야 한다
 - Context Manager는 비즈니스 판단, 직접적인 LLM 응답 생성, 이벤트 발행 책임을 가지지 않아야 한다
-- Analyzer는 기본적으로 Tier 1을, Planner는 Tier 1과 Tier 2를, Coach는 Tier 1, Tier 2, Tier 3을 읽어야 한다
+- 각 컴포넌트는 처리 경로에 맞는 템플릿을 요청하면 Context Manager가 해당 슬롯을 조립해 반환해야 한다
 - 이벤트는 notification + pull 패턴을 따라야 하며, payload에는 최소 메타데이터만 담아야 한다
 - 같은 사용자에 대한 재분석, 재계획은 쿨다운과 사용자 확인 기준을 둘 수 있어야 한다
 

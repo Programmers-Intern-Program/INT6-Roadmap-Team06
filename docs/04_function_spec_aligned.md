@@ -346,10 +346,15 @@ GitHub 기반 실제 사용 기술 분석
 ### 7.4 처리
 
 1. 세션 생성 시 `profileVersion`, `roadmapVersion` 고정
-2. Context Manager를 통한 Tier 기반 컨텍스트 조회
-3. 의도 분류
+2. Context Manager에서 처리 경로에 맞는 템플릿으로 컨텍스트 조회 (`user_signals` 미처리 신호는 `COACH_FULL_CONTEXT` 시에만 포함)
+3. 의도 분류 및 처리 경로 결정:
+   - 단순 질문/조언 → `COACH_LIGHTWEIGHT` 템플릿으로 자체 응답
+   - 캐시된 결과 조회 요청 → Context Manager에서 최신 진단/로드맵 조회 후 응답
+   - 명시적 재분석/재계획 요청 → 사용자 확인 후 Analyzer/Planner 동기 호출
+   - 자율 트리거 → `user_signals` 신호 + 사용자 발화 종합 판단, 재계획 제안 또는 dismiss
 4. 자연어 응답 생성
-5. 필요 시 재분석 또는 재계획 이벤트 발행
+5. 처리한 `user_signals` 신호에 `processed_at` 마킹
+6. 무거운 재실행(Analyzer/Planner)이 필요한 경우 `coach.requested_reanalysis` 또는 `coach.requested_replan` 이벤트 발행
 
 ### 7.5 출력
 

@@ -266,7 +266,11 @@
 ### 3.16 AgentEvent (v2)
 
 목적
-- 에이전트 간 이벤트 로그를 저장한다.
+- 무거운 작업 트리거와 완료 알림을 위한 이벤트 로그를 저장한다.
+
+설명
+- `sourceAgent`는 Coach (사용자 명시 요청)만 발행한다. Pattern Detector의 자율 감지 신호는 이 테이블에 저장하지 않는다.
+- 사용되는 이벤트: `user.portfolio.updated`, `analysis.completed`, `roadmap.updated`, `coach.requested_reanalysis`, `coach.requested_replan`
 
 주요 속성
 - id
@@ -284,7 +288,12 @@
 ### 3.17 DetectedPattern (v2)
 
 목적
-- 패턴 감지 결과를 저장한다.
+- Pattern Detector가 SQL 배치로 감지한 신호를 저장한다 (user_signals 테이블).
+
+설명
+- Pattern Detector가 @Scheduled 배치에서 SQL 카운팅·임계치 검사 후 row를 insert한다.
+- Coach가 매 turn 진입 시 미처리 row(acknowledgedAt IS NULL)를 조회하고, 사용자 발화와 종합 판단 후 `acknowledgedAt`을 마킹한다.
+- 이 테이블은 이벤트를 발행하지 않는다. Coach를 직접 트리거하지 않는다.
 
 주요 속성
 - id

@@ -356,7 +356,7 @@ v1 처리 기준
 
 필드 규칙
 - `profileId`: 필수, 현재 로그인 사용자 소유 프로필이어야 함
-- `githubAnalysisId`: 필수, 현재 로그인 사용자 소유 GitHub 분석 결과여야 함
+- `githubAnalysisId`: 선택, 현재 로그인 사용자 소유 GitHub 분석 결과여야 함. 제공 시 진단 품질이 향상된다
 
 응답 body
 ```json
@@ -407,6 +407,8 @@ v1 처리 기준
 ```json
 {
   "diagnosisId": "301",
+  "githubAnalysisId": "401",
+  "codingTestAnalysisId": "501",
   "weeklyStudyHours": 10,
   "targetDate": "2026-08-31"
 }
@@ -414,6 +416,8 @@ v1 처리 기준
 
 필드 규칙
 - `diagnosisId`: 필수
+- `githubAnalysisId`: 선택. Planner에 추가 GitHub 맥락을 제공할 때 사용
+- `codingTestAnalysisId`: 선택
 - `weeklyStudyHours`: 선택, 프로필 값 override 용도
 - `targetDate`: 선택, 프로필 값 override 용도
 
