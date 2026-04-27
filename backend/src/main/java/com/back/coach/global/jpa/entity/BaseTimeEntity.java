@@ -19,10 +19,10 @@ import java.time.Instant;
 public abstract class BaseTimeEntity extends BaseEntity {
 
     @CreatedDate
-    @Column(name = "createDate", nullable = false, updatable = false)
-    private Instant createDate;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
     @LastModifiedDate
-    @Column(name = "modifyDate", nullable = false)
-    private Instant modifyDate;
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 }
