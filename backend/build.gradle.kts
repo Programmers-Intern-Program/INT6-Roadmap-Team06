@@ -53,9 +53,6 @@ dependencies {
   // Redis
   implementation("org.springframework.boot:spring-boot-starter-data-redis")
 
-  // GLM (Zhipu) LLM
-  implementation("ai.z.openapi:zai-sdk:0.3.3")
-
   // JSON Schema Validation (LLM 응답 검증)
   implementation("com.networknt:json-schema-validator:1.5.6")
 

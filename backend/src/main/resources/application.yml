@@ -52,10 +52,10 @@ security:
     frontend-redirect-url: ${FRONTEND_URL:http://localhost:3000}
 
 ai:
-  glm:
-    api-key: ${GLM_API_KEY:}
-    base-url: ${GLM_BASE_URL:https://open.bigmodel.cn/api/paas/v4}
-    model: ${GLM_MODEL:glm-4-flash}
+  gateway:
+    api-key: ${AI_GATEWAY_API_KEY:}
+    base-url: ${AI_GATEWAY_BASE_URL:http://localhost:0}
+    model: ${AI_GATEWAY_MODEL:default}
     timeout:
       connect: 5s
       read: 120s
