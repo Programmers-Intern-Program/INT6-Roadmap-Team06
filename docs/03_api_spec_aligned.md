@@ -356,7 +356,7 @@ v1 처리 기준
 
 필드 규칙
 - `profileId`: 필수, 현재 로그인 사용자 소유 프로필이어야 함
-- `githubAnalysisId`: 필수, 현재 로그인 사용자 소유 GitHub 분석 결과여야 함
+- `githubAnalysisId`: 선택, 현재 로그인 사용자 소유 GitHub 분석 결과여야 함. 제공 시 진단 품질이 향상된다
 
 응답 body
 ```json

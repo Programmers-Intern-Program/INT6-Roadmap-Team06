@@ -340,7 +340,7 @@ shape
 | 항목 | 규칙 |
 | --- | --- |
 | profileId | 필수, 현재 사용자 소유 |
-| githubAnalysisId | 필수, 현재 사용자 소유 |
+| githubAnalysisId | 선택, 현재 사용자 소유. 제공 시 진단 품질이 향상됨 |
 
 ## 5.5 로드맵 입력/생성
 

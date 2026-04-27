@@ -113,7 +113,7 @@ v2는 v1 기능이 안정적으로 동작한 뒤, 그 결과를 재사용해 멀
 v2의 핵심 확장
 - Analyzer, Planner, Coach 역할 분리
 - Context Manager 기반 상태 관리
-- 이벤트 기반 피드백 루프
+- Pattern Detector + user_signals 기반 자율 피드백 루프
 - Pattern Detector 기반 재분석 또는 재계획
 - 일일 코치 대화
 - Function Calling 기반 검증 자료 결합
@@ -193,7 +193,7 @@ v1에는 Coach 대화 인터페이스가 없다. Coach는 v2에서 추가되는 
 1. v1에서 이미 로드맵이 생성된 사용자가 AI 코치 채팅방에 진입한다
 2. 시스템이 코치 세션을 생성한다
 3. 세션 생성 시점의 `profileVersion`, `roadmapVersion`을 고정한다
-4. Coach가 Tier 기반 컨텍스트를 읽는다
+4. Coach가 처리 경로에 맞는 use-case 템플릿으로 컨텍스트를 읽는다
 5. 사용자가 메시지를 보내면 시스템이 응답과 의도를 반환한다
 6. 필요 시 재분석 또는 재계획 이벤트가 발생한다
 7. 코딩테스트 draft 기능은 별도 후순위 파이프라인으로만 확장한다
