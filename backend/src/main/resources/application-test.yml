@@ -8,6 +8,7 @@ spring:
     enabled: true
 
 ai:
-  glm:
+  gateway:
     api-key: test-key
     base-url: http://localhost:${wiremock.server.port}
+    model: test-model
