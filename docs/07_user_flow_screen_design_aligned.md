@@ -50,7 +50,7 @@ v1에는 Coach 채팅 화면이 없다. Coach 대화 인터페이스는 v2에서
 1. v1에서 이미 로드맵이 생성된 사용자가 AI 코치 채팅방에 진입한다
 2. 시스템이 먼저 코치 세션을 생성한다
 3. 세션 생성 시점의 `profileVersion`, `roadmapVersion`을 고정한다
-4. Coach가 Tier 1, Tier 2, Tier 3 컨텍스트를 불러온다
+4. Coach가 처리 경로에 맞는 템플릿(COACH_LIGHTWEIGHT / PROGRESS_CHECK / FULL_CONTEXT)으로 컨텍스트를 불러온다
 5. 사용자가 메시지를 보내면 시스템이 응답과 의도를 반환한다
 6. 필요 시 스트리밍 응답을 SSE로 수신한다
 7. 필요 시 재분석 또는 재계획 이벤트가 발생한다
@@ -326,7 +326,7 @@ v1에는 Coach 채팅 화면이 없다. Coach 대화 인터페이스는 v2에서
 
 계약 기준
 - 세션 시작 시 `profileVersion`, `roadmapVersion` 고정
-- Coach는 기본적으로 Tier 1, Tier 2, Tier 3을 읽는다
+- Coach는 처리 경로에 맞는 use-case 템플릿으로 컨텍스트를 조립한다
 - 현재 세션 중 새 결과가 생성되어도 화면은 자동으로 기준 버전을 바꾸지 않는다
 - `detectedIntent`는 내부 enum을 프론트 라벨로 변환해 표시한다
 

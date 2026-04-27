@@ -186,19 +186,9 @@ Analyzer/Planner 재실행 같은 무거운 작업의 비동기 처리는 별도
 - 세션 중간에 새 로드맵이 생성되어도 진행 중인 대화는 자동으로 기준 버전을 바꾸지 않는다.
 - 새 버전 반영은 다음 대화 진입 또는 명시적 사용자 확인 이후에 처리한다.
 
-3-Tier 구조 및 Tier별 토큰 예산 / 캐싱 정책
-
-| Tier | 내용                              | 권장 토큰 예산 | Redis TTL | 무효화 기준 |
-|------|---------------------------------|----------|-----------|-------------|
-| Tier 1 | 프로필, (+진단 요약, GitHub 분석 요약 등)   | ~1000    | 24h | `analysis.completed` 이벤트 |
-| Tier 2 | 로드맵, 주차 계획, 진도 상태               | ~1000    | 1h + PostgreSQL 원본 | `roadmap.updated` 이벤트 |
-| Tier 3 | 최근 대화 이력, `user_signals` 미처리 신호 | ~1500    | 1h | 매 턴 갱신 |
-
-토큰 예산은 기준값이며 운영 중 비용·품질 trade-off를 관찰하며 조정한다.
-
 ### 5.3 세션 일관성 원칙
 
-- 세션 생성 시점의 활성 `profileVersion`, `planVersion`을 고정해 읽는다.
+- 세션 생성 시점의 활성 `profileVersion`, `roadmapVersion`을 고정해 읽는다.
 - 세션 진행 중 새 version의 결과가 생성되어도 기존 세션 기준 버전은 자동 변경하지 않는다.
 - 새 version 반영 UX는 다음 두 가지 중 선택한다:
   - (a) 다음 대화 진입 시점에 시스템 메시지로 알림 + 사용자가 적용 여부 선택 (기본값)
@@ -217,7 +207,7 @@ Analyzer/Planner 재실행 같은 무거운 작업의 비동기 처리는 별도
 
 ### 7.1 Pattern Detector 신호 (user_signals 테이블)
 
-Pattern Detector는 이벤트를 발행하지 않는다. 감지된 신호는 `user_signals` 테이블에 row로 insert되며, Coach가 매 turn 진입 시 미처리 신호(processed_at IS NULL)를 Context Manager(Tier 3)를 통해 조회한다.
+Pattern Detector는 이벤트를 발행하지 않는다. 감지된 신호는 `user_signals` 테이블에 row로 insert되며, Coach가 매 turn 진입 시 `COACH_FULL_CONTEXT` 템플릿을 통해 미처리 신호(processed_at IS NULL)를 조회한다.
 
 Coach는 사용자 발화와 누적 신호를 종합해 판단한다:
 - "오늘 사용자가 '힘들다' + 3일 미달성 신호 있음 → 재계획 제안"

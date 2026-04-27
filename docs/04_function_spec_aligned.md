@@ -345,7 +345,7 @@ GitHub 기반 실제 사용 기술 분석
 
 ### 7.4 처리
 
-1. 세션 생성 시 `profileVersion`, `planVersion` 고정
+1. 세션 생성 시 `profileVersion`, `roadmapVersion` 고정
 2. Context Manager에서 처리 경로에 맞는 템플릿으로 컨텍스트 조회 (`user_signals` 미처리 신호는 `COACH_FULL_CONTEXT` 시에만 포함)
 3. 의도 분류 및 처리 경로 결정:
    - 단순 질문/조언 → `COACH_LIGHTWEIGHT` 템플릿으로 자체 응답
