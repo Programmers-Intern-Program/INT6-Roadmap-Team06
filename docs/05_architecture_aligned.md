@@ -357,29 +357,29 @@ Coach가 신호를 처리한 후 `processed_at`을 마킹한다.
 
 ## 10. 기술 스택 및 Spring AI 도입 원칙
 
-### 11.1 LLM 호출 계층
+### 10.1 LLM 호출 계층
 
 LLM 호출 계층은 Spring AI 기반으로 구현한다. GLM 등 비표준 모델은 Custom ChatModel 어댑터를 구현하거나, OpenAI 호환 endpoint 활용 여부를 사전 spike test로 검증한다.
 
-### 11.2 v1에서 사용할 Spring AI 기능
+### 10.2 v1에서 사용할 Spring AI 기능
 
 - `ChatClient` — LLM 호출 추상화
 - `MessageWindowChatMemory` — 대화 이력 관리 (v1 범위에서 충분)
 - 구조화 출력 (JSON 모드) — 진단, 로드맵 생성 결과 파싱
 
-### 11.3 v2에서 검토할 Spring AI 기능
+### 10.3 v2에서 검토할 Spring AI 기능
 
 - `ChatClient` + `Advisor` 패턴 — Coach 응답 파이프라인
 - 도구 호출 (Function Calling) — Planner 2단계 생성(구조 먼저 → 검증된 자료 결합)에 활용 가능
 - `ChatMemory` — v1에서 충분. `Session API`는 인큐베이션 단계(1.0 미만, GLM 호환 미검증)이므로 후순위
 
-### 11.4 채택하지 않는 Spring AI 기능 (근거 명시)
+### 10.4 채택하지 않는 Spring AI 기능 (근거 명시)
 
 - `AutoMemoryTools`: 단일 사용자 CLI용 설계, multi-user SaaS에 보안 위험. 본 서비스의 JSONB 기반 Context Manager + `user_signals` 구조가 더 적합.
 - `Subagent Orchestration` (spring-ai-agent-utils, org.springaicommunity): v0.4.x community org 라이브러리. GLM 어댑터 호환 미검증. 핵심 경로 도입 전 spike test 필요. 본 서비스의 신호 기반 구조와 패러다임 차이 있음.
 - `Orchestrator-Workers 동기 패턴`: Coach를 동기 Orchestrator로 구성하면 "사용자 개입 없는 자율 피드백 루프"가 불가능해짐. Coach는 동기 Orchestrator가 아니라 turn-time 판단 허브다.
 
-### 11.5 원칙
+### 10.5 원칙
 
 Spring AI 기능 목록은 구현 전 팀이 직접 조사해서 결정한다. 이 섹션의 내용은 현재 시점에서의 초기 평가이며, 실제 spike test와 GLM 호환성 검증 후 내용이 바뀔 수 있다. 어떤 기능을 쓸지, 직접 구현할지는 팀이 결정한다.
 
