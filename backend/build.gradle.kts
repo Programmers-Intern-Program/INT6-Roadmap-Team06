@@ -97,6 +97,17 @@ tasks.test {
 
 val testSourceSet = the<JavaPluginExtension>().sourceSets.getByName("test")
 
+val prIntegrationTest = tasks.register<Test>("prIntegrationTest") {
+  description = "Runs integration tests that must pass before merging a PR."
+  group = "verification"
+  testClassesDirs = testSourceSet.output.classesDirs
+  classpath = testSourceSet.runtimeClasspath
+  useJUnitPlatform {
+    includeTags("pr-gate")
+  }
+  shouldRunAfter(tasks.test)
+}
+
 val integrationTest = tasks.register<Test>("integrationTest") {
   description = "Runs integration tests that require Spring Boot and Testcontainers."
   group = "verification"
@@ -106,6 +117,12 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     includeTags("integration")
   }
   shouldRunAfter(tasks.test)
+}
+
+tasks.register("prVerification") {
+  description = "Runs fast tests and PR-gate integration tests."
+  group = "verification"
+  dependsOn(tasks.test, prIntegrationTest)
 }
 
 tasks.register("fullVerification") {

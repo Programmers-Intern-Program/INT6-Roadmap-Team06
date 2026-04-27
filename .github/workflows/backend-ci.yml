@@ -48,8 +48,16 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
 
-      - name: Run fast backend tests
-        run: ./gradlew --no-daemon test
+      - name: Run PR backend verification
+        run: ./gradlew --no-daemon prVerification
+
+      - name: Upload PR integration test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-integration-test-report
+          path: backend/build/reports/tests/prIntegrationTest
+          if-no-files-found: warn
 
       - name: Upload Jacoco HTML report
         if: failure()
@@ -93,6 +101,14 @@ jobs:
 
       - name: Run full backend verification
         run: ./gradlew --no-daemon fullVerification
+
+      - name: Upload integration test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-report-full
+          path: backend/build/reports/tests/integrationTest
+          if-no-files-found: warn
 
       - name: Upload Jacoco HTML report
         if: failure()

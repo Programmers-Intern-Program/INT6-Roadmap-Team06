@@ -7,14 +7,16 @@ spring:
 
 # 컨텍스트 로드용 더미 값. 실제 호출은 stub 또는 mock 으로 대체.
 ai:
-  glm:
+  gateway:
     api-key: test-dummy
     base-url: http://localhost:0
-    model: glm-4-flash
+    model: test-model
 
 security:
   jwt:
     secret: test-jwt-secret-key-for-tests-only-do-not-use-in-production-0123456789
+    access-ttl-seconds: 900
+    refresh-ttl-seconds: 86400
 
 logging:
   level:
