@@ -66,3 +66,7 @@ ai:
   concurrency:
     max-concurrent-calls: 4
     queue-timeout-seconds: 180
+
+github:
+  api:
+    base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
