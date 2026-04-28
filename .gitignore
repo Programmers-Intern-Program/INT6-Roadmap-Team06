@@ -22,3 +22,4 @@ node_modules/
 
 # 개인 문서
 .local/
+AGENTS.md
