@@ -59,22 +59,6 @@ jobs:
           path: backend/build/reports/tests/prIntegrationTest
           if-no-files-found: warn
 
-      - name: Upload Jacoco HTML report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-html-report-pr
-          path: backend/build/reports/jacoco/test/html
-          if-no-files-found: warn
-
-      - name: Upload Jacoco XML report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jacoco-xml-report-pr
-          path: backend/build/reports/jacoco/test/jacocoTestReport.xml
-          if-no-files-found: warn
-
   backend-full-verification:
     name: backend-full-verification
     if: github.event_name == 'push'
