@@ -1,0 +1,27 @@
+{
+  "missingSkills": [
+    {
+      "skillName": "Redis",
+      "severity": "HIGH",
+      "reason": "Needs cache and session design practice",
+      "priorityOrder": 1
+    }
+  ],
+  "strengths": [
+    "Spring Boot",
+    "JPA"
+  ],
+  "recommendations": [
+    "Study Redis data structures and TTL",
+    "Apply caching to a small backend project"
+  ],
+  "githubInsights": {
+    "confirmedSkills": [
+      "Java",
+      "Spring Boot"
+    ],
+    "newFromGithub": [
+      "Redis"
+    ]
+  }
+}
