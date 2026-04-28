@@ -5,14 +5,15 @@ import com.back.coach.domain.user.entity.User;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.back.coach.global.security.AuthenticatedUser;
+import com.back.coach.global.security.CookieManager;
 import com.back.coach.global.security.JwtProperties;
 import com.back.coach.global.security.JwtTokenProvider;
 import com.back.coach.service.auth.AuthService;
 import com.back.coach.service.auth.TokenPair;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+
+import java.time.Duration;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,16 +31,16 @@ public class AuthController {
     private final AuthService authService;
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
-    private final boolean secureCookie;
+    private final CookieManager cookieManager;
 
     public AuthController(AuthService authService,
                           JwtTokenProvider jwtTokenProvider,
                           JwtProperties jwtProperties,
-                          @Value("${security.cookie.secure:false}") boolean secureCookie) {
+                          CookieManager cookieManager) {
         this.authService = authService;
         this.jwtTokenProvider = jwtTokenProvider;
         this.jwtProperties = jwtProperties;
-        this.secureCookie = secureCookie;
+        this.cookieManager = cookieManager;
     }
 
     @GetMapping("/me")
@@ -60,35 +61,17 @@ public class AuthController {
         }
         Long userId = jwtTokenProvider.parseRefreshToken(refreshToken).userId();
         TokenPair pair = authService.issueTokens(userId);
-        response.addCookie(buildCookie(ACCESS_TOKEN_COOKIE, pair.accessToken(),
-                (int) jwtProperties.accessTtlSeconds()));
-        response.addCookie(buildCookie(REFRESH_TOKEN_COOKIE, pair.refreshToken(),
-                (int) jwtProperties.refreshTtlSeconds()));
+        cookieManager.add(response, ACCESS_TOKEN_COOKIE, pair.accessToken(),
+                Duration.ofSeconds(jwtProperties.accessTtlSeconds()));
+        cookieManager.add(response, REFRESH_TOKEN_COOKIE, pair.refreshToken(),
+                Duration.ofSeconds(jwtProperties.refreshTtlSeconds()));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletResponse response) {
-        response.addCookie(expiredCookie(ACCESS_TOKEN_COOKIE));
-        response.addCookie(expiredCookie(REFRESH_TOKEN_COOKIE));
+        cookieManager.clear(response, ACCESS_TOKEN_COOKIE);
+        cookieManager.clear(response, REFRESH_TOKEN_COOKIE);
         return ResponseEntity.noContent().build();
-    }
-
-    private Cookie buildCookie(String name, String value, int maxAgeSeconds) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(secureCookie);
-        cookie.setPath("/");
-        cookie.setMaxAge(maxAgeSeconds);
-        return cookie;
-    }
-
-    private Cookie expiredCookie(String name) {
-        Cookie cookie = new Cookie(name, "");
-        cookie.setHttpOnly(true);
-        cookie.setSecure(secureCookie);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        return cookie;
     }
 }

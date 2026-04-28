@@ -77,6 +77,7 @@ public class SecurityConfig {
                 "X-Trace-Id"
         ));
         configuration.setExposedHeaders(List.of("X-Trace-Id"));
+        configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

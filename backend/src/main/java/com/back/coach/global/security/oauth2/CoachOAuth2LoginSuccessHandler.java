@@ -1,12 +1,12 @@
 package com.back.coach.global.security.oauth2;
 
 import com.back.coach.global.exception.ServiceException;
+import com.back.coach.global.security.CookieManager;
 import com.back.coach.global.security.JwtProperties;
 import com.back.coach.service.auth.AuthService;
 import com.back.coach.service.auth.GithubUserInfo;
 import com.back.coach.service.auth.OAuthLoginResult;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +19,7 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.time.Duration;
 
 @Component
 @ConditionalOnProperty(prefix = "spring.security.oauth2.client.registration.github", name = "client-id")
@@ -30,21 +31,21 @@ public class CoachOAuth2LoginSuccessHandler implements AuthenticationSuccessHand
     private final AuthService authService;
     private final OAuth2AuthorizedClientService authorizedClientService;
     private final JwtProperties jwtProperties;
+    private final CookieManager cookieManager;
     private final String defaultRedirectUrl;
-    private final boolean secureCookie;
 
     public CoachOAuth2LoginSuccessHandler(
             AuthService authService,
             OAuth2AuthorizedClientService authorizedClientService,
             JwtProperties jwtProperties,
-            @Value("${security.oauth2.frontend-redirect-url}") String defaultRedirectUrl,
-            @Value("${security.cookie.secure:false}") boolean secureCookie
+            CookieManager cookieManager,
+            @Value("${security.oauth2.frontend-redirect-url}") String defaultRedirectUrl
     ) {
         this.authService = authService;
         this.authorizedClientService = authorizedClientService;
         this.jwtProperties = jwtProperties;
+        this.cookieManager = cookieManager;
         this.defaultRedirectUrl = defaultRedirectUrl;
-        this.secureCookie = secureCookie;
     }
 
     @Override
@@ -60,21 +61,12 @@ public class CoachOAuth2LoginSuccessHandler implements AuthenticationSuccessHand
         GithubUserInfo info = GithubUserInfoMapper.from(token.getPrincipal());
         OAuthLoginResult result = authService.loginWithGithub(info, githubAccessToken);
 
-        response.addCookie(buildCookie(ACCESS_TOKEN_COOKIE, result.accessToken(),
-                (int) jwtProperties.accessTtlSeconds()));
-        response.addCookie(buildCookie(REFRESH_TOKEN_COOKIE, result.refreshToken(),
-                (int) jwtProperties.refreshTtlSeconds()));
+        cookieManager.add(response, ACCESS_TOKEN_COOKIE, result.accessToken(),
+                Duration.ofSeconds(jwtProperties.accessTtlSeconds()));
+        cookieManager.add(response, REFRESH_TOKEN_COOKIE, result.refreshToken(),
+                Duration.ofSeconds(jwtProperties.refreshTtlSeconds()));
 
         response.sendRedirect(resolveTarget(request.getParameter("state")));
-    }
-
-    private Cookie buildCookie(String name, String value, int maxAgeSeconds) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(secureCookie);
-        cookie.setPath("/");
-        cookie.setMaxAge(maxAgeSeconds);
-        return cookie;
     }
 
     private String resolveTarget(String state) {
