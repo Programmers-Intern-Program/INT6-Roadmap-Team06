@@ -93,7 +93,6 @@ tasks.test {
   useJUnitPlatform {
     excludeTags("integration")
   }
-  finalizedBy(tasks.jacocoTestReport)
 }
 
 val testSourceSet = the<JavaPluginExtension>().sourceSets.getByName("test")
