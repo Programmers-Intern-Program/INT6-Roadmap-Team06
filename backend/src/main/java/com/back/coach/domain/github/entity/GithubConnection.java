@@ -36,10 +36,55 @@ public class GithubConnection extends BaseEntity {
     @Column(name = "access_type", nullable = false, length = 30)
     private GithubAccessType accessType;
 
+    @Column(name = "access_token", length = 500)
+    private String accessToken;
+
     @CreatedDate
     @Column(name = "connected_at", nullable = false, updatable = false)
     private Instant connectedAt;
 
     @Column(name = "disconnected_at")
     private Instant disconnectedAt;
+
+    private GithubConnection(Long userId, String githubUserId, String githubLogin,
+                             GithubAccessType accessType, String accessToken) {
+        this.userId = userId;
+        this.githubUserId = githubUserId;
+        this.githubLogin = githubLogin;
+        this.accessType = accessType;
+        this.accessToken = accessToken;
+    }
+
+    public static GithubConnection connect(Long userId, String githubUserId, String githubLogin,
+                                           GithubAccessType accessType, String accessToken) {
+        if (userId == null) {
+            throw new IllegalArgumentException("userId must not be null");
+        }
+        if (githubUserId == null || githubUserId.isBlank()) {
+            throw new IllegalArgumentException("githubUserId must not be blank");
+        }
+        if (githubLogin == null || githubLogin.isBlank()) {
+            throw new IllegalArgumentException("githubLogin must not be blank");
+        }
+        if (accessType == null) {
+            throw new IllegalArgumentException("accessType must not be null");
+        }
+        return new GithubConnection(userId, githubUserId, githubLogin, accessType, accessToken);
+    }
+
+    public void updateAccessToken(String accessToken) {
+        this.accessToken = accessToken;
+        this.disconnectedAt = null;
+    }
+
+    public void updateLogin(String githubLogin) {
+        if (githubLogin != null && !githubLogin.isBlank()) {
+            this.githubLogin = githubLogin;
+        }
+    }
+
+    public void disconnect() {
+        this.accessToken = null;
+        this.disconnectedAt = Instant.now();
+    }
 }
