@@ -9,7 +9,12 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -19,11 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class AuthControllerTest extends ApiTestBase {
 
-    @Autowired
-    UserRepository userRepository;
-
-    @Autowired
-    JwtTokenProvider jwtTokenProvider;
+    @Autowired UserRepository userRepository;
+    @Autowired JwtTokenProvider jwtTokenProvider;
 
     @Test
     @DisplayName("GET /api/v1/auth/me — accessToken 쿠키로 인증된 사용자의 정보를 반환한다")
@@ -48,7 +50,7 @@ class AuthControllerTest extends ApiTestBase {
     }
 
     @Test
-    @DisplayName("POST /api/v1/auth/refresh — 유효한 refreshToken 쿠키로 새 accessToken/refreshToken 쿠키를 발급한다")
+    @DisplayName("POST /api/v1/auth/refresh — 유효한 refreshToken 쿠키로 새 accessToken/refreshToken 쿠키를 SameSite=Lax로 발급")
     void refresh_rotatesTokens() throws Exception {
         User user = userRepository.save(
                 User.signupFromOAuth(AuthProvider.GITHUB, "gh-refresh-1", "refresh@example.com")
@@ -60,16 +62,14 @@ class AuthControllerTest extends ApiTestBase {
                 .andExpect(status().isNoContent())
                 .andReturn();
 
-        Cookie newAccess = result.getResponse().getCookie("accessToken");
-        Cookie newRefresh = result.getResponse().getCookie("refreshToken");
-        assertThat(newAccess).isNotNull();
-        assertThat(newAccess.getValue()).isNotBlank();
-        assertThat(newAccess.isHttpOnly()).isTrue();
-        assertThat(jwtTokenProvider.parseAccessToken(newAccess.getValue()).userId()).isEqualTo(user.getId());
+        List<String> setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+        String access = findCookie(setCookies, "accessToken");
+        String refresh = findCookie(setCookies, "refreshToken");
 
-        assertThat(newRefresh).isNotNull();
-        assertThat(newRefresh.getValue()).isNotBlank();
-        assertThat(jwtTokenProvider.parseRefreshToken(newRefresh.getValue()).userId()).isEqualTo(user.getId());
+        assertThat(access).contains("HttpOnly").contains("SameSite=Lax");
+        assertThat(refresh).contains("HttpOnly").contains("SameSite=Lax");
+        assertThat(jwtTokenProvider.parseAccessToken(extractValue(access)).userId()).isEqualTo(user.getId());
+        assertThat(jwtTokenProvider.parseRefreshToken(extractValue(refresh)).userId()).isEqualTo(user.getId());
     }
 
     @Test
@@ -96,11 +96,21 @@ class AuthControllerTest extends ApiTestBase {
                 .andExpect(status().isNoContent())
                 .andReturn();
 
-        Cookie cleared = result.getResponse().getCookie("accessToken");
-        Cookie clearedRefresh = result.getResponse().getCookie("refreshToken");
-        assertThat(cleared).isNotNull();
-        assertThat(cleared.getMaxAge()).isZero();
-        assertThat(clearedRefresh).isNotNull();
-        assertThat(clearedRefresh.getMaxAge()).isZero();
+        List<String> setCookies = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
+        assertThat(findCookie(setCookies, "accessToken")).contains("Max-Age=0");
+        assertThat(findCookie(setCookies, "refreshToken")).contains("Max-Age=0");
+    }
+
+    private static String findCookie(List<String> headers, String name) {
+        return headers.stream()
+                .filter(h -> h.startsWith(name + "="))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("cookie '" + name + "' missing"));
+    }
+
+    private static String extractValue(String setCookieHeader) {
+        Matcher m = Pattern.compile("^[^=]+=([^;]*)").matcher(setCookieHeader);
+        if (!m.find()) throw new AssertionError("cannot parse: " + setCookieHeader);
+        return m.group(1);
     }
 }

@@ -6,10 +6,10 @@ import com.back.coach.domain.user.entity.User;
 import com.back.coach.domain.user.repository.UserRepository;
 import com.back.coach.global.code.AuthProvider;
 import com.back.coach.support.IntegrationTest;
-import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,7 +22,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +80,11 @@ class AuthFlowIntegrationTest {
         assertThat(cookieValue(response, "accessToken")).isNotBlank();
         assertThat(cookieValue(response, "refreshToken")).isNotBlank();
         assertThat(response.getRedirectedUrl()).isEqualTo("https://app.test.local");
+
+        // SameSite/HttpOnly 검증
+        List<String> setCookies = response.getHeaders(HttpHeaders.SET_COOKIE);
+        assertThat(setCookies).anyMatch(h -> h.startsWith("accessToken=") && h.contains("HttpOnly") && h.contains("SameSite=Lax"));
+        assertThat(setCookies).anyMatch(h -> h.startsWith("refreshToken=") && h.contains("HttpOnly") && h.contains("SameSite=Lax"));
     }
 
     @Test
@@ -143,10 +147,14 @@ class AuthFlowIntegrationTest {
     }
 
     private static String cookieValue(MockHttpServletResponse response, String name) {
-        return Arrays.stream(response.getCookies())
-                .filter(c -> c.getName().equals(name))
-                .map(Cookie::getValue)
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("cookie '" + name + "' not set"));
+        List<String> headers = response.getHeaders(HttpHeaders.SET_COOKIE);
+        for (String header : headers) {
+            if (header.startsWith(name + "=")) {
+                int start = name.length() + 1;
+                int end = header.indexOf(';', start);
+                return end < 0 ? header.substring(start) : header.substring(start, end);
+            }
+        }
+        throw new AssertionError("cookie '" + name + "' not set");
     }
 }

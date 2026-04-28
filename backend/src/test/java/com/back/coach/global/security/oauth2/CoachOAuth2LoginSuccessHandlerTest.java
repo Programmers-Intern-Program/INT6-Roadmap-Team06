@@ -1,10 +1,10 @@
 package com.back.coach.global.security.oauth2;
 
+import com.back.coach.global.security.CookieManager;
 import com.back.coach.global.security.JwtProperties;
 import com.back.coach.service.auth.AuthService;
 import com.back.coach.service.auth.GithubUserInfo;
 import com.back.coach.service.auth.OAuthLoginResult;
-import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.GrantedAuthority;
@@ -22,7 +23,6 @@ import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -34,29 +34,24 @@ import static org.mockito.BDDMockito.given;
 @ExtendWith(MockitoExtension.class)
 class CoachOAuth2LoginSuccessHandlerTest {
 
-    @Mock
-    AuthService authService;
-
-    @Mock
-    OAuth2AuthorizedClientService authorizedClientService;
+    @Mock AuthService authService;
+    @Mock OAuth2AuthorizedClientService authorizedClientService;
 
     CoachOAuth2LoginSuccessHandler handler;
 
     JwtProperties jwt = new JwtProperties("secret-secret-secret-secret-secret-secret-secret", 900, 86400);
+    CookieManager cookieManager = new CookieManager(false, "");
 
     @BeforeEach
     void setUp() {
         handler = new CoachOAuth2LoginSuccessHandler(
-                authService,
-                authorizedClientService,
-                jwt,
-                "https://app.example.com",
-                false
+                authService, authorizedClientService, jwt, cookieManager,
+                "https://app.example.com"
         );
     }
 
     @Test
-    @DisplayName("성공 시 access/refresh 쿠키를 굽고 기본 프론트엔드 URL로 redirect한다")
+    @DisplayName("성공 시 access/refresh Set-Cookie 헤더를 SameSite=Lax로 발급하고 기본 URL로 redirect")
     void onSuccess_setsCookiesAndRedirectsToDefault() throws Exception {
         OAuth2AuthenticationToken token = githubToken(Map.of(
                 "id", 12345L, "login", "alice", "email", "alice@example.com"
@@ -71,12 +66,21 @@ class CoachOAuth2LoginSuccessHandlerTest {
         handler.onAuthenticationSuccess(request, response, token);
 
         assertThat(response.getRedirectedUrl()).isEqualTo("https://app.example.com");
-        assertThat(cookieValue(response, "accessToken")).isEqualTo("access-jwt");
-        assertThat(cookieValue(response, "refreshToken")).isEqualTo("refresh-jwt");
-        assertThat(cookie(response, "accessToken").isHttpOnly()).isTrue();
-        assertThat(cookie(response, "accessToken").getMaxAge()).isEqualTo(900);
-        assertThat(cookie(response, "refreshToken").getMaxAge()).isEqualTo(86400);
-        assertThat(cookie(response, "accessToken").getSecure()).isFalse();
+
+        List<String> cookies = response.getHeaders(HttpHeaders.SET_COOKIE);
+        assertThat(cookies).hasSize(2);
+        String access = findCookie(cookies, "accessToken");
+        assertThat(access)
+                .contains("accessToken=access-jwt")
+                .contains("Max-Age=900")
+                .contains("HttpOnly")
+                .contains("SameSite=Lax");
+        String refresh = findCookie(cookies, "refreshToken");
+        assertThat(refresh)
+                .contains("refreshToken=refresh-jwt")
+                .contains("Max-Age=86400")
+                .contains("HttpOnly")
+                .contains("SameSite=Lax");
     }
 
     @Test
@@ -159,15 +163,11 @@ class CoachOAuth2LoginSuccessHandlerTest {
         return new OAuth2AuthenticationToken(principal, List.of(), "github");
     }
 
-    private static jakarta.servlet.http.Cookie cookie(MockHttpServletResponse response, String name) {
-        return Arrays.stream(response.getCookies())
-                .filter(c -> c.getName().equals(name))
+    private static String findCookie(List<String> headers, String name) {
+        return headers.stream()
+                .filter(h -> h.startsWith(name + "="))
                 .findFirst()
-                .orElseThrow(() -> new AssertionError("cookie '" + name + "' not set"));
-    }
-
-    private static String cookieValue(MockHttpServletResponse response, String name) {
-        return cookie(response, name).getValue();
+                .orElseThrow(() -> new AssertionError("cookie '" + name + "' not in Set-Cookie headers"));
     }
 
     private static <T> T any(Class<T> type) {
