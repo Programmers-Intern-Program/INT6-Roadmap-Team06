@@ -32,4 +32,24 @@ public class User extends BaseTimeEntity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean active;
+
+    private User(AuthProvider authProvider, String providerUserId, String email) {
+        this.authProvider = authProvider;
+        this.providerUserId = providerUserId;
+        this.email = email;
+        this.active = Boolean.TRUE;
+    }
+
+    public static User signupFromOAuth(AuthProvider authProvider, String providerUserId, String email) {
+        if (authProvider == null || authProvider == AuthProvider.LOCAL) {
+            throw new IllegalArgumentException("authProvider must be an OAuth provider");
+        }
+        if (providerUserId == null || providerUserId.isBlank()) {
+            throw new IllegalArgumentException("providerUserId must not be blank");
+        }
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("email must not be blank");
+        }
+        return new User(authProvider, providerUserId, email);
+    }
 }

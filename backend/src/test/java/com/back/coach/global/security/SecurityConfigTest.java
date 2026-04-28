@@ -79,6 +79,24 @@ class SecurityConfigTest {
     }
 
     @Test
+    void protectedApi_withAccessTokenCookie_returnsAuthenticatedUser() throws Exception {
+        String token = tokenProvider.createAccessToken(11L);
+
+        mockMvc.perform(get("/api/v1/profiles/me")
+                        .cookie(new jakarta.servlet.http.Cookie("accessToken", token)))
+                .andExpect(status().isOk())
+                .andExpect(content().string("11"));
+    }
+
+    @Test
+    void protectedApi_withInvalidAccessTokenCookie_returnsInvalidTokenError() throws Exception {
+        mockMvc.perform(get("/api/v1/profiles/me")
+                        .cookie(new jakarta.servlet.http.Cookie("accessToken", "junk")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_INVALID_TOKEN"));
+    }
+
+    @Test
     void publicAuthApi_withoutToken_isPermitted() throws Exception {
         mockMvc.perform(get("/api/v1/auth/ping"))
                 .andExpect(status().isOk())

@@ -64,6 +64,51 @@ class JwtTokenProviderTest {
                 .isEqualTo(ErrorCode.AUTH_INVALID_TOKEN);
     }
 
+    @Test
+    void createRefreshToken_andParseUserId() {
+        JwtTokenProvider provider = new JwtTokenProvider(PROPERTIES);
+
+        String token = provider.createRefreshToken(42L);
+
+        assertThat(provider.parseRefreshToken(token).userId()).isEqualTo(42L);
+    }
+
+    @Test
+    void accessToken_isNotAcceptedAsRefreshToken() {
+        JwtTokenProvider provider = new JwtTokenProvider(PROPERTIES);
+        String token = provider.createAccessToken(10L);
+
+        assertThatThrownBy(() -> provider.parseRefreshToken(token))
+                .isInstanceOf(ServiceException.class)
+                .extracting(e -> ((ServiceException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_INVALID_TOKEN);
+    }
+
+    @Test
+    void expiredRefreshToken_throwsExpiredTokenError() {
+        Instant issuedAt = Instant.parse("2026-01-01T00:00:00Z");
+        JwtProperties shortTtl = new JwtProperties("test-secret-key-for-expired-refresh", 60, 1);
+        JwtTokenProvider issuer = new JwtTokenProvider(shortTtl, fixedClock(issuedAt));
+        JwtTokenProvider parser = new JwtTokenProvider(shortTtl, fixedClock(issuedAt.plusSeconds(2)));
+
+        String token = issuer.createRefreshToken(10L);
+
+        assertThatThrownBy(() -> parser.parseRefreshToken(token))
+                .isInstanceOf(ServiceException.class)
+                .extracting(e -> ((ServiceException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_EXPIRED_TOKEN);
+    }
+
+    @Test
+    void invalidRefreshToken_throwsInvalidTokenError() {
+        JwtTokenProvider provider = new JwtTokenProvider(PROPERTIES);
+
+        assertThatThrownBy(() -> provider.parseRefreshToken("not-a-token"))
+                .isInstanceOf(ServiceException.class)
+                .extracting(e -> ((ServiceException) e).getErrorCode())
+                .isEqualTo(ErrorCode.AUTH_INVALID_TOKEN);
+    }
+
     private static Clock fixedClock(Instant instant) {
         return Clock.fixed(instant, ZoneOffset.UTC);
     }

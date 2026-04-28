@@ -56,6 +56,14 @@ public class JwtTokenProvider {
         return new AuthenticatedUser(parseUserId(claims.getSubject()));
     }
 
+    public AuthenticatedUser parseRefreshToken(String token) {
+        Claims claims = parseClaims(token);
+        if (!REFRESH_TOKEN_TYPE.equals(claims.get(TOKEN_TYPE_CLAIM, String.class))) {
+            throw new ServiceException(ErrorCode.AUTH_INVALID_TOKEN, ErrorCode.AUTH_INVALID_TOKEN.getDefaultMessage());
+        }
+        return new AuthenticatedUser(parseUserId(claims.getSubject()));
+    }
+
     private String createToken(Long userId, String tokenType, long ttlSeconds) {
         if (userId == null) {
             throw new IllegalArgumentException("userId must not be null");
