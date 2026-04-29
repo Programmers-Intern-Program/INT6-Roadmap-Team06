@@ -27,6 +27,8 @@ tags:
     description: Capability diagnosis APIs
   - name: Roadmaps
     description: Learning roadmap and progress APIs
+  - name: Dashboard
+    description: Current user dashboard summary APIs
 
 paths:
   /api/profiles:
@@ -345,6 +347,23 @@ paths:
           $ref: '#/components/responses/ResourceNotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+
+  /api/dashboard:
+    get:
+      tags:
+        - Dashboard
+      summary: Get current user dashboard
+      operationId: getDashboard
+      x-implementation-status: implemented
+      responses:
+        '200':
+          description: Current user's latest result dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
 components:
   securitySchemes:
@@ -1321,5 +1340,175 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/RoadmapProgressResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    DashboardProfileSummary:
+      type: object
+      required:
+        - profileId
+        - jobRoleId
+        - currentLevel
+        - updatedAt
+      properties:
+        profileId:
+          type: string
+          example: '101'
+        jobRoleId:
+          type: string
+          example: '1'
+        currentLevel:
+          $ref: '#/components/schemas/CurrentLevel'
+        weeklyStudyHours:
+          type: integer
+          nullable: true
+          example: 10
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-08-31'
+        updatedAt:
+          type: string
+          format: date-time
+
+    DashboardGithubAnalysisSummary:
+      type: object
+      required:
+        - githubAnalysisId
+        - version
+        - summary
+        - createdAt
+      properties:
+        githubAnalysisId:
+          type: string
+          example: '401'
+        version:
+          type: integer
+          minimum: 1
+          example: 1
+        summary:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    DashboardDiagnosisSummary:
+      type: object
+      required:
+        - diagnosisId
+        - version
+        - summary
+        - createdAt
+      properties:
+        diagnosisId:
+          type: string
+          example: '301'
+        version:
+          type: integer
+          minimum: 1
+          example: 1
+        summary:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    DashboardProgressSummary:
+      type: object
+      required:
+        - totalWeeks
+        - todoWeeks
+        - inProgressWeeks
+        - doneWeeks
+        - skippedWeeks
+      properties:
+        totalWeeks:
+          type: integer
+          minimum: 0
+          example: 12
+        todoWeeks:
+          type: integer
+          minimum: 0
+          example: 7
+        inProgressWeeks:
+          type: integer
+          minimum: 0
+          example: 1
+        doneWeeks:
+          type: integer
+          minimum: 0
+          example: 3
+        skippedWeeks:
+          type: integer
+          minimum: 0
+          example: 1
+
+    DashboardRoadmapSummary:
+      type: object
+      required:
+        - roadmapId
+        - version
+        - totalWeeks
+        - summary
+        - createdAt
+        - progress
+      properties:
+        roadmapId:
+          type: string
+          example: '601'
+        version:
+          type: integer
+          minimum: 1
+          example: 1
+        totalWeeks:
+          type: integer
+          minimum: 1
+          example: 12
+        summary:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        progress:
+          $ref: '#/components/schemas/DashboardProgressSummary'
+
+    Dashboard:
+      type: object
+      required:
+        - userId
+        - profile
+        - githubAnalysis
+        - diagnosis
+        - roadmap
+      properties:
+        userId:
+          type: string
+          example: '1'
+        profile:
+          allOf:
+            - $ref: '#/components/schemas/DashboardProfileSummary'
+          nullable: true
+        githubAnalysis:
+          allOf:
+            - $ref: '#/components/schemas/DashboardGithubAnalysisSummary'
+          nullable: true
+        diagnosis:
+          allOf:
+            - $ref: '#/components/schemas/DashboardDiagnosisSummary'
+          nullable: true
+        roadmap:
+          allOf:
+            - $ref: '#/components/schemas/DashboardRoadmapSummary'
+          nullable: true
+
+    DashboardApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/Dashboard'
         meta:
           $ref: '#/components/schemas/ApiMeta'
