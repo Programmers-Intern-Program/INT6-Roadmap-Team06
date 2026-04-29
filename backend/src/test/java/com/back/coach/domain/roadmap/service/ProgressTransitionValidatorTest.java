@@ -1,4 +1,4 @@
-package com.back.coach.domain.roadmap;
+package com.back.coach.domain.roadmap.service;
 
 import com.back.coach.global.code.ProgressStatus;
 import com.back.coach.global.exception.ErrorCode;

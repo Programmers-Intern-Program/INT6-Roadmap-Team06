@@ -3,12 +3,15 @@ package com.back.coach.domain.roadmap.repository;
 import com.back.coach.domain.roadmap.entity.ProgressLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface ProgressLogRepository extends JpaRepository<ProgressLog, Long> {
 
     List<ProgressLog> findByUserIdAndRoadmapWeekIdOrderByCreatedAtDesc(Long userId, Long roadmapWeekId);
+
+    List<ProgressLog> findByUserIdAndRoadmapWeekIdInOrderByCreatedAtDesc(Long userId, Collection<Long> roadmapWeekIds);
 
     Optional<ProgressLog> findTopByUserIdAndRoadmapWeekIdOrderByCreatedAtDesc(Long userId, Long roadmapWeekId);
 

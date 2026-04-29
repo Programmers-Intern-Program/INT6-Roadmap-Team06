@@ -1,4 +1,4 @@
-package com.back.coach.domain.common;
+package com.back.coach.global.security;
 
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;

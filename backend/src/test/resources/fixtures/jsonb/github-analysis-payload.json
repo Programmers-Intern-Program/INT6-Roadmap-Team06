@@ -1,0 +1,62 @@
+{
+  "staticSignals": {
+    "primaryLanguages": [
+      {
+        "lang": "Java",
+        "ratio": 0.6
+      }
+    ],
+    "activeRepos": 12,
+    "commitFrequency": "WEEKLY",
+    "contributionPattern": "CONSISTENT"
+  },
+  "repoSummaries": [
+    {
+      "repoId": "9001",
+      "repoName": "team06/ai-growth-coach",
+      "summary": "Spring Boot backend service",
+      "highlights": [
+        "Redis cache",
+        "Batch processing"
+      ]
+    }
+  ],
+  "techTags": [
+    {
+      "skillName": "Redis",
+      "tagReason": "Cache configuration and TTL usage were found"
+    }
+  ],
+  "depthEstimates": [
+    {
+      "skillName": "Redis",
+      "level": "APPLIED",
+      "reason": "Cache keys and TTL are used beyond dependency setup"
+    }
+  ],
+  "evidences": [
+    {
+      "repoName": "team06/ai-growth-coach",
+      "type": "CODE",
+      "source": "src/main/java/com/back/coach/config/CacheConfig.java",
+      "summary": "RedisTemplate and TTL configuration"
+    }
+  ],
+  "userCorrections": [
+    {
+      "skillName": "Redis",
+      "correction": "Used for cache only, not Pub/Sub"
+    }
+  ],
+  "finalTechProfile": {
+    "confirmedSkills": [
+      "Java",
+      "Spring Boot",
+      "Redis"
+    ],
+    "focusAreas": [
+      "Backend",
+      "Performance"
+    ]
+  }
+}

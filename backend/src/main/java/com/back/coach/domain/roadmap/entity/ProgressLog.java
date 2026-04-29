@@ -42,4 +42,14 @@ public class ProgressLog extends BaseEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static ProgressLog create(Long userId, Long roadmapWeekId, ProgressStatus status, String note) {
+        ProgressLog progressLog = new ProgressLog();
+        progressLog.userId = userId;
+        progressLog.roadmapWeekId = roadmapWeekId;
+        progressLog.status = status;
+        progressLog.note = note;
+        progressLog.completedAt = status == ProgressStatus.DONE ? Instant.now() : null;
+        return progressLog;
+    }
 }

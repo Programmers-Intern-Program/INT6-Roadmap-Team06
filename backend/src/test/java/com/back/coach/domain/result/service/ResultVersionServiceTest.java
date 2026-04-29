@@ -1,4 +1,4 @@
-package com.back.coach.domain.common;
+package com.back.coach.domain.result.service;
 
 import com.back.coach.domain.diagnosis.repository.CapabilityDiagnosisRepository;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
