@@ -89,6 +89,12 @@ tasks.withType<Test>().configureEach {
   useJUnitPlatform()
 }
 
+tasks.processResources {
+  from("../docs/openapi.yml") {
+    into("static")
+  }
+}
+
 tasks.test {
   useJUnitPlatform {
     excludeTags("integration")

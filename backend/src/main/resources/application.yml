@@ -66,3 +66,7 @@ ai:
   concurrency:
     max-concurrent-calls: 4
     queue-timeout-seconds: 180
+
+springdoc:
+  swagger-ui:
+    url: /openapi.yml
