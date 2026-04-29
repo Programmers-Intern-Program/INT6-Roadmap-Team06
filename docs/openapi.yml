@@ -1379,6 +1379,8 @@ components:
         - version
         - summary
         - createdAt
+        - finalTechProfile
+        - userCorrectionCount
       properties:
         githubAnalysisId:
           type: string
@@ -1392,6 +1394,12 @@ components:
         createdAt:
           type: string
           format: date-time
+        finalTechProfile:
+          $ref: '#/components/schemas/FinalTechProfile'
+        userCorrectionCount:
+          type: integer
+          minimum: 0
+          example: 1
 
     DashboardDiagnosisSummary:
       type: object

@@ -591,7 +591,12 @@ v1 처리 기준
       "githubAnalysisId": "401",
       "version": 1,
       "summary": "Spring Boot 기반 백엔드 프로젝트 경험이 확인되었습니다.",
-      "createdAt": "2026-04-24T14:25:00Z"
+      "createdAt": "2026-04-24T14:25:00Z",
+      "finalTechProfile": {
+        "confirmedSkills": ["Java", "Spring Boot", "Redis"],
+        "focusAreas": ["백엔드", "성능 최적화"]
+      },
+      "userCorrectionCount": 1
     },
     "diagnosis": {
       "diagnosisId": "301",
@@ -620,6 +625,7 @@ v1 처리 기준
 조회 규칙
 - 현재 로그인 사용자의 최신 프로필, 최신 GitHub 분석, 최신 진단, 최신 로드맵을 조립한다
 - GitHub 분석, 진단, 로드맵의 최신 결과는 `version desc, created_at desc` 순서로 선택한다
+- GitHub 분석 요약에는 `finalTechProfile`과 `userCorrectionCount`만 포함하고, 보정 상세 문장은 GitHub 분석 상세 조회에서 확인한다
 - 아직 생성되지 않은 결과 영역은 `null`로 반환한다
 - 로드맵 진행률은 `progress_logs` 최신 row 기준으로 계산한다
 - 대시보드는 화면 편의용 snapshot이며, 각 결과의 원본 상세 조회를 대체하지 않는다
