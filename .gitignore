@@ -11,6 +11,10 @@ Thumbs.db
 .env
 *.env.local
 
+# Spring Boot 로컬 시크릿 프로필 (application-secret.yml.example 만 commit)
+application-secret.yml
+application-secret.yaml
+
 # Build
 build/
 dist/
