@@ -242,6 +242,8 @@
 v1 처리 기준
 - 현재 명세의 기본 외부 계약은 동기 응답이다
 - 추후 장시간 작업으로 확장할 경우 `job_status` 상태 모델을 따른다
+- GitHub 분석 실행은 새 결과 생성이므로 기존 row를 덮어쓰지 않고 사용자별 다음 `version` row를 생성한다
+- 최초 분석 결과의 `userCorrections`는 빈 배열일 수 있고, `finalTechProfile`은 AI 추정 결과 기반 초기값이다
 
 응답 body
 ```json
@@ -334,6 +336,12 @@ v1 처리 기준
 }
 ```
 
+처리 규칙
+- 보정 저장은 새 분석 실행이 아니므로 새 `github_analyses` row 또는 새 `version`을 만들지 않는다.
+- 기존 `analysis_payload`에서 `userCorrections`, `finalTechProfile`만 요청값으로 교체한다.
+- `staticSignals`, `repoSummaries`, `techTags`, `depthEstimates`, `evidences`는 분석 실행 당시의 AI/정적 분석 결과로 유지한다.
+- 응답의 `savedAt`은 보정 저장 처리 시각이다.
+
 ### 3.3.3 GitHub 분석 결과 조회
 
 - Method: `GET`
@@ -341,6 +349,12 @@ v1 처리 기준
 
 응답 body
 - `POST /api/github-analyses`의 `data`와 동일 구조
+
+조회 규칙
+- 현재 로그인 사용자가 소유한 `github_analyses` row만 조회할 수 있다.
+- 응답의 `githubAnalysisId`, `version`, `createdAt`은 row 헤더 컬럼 기준이다.
+- 나머지 분석 상세는 저장된 `analysis_payload` 기준으로 반환한다.
+- 보정 저장 후 조회하면 갱신된 `userCorrections`, `finalTechProfile`이 반환된다.
 
 ---
 

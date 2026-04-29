@@ -195,6 +195,10 @@ shape
 - `evidences.type`은 `github_evidence_type` enum 사용
 - `depthEstimates.level`은 `github_depth_level` enum 사용
 - AI가 만든 후보와 사용자가 확정한 값은 같은 key 아래에 섞어 저장하지 않는다
+- `staticSignals`, `repoSummaries`, `techTags`, `depthEstimates`, `evidences`는 분석 실행 시 생성된 AI/정적 분석 결과다
+- `userCorrections`는 사용자가 AI 추정 결과를 보정한 설명이며, 보정 저장 시 이 배열 전체를 요청값으로 교체한다
+- `finalTechProfile`은 진단/로드맵에서 사용할 사용자 확정 기술 프로필이며, 보정 저장 시 요청값으로 교체한다
+- GitHub 분석 실행은 새 `version` row를 생성하지만, 보정 저장은 기존 row의 `analysis_payload.userCorrections`와 `analysis_payload.finalTechProfile`만 갱신한다
 
 ## 4.4 learning_roadmaps.roadmap_payload
 
