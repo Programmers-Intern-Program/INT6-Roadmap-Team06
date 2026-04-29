@@ -192,7 +192,7 @@ paths:
         - GitHub Analyses
       summary: Get GitHub analysis result
       operationId: getGithubAnalysis
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: '#/components/parameters/GithubAnalysisId'
       responses:
