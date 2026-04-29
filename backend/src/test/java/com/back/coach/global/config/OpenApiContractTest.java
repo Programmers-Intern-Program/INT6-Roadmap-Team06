@@ -33,7 +33,9 @@ class OpenApiContractTest {
         assertThat(operation(paths, "/api/roadmaps/{roadmapId}/progress", "post")
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/profiles", "post")
-                .get("x-implementation-status")).isEqualTo("planned");
+                .get("x-implementation-status")).isEqualTo("implemented");
+        assertThat(operation(paths, "/api/profiles/me", "get")
+                .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/roadmaps/{roadmapId}", "get")
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/dashboard", "get")
