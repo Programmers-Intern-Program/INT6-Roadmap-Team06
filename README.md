@@ -36,6 +36,24 @@ cd backend
 .\gradlew.bat bootRun --args="--spring.profiles.active=local,oauth"
 ```
 
+## 프론트엔드 실행
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+기본 주소는 `http://localhost:3000`입니다.
+
+프론트 변경 검증은 다음 명령으로 확인합니다.
+
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
+
 ## 테스트
 
 ```powershell
