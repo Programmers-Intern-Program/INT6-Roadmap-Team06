@@ -296,7 +296,7 @@ paths:
         - Roadmaps
       summary: Get learning roadmap
       operationId: getRoadmap
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: '#/components/parameters/RoadmapId'
       responses:
