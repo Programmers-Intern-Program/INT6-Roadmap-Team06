@@ -10,6 +10,7 @@ import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class GithubAnalysisDetailService {
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
+    @Autowired
     public GithubAnalysisDetailService(
             GithubAnalysisRepository githubAnalysisRepository,
             ObjectMapper objectMapper
