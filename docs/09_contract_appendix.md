@@ -199,6 +199,7 @@ shape
 - `userCorrections`는 사용자가 AI 추정 결과를 보정한 설명이며, 보정 저장 시 이 배열 전체를 요청값으로 교체한다
 - `finalTechProfile`은 진단/로드맵에서 사용할 사용자 확정 기술 프로필이며, 보정 저장 시 요청값으로 교체한다
 - GitHub 분석 실행은 새 `version` row를 생성하지만, 보정 저장은 기존 row의 `analysis_payload.userCorrections`와 `analysis_payload.finalTechProfile`만 갱신한다
+- 보정 저장은 사용자 확정값을 같은 분석 결과에 반영하는 작업이므로 latest 조회 기준의 `version`을 변경하지 않는다
 
 ## 4.4 learning_roadmaps.roadmap_payload
 
@@ -409,8 +410,10 @@ shape
 규칙
 - 같은 사용자, 같은 결과 종류 내에서 `version`을 1씩 증가
 - 새 실행 결과는 기존 row update가 아니라 새 row insert
-- 기본 조회는 최신 version 반환
+- 기본 snapshot/latest 조회는 `version desc, created_at desc` 순서의 최신 결과를 반환
+- 상세 조회는 `id` 기준으로 고정하며 latest 기준으로 다른 결과를 대신 반환하지 않는다
 - 과거 조회가 필요하면 version 지정 조회 허용
+- GitHub 분석 보정 저장은 새 실행 결과가 아니므로 기존 row의 `analysis_payload.userCorrections`, `analysis_payload.finalTechProfile`만 갱신하고 `version`을 올리지 않는다
 - v2 `chat_sessions.profile_version`, `roadmap_version`은 세션 시작 시 snapshot version을 고정한다
 
 ## 7. 구현 체크포인트
