@@ -244,7 +244,7 @@ paths:
         - Diagnoses
       summary: Get capability diagnosis result
       operationId: getDiagnosis
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: '#/components/parameters/DiagnosisId'
       responses:
