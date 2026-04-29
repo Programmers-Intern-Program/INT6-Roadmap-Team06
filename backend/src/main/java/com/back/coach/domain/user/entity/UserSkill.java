@@ -41,4 +41,18 @@ public class UserSkill extends BaseEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static UserSkill create(
+            Long userId,
+            String skillName,
+            ProficiencyLevel proficiencyLevel,
+            SkillSourceType sourceType
+    ) {
+        UserSkill skill = new UserSkill();
+        skill.userId = userId;
+        skill.skillName = skillName;
+        skill.proficiencyLevel = proficiencyLevel;
+        skill.sourceType = sourceType;
+        return skill;
+    }
 }
