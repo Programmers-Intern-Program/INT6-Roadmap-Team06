@@ -1,5 +1,6 @@
 package com.back.coach.domain.dashboard.dto;
 
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.global.code.CurrentLevel;
 
 import java.time.Instant;
@@ -27,7 +28,9 @@ public record DashboardSnapshot(
             Long githubAnalysisId,
             Integer version,
             String summary,
-            Instant createdAt
+            Instant createdAt,
+            GithubAnalysisPayload.FinalTechProfile finalTechProfile,
+            int userCorrectionCount
     ) {
     }
 

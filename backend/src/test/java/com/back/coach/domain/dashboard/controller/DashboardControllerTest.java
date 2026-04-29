@@ -2,6 +2,7 @@ package com.back.coach.domain.dashboard.controller;
 
 import com.back.coach.domain.dashboard.dto.DashboardSnapshot;
 import com.back.coach.domain.dashboard.service.DashboardSnapshotService;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.global.code.CurrentLevel;
 import com.back.coach.global.exception.GlobalExceptionHandler;
 import com.back.coach.global.security.AuthenticatedUser;
@@ -22,6 +23,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.given;
@@ -73,7 +75,12 @@ class DashboardControllerTest {
                                 20L,
                                 3,
                                 "latest analysis",
-                                githubAnalysisCreatedAt
+                                githubAnalysisCreatedAt,
+                                new GithubAnalysisPayload.FinalTechProfile(
+                                        List.of("Java", "Spring Boot", "Redis"),
+                                        List.of("백엔드", "성능 최적화")
+                                ),
+                                1
                         ),
                         new DashboardSnapshot.DiagnosisSummary(
                                 30L,
@@ -106,6 +113,10 @@ class DashboardControllerTest {
                 .andExpect(jsonPath("$.data.githubAnalysis.version").value(3))
                 .andExpect(jsonPath("$.data.githubAnalysis.summary").value("latest analysis"))
                 .andExpect(jsonPath("$.data.githubAnalysis.createdAt").value("2026-04-28T02:00:00Z"))
+                .andExpect(jsonPath("$.data.githubAnalysis.finalTechProfile.confirmedSkills[0]").value("Java"))
+                .andExpect(jsonPath("$.data.githubAnalysis.finalTechProfile.confirmedSkills[2]").value("Redis"))
+                .andExpect(jsonPath("$.data.githubAnalysis.finalTechProfile.focusAreas[0]").value("백엔드"))
+                .andExpect(jsonPath("$.data.githubAnalysis.userCorrectionCount").value(1))
                 .andExpect(jsonPath("$.data.diagnosis.diagnosisId").value("30"))
                 .andExpect(jsonPath("$.data.diagnosis.version").value(4))
                 .andExpect(jsonPath("$.data.diagnosis.summary").value("latest diagnosis"))

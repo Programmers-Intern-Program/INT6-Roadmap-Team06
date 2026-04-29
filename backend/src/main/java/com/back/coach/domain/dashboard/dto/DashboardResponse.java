@@ -1,5 +1,6 @@
 package com.back.coach.domain.dashboard.dto;
 
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.global.code.CurrentLevel;
 
 import java.time.Instant;
@@ -51,7 +52,9 @@ public record DashboardResponse(
             String githubAnalysisId,
             Integer version,
             String summary,
-            Instant createdAt
+            Instant createdAt,
+            GithubAnalysisPayload.FinalTechProfile finalTechProfile,
+            int userCorrectionCount
     ) {
 
         private static GithubAnalysisSummaryResponse from(DashboardSnapshot.GithubAnalysisSummary summary) {
@@ -62,7 +65,9 @@ public record DashboardResponse(
                     String.valueOf(summary.githubAnalysisId()),
                     summary.version(),
                     summary.summary(),
-                    summary.createdAt()
+                    summary.createdAt(),
+                    summary.finalTechProfile(),
+                    summary.userCorrectionCount()
             );
         }
     }

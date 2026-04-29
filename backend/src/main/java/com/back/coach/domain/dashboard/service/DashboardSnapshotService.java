@@ -3,6 +3,7 @@ package com.back.coach.domain.dashboard.service;
 import com.back.coach.domain.dashboard.dto.DashboardSnapshot;
 import com.back.coach.domain.diagnosis.entity.CapabilityDiagnosis;
 import com.back.coach.domain.diagnosis.repository.CapabilityDiagnosisRepository;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.roadmap.dto.RoadmapProgressSnapshot;
@@ -14,6 +15,10 @@ import com.back.coach.domain.roadmap.repository.RoadmapWeekRepository;
 import com.back.coach.domain.user.entity.UserProfile;
 import com.back.coach.domain.user.repository.UserProfileRepository;
 import com.back.coach.global.code.ProgressStatus;
+import com.back.coach.global.exception.ErrorCode;
+import com.back.coach.global.exception.ServiceException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,6 +32,7 @@ public class DashboardSnapshotService {
     private final LearningRoadmapRepository learningRoadmapRepository;
     private final RoadmapWeekRepository roadmapWeekRepository;
     private final RoadmapProgressSnapshotService roadmapProgressSnapshotService;
+    private final ObjectMapper objectMapper;
 
     public DashboardSnapshotService(
             UserProfileRepository userProfileRepository,
@@ -34,7 +40,8 @@ public class DashboardSnapshotService {
             CapabilityDiagnosisRepository capabilityDiagnosisRepository,
             LearningRoadmapRepository learningRoadmapRepository,
             RoadmapWeekRepository roadmapWeekRepository,
-            RoadmapProgressSnapshotService roadmapProgressSnapshotService
+            RoadmapProgressSnapshotService roadmapProgressSnapshotService,
+            ObjectMapper objectMapper
     ) {
         this.userProfileRepository = userProfileRepository;
         this.githubAnalysisRepository = githubAnalysisRepository;
@@ -42,6 +49,7 @@ public class DashboardSnapshotService {
         this.learningRoadmapRepository = learningRoadmapRepository;
         this.roadmapWeekRepository = roadmapWeekRepository;
         this.roadmapProgressSnapshotService = roadmapProgressSnapshotService;
+        this.objectMapper = objectMapper;
     }
 
     public DashboardSnapshot findSnapshot(Long userId) {
@@ -74,11 +82,14 @@ public class DashboardSnapshotService {
     }
 
     private DashboardSnapshot.GithubAnalysisSummary toGithubAnalysisSummary(GithubAnalysis githubAnalysis) {
+        GithubAnalysisPayload payload = parseGithubAnalysisPayload(githubAnalysis.getAnalysisPayload());
         return new DashboardSnapshot.GithubAnalysisSummary(
                 githubAnalysis.getId(),
                 githubAnalysis.getVersion(),
                 githubAnalysis.getSummary(),
-                githubAnalysis.getCreatedAt()
+                githubAnalysis.getCreatedAt(),
+                payload.finalTechProfile(),
+                userCorrectionCount(payload)
         );
     }
 
@@ -134,5 +145,20 @@ public class DashboardSnapshotService {
                 doneWeeks,
                 skippedWeeks
         );
+    }
+
+    private GithubAnalysisPayload parseGithubAnalysisPayload(String analysisPayload) {
+        try {
+            return objectMapper.readValue(analysisPayload, GithubAnalysisPayload.class);
+        } catch (JsonProcessingException ex) {
+            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private int userCorrectionCount(GithubAnalysisPayload payload) {
+        if (payload.userCorrections() == null) {
+            return 0;
+        }
+        return payload.userCorrections().size();
     }
 }
