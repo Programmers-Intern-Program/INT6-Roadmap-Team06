@@ -161,7 +161,7 @@ paths:
         - GitHub Analyses
       summary: Save GitHub analysis corrections
       operationId: saveGithubAnalysisCorrections
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - $ref: '#/components/parameters/GithubAnalysisId'
       requestBody:
