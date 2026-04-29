@@ -37,7 +37,7 @@ paths:
         - Profiles
       summary: Create or update my profile
       operationId: saveProfile
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:
@@ -62,7 +62,7 @@ paths:
         - Profiles
       summary: Get my profile
       operationId: getMyProfile
-      x-implementation-status: planned
+      x-implementation-status: implemented
       responses:
         '200':
           description: Current user's profile

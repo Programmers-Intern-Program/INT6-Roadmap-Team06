@@ -118,6 +118,11 @@
 - `targetDate`: 선택, 오늘 이후 날짜
 - `resumeAssetId`, `portfolioAssetId`: 선택
 
+저장 규칙
+- 프로필은 사용자당 1개를 유지하며, 재저장 시 기존 프로필 row를 갱신한다
+- 프로필 저장 시 `skills`는 `USER_INPUT` 출처 기술만 교체하고, GitHub 분석 또는 시스템 파생 기술은 삭제하지 않는다
+- `skills[].skillName`은 trim 후 대소문자 구분 없이 중복될 수 없다
+
 응답 body
 ```json
 {

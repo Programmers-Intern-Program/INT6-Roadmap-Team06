@@ -46,4 +46,38 @@ public class UserProfile extends BaseTimeEntity {
 
     @Column(name = "portfolio_asset_id")
     private Long portfolioAssetId;
+
+    public static UserProfile create(
+            Long userId,
+            Long jobRoleId,
+            CurrentLevel currentLevel,
+            Integer weeklyStudyHours,
+            LocalDate targetDate,
+            String interestAreasJson,
+            Long resumeAssetId,
+            Long portfolioAssetId
+    ) {
+        UserProfile profile = new UserProfile();
+        profile.userId = userId;
+        profile.update(jobRoleId, currentLevel, weeklyStudyHours, targetDate, interestAreasJson, resumeAssetId, portfolioAssetId);
+        return profile;
+    }
+
+    public void update(
+            Long jobRoleId,
+            CurrentLevel currentLevel,
+            Integer weeklyStudyHours,
+            LocalDate targetDate,
+            String interestAreasJson,
+            Long resumeAssetId,
+            Long portfolioAssetId
+    ) {
+        this.jobRoleId = jobRoleId;
+        this.currentLevel = currentLevel;
+        this.weeklyStudyHours = weeklyStudyHours;
+        this.targetDate = targetDate;
+        this.interestAreasJson = interestAreasJson;
+        this.resumeAssetId = resumeAssetId;
+        this.portfolioAssetId = portfolioAssetId;
+    }
 }
