@@ -41,4 +41,8 @@ public class GithubAnalysis extends BaseEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public void updateAnalysisPayload(String analysisPayload) {
+        this.analysisPayload = analysisPayload;
+    }
 }

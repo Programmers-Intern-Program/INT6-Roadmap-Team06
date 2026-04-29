@@ -1,5 +1,7 @@
 package com.back.coach.domain.github.controller;
 
+import com.back.coach.domain.github.dto.GithubAnalysisCorrectionRequest;
+import com.back.coach.domain.github.dto.GithubAnalysisCorrectionResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisDetailResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.service.GithubAnalysisDetailService;
@@ -23,13 +25,18 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.time.Instant;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,9 +55,12 @@ class GithubAnalysisControllerTest {
 
     @BeforeEach
     void setUp() {
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new GithubAnalysisController(githubAnalysisDetailService))
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setValidator(validator)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
     }
@@ -134,6 +144,83 @@ class GithubAnalysisControllerTest {
         mockMvc.perform(get("/api/github-analyses/{githubAnalysisId}", 40L)
                         .principal(authentication(1L))
                         .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
+    void saveCorrections_whenValidRequest_returnsSavedCorrectionResponse() throws Exception {
+        given(githubAnalysisDetailService.saveCorrections(eq(1L), eq(40L), any(GithubAnalysisCorrectionRequest.class)))
+                .willReturn(new GithubAnalysisCorrectionResponse(
+                        "40",
+                        Instant.parse("2026-04-29T02:00:00Z"),
+                        new GithubAnalysisPayload.FinalTechProfile(
+                                List.of("Java", "Spring Boot", "Redis"),
+                                List.of("백엔드", "성능 최적화")
+                        )
+                ));
+
+        mockMvc.perform(patch("/api/github-analyses/{githubAnalysisId}/corrections", 40L)
+                        .principal(authentication(1L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userCorrections": [
+                                    {
+                                      "skillName": "Redis",
+                                      "correction": "캐시에만 사용했고 Pub/Sub은 사용하지 않음"
+                                    }
+                                  ],
+                                  "finalTechProfile": {
+                                    "confirmedSkills": ["Java", "Spring Boot", "Redis"],
+                                    "focusAreas": ["백엔드", "성능 최적화"]
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.githubAnalysisId").value("40"))
+                .andExpect(jsonPath("$.data.savedAt").value("2026-04-29T02:00:00Z"))
+                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[0]").value("Java"))
+                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[2]").value("Redis"))
+                .andExpect(jsonPath("$.data.finalTechProfile.focusAreas[1]").value("성능 최적화"))
+                .andExpect(jsonPath("$.meta").isMap());
+
+        verify(githubAnalysisDetailService).saveCorrections(eq(1L), eq(40L), any(GithubAnalysisCorrectionRequest.class));
+    }
+
+    @Test
+    void saveCorrections_whenFinalTechProfileMissing_returnsInvalidInput() throws Exception {
+        mockMvc.perform(patch("/api/github-analyses/{githubAnalysisId}/corrections", 40L)
+                        .principal(authentication(1L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userCorrections": []
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        verifyNoInteractions(githubAnalysisDetailService);
+    }
+
+    @Test
+    void saveCorrections_whenAnalysisDoesNotBelongToUser_returnsNotFound() throws Exception {
+        given(githubAnalysisDetailService.saveCorrections(eq(1L), eq(40L), any(GithubAnalysisCorrectionRequest.class)))
+                .willThrow(new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        mockMvc.perform(patch("/api/github-analyses/{githubAnalysisId}/corrections", 40L)
+                        .principal(authentication(1L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userCorrections": [],
+                                  "finalTechProfile": {
+                                    "confirmedSkills": ["Java"],
+                                    "focusAreas": ["백엔드"]
+                                  }
+                                }
+                                """))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
     }
