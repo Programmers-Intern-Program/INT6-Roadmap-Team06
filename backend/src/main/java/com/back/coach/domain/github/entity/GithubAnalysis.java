@@ -41,4 +41,15 @@ public class GithubAnalysis extends BaseEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static GithubAnalysis create(Long userId, Long githubConnectionId, Integer version,
+                                        String summary, String analysisPayload) {
+        GithubAnalysis entity = new GithubAnalysis();
+        entity.userId = userId;
+        entity.githubConnectionId = githubConnectionId;
+        entity.version = version;
+        entity.summary = summary;
+        entity.analysisPayload = analysisPayload;
+        return entity;
+    }
 }

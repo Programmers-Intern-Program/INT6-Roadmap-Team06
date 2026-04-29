@@ -30,7 +30,8 @@ public enum ErrorCode {
     // LLM 내부 코드 — 호출 지점에서 ANALYSIS_FAILED / ROADMAP_GENERATION_FAILED / RATE_LIMIT_EXCEEDED 로 매핑
     LLM_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "LLM 응답 시간이 초과되었습니다."),
     LLM_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "LLM 호출 제한에 도달했습니다."),
-    LLM_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "LLM 응답을 해석할 수 없습니다.");
+    LLM_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "LLM 응답을 해석할 수 없습니다."),
+    LLM_TRIAGE_FAILED(HttpStatus.BAD_GATEWAY, "코드 분석에 실패했습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;
