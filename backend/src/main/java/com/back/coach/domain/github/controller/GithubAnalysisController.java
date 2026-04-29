@@ -1,13 +1,18 @@
 package com.back.coach.domain.github.controller;
 
+import com.back.coach.domain.github.dto.GithubAnalysisCorrectionRequest;
+import com.back.coach.domain.github.dto.GithubAnalysisCorrectionResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisDetailResponse;
 import com.back.coach.domain.github.service.GithubAnalysisDetailService;
 import com.back.coach.global.response.ApiResponse;
 import com.back.coach.global.security.AuthenticatedUser;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +36,21 @@ public class GithubAnalysisController {
         return ApiResponse.success(githubAnalysisDetailService.findAnalysis(
                 authenticatedUser.userId(),
                 githubAnalysisId
+        ));
+    }
+
+    @PatchMapping(path = "/{githubAnalysisId}/corrections", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ApiResponse<GithubAnalysisCorrectionResponse> saveCorrections(
+            Authentication authentication,
+            @PathVariable Long githubAnalysisId,
+            @Valid @RequestBody GithubAnalysisCorrectionRequest request
+    ) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) authentication.getPrincipal();
+
+        return ApiResponse.success(githubAnalysisDetailService.saveCorrections(
+                authenticatedUser.userId(),
+                githubAnalysisId,
+                request
         ));
     }
 }
