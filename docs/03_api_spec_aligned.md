@@ -547,6 +547,64 @@ v1 처리 기준
 
 ---
 
+## 3.6 대시보드 API (v1 확장)
+
+### 3.6.1 대시보드 최신 결과 조회
+
+- Method: `GET`
+- Path: `/api/dashboard`
+
+응답 body
+```json
+{
+  "data": {
+    "userId": "1",
+    "profile": {
+      "profileId": "101",
+      "jobRoleId": "1",
+      "currentLevel": "JUNIOR",
+      "weeklyStudyHours": 10,
+      "targetDate": "2026-08-31",
+      "updatedAt": "2026-04-24T14:10:00Z"
+    },
+    "githubAnalysis": {
+      "githubAnalysisId": "401",
+      "version": 1,
+      "summary": "Spring Boot 기반 백엔드 프로젝트 경험이 확인되었습니다.",
+      "createdAt": "2026-04-24T14:25:00Z"
+    },
+    "diagnosis": {
+      "diagnosisId": "301",
+      "version": 1,
+      "summary": "Redis와 캐시 설계 경험을 보완할 필요가 있습니다.",
+      "createdAt": "2026-04-24T14:30:00Z"
+    },
+    "roadmap": {
+      "roadmapId": "601",
+      "version": 1,
+      "totalWeeks": 12,
+      "summary": "Redis 중심의 백엔드 실무 역량 보완 로드맵입니다.",
+      "createdAt": "2026-04-24T14:40:00Z",
+      "progress": {
+        "totalWeeks": 12,
+        "todoWeeks": 7,
+        "inProgressWeeks": 1,
+        "doneWeeks": 3,
+        "skippedWeeks": 1
+      }
+    }
+  }
+}
+```
+
+조회 규칙
+- 현재 로그인 사용자의 최신 프로필, 최신 GitHub 분석, 최신 진단, 최신 로드맵을 조립한다
+- 아직 생성되지 않은 결과 영역은 `null`로 반환한다
+- 로드맵 진행률은 `progress_logs` 최신 row 기준으로 계산한다
+- 대시보드는 화면 편의용 snapshot이며, 각 결과의 원본 상세 조회를 대체하지 않는다
+
+---
+
 ## 4. v2 확장 API
 
 ## 4.1 코치 세션 생성
