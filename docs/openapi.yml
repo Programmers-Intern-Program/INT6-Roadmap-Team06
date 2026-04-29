@@ -1,0 +1,1325 @@
+openapi: 3.0.3
+info:
+  title: AI Developer Growth Coach API
+  version: v1
+  description: |
+    v1 API contract for the AI developer growth coach service.
+
+    Source documents:
+    - docs/03_api_spec_aligned.md
+    - docs/09_contract_appendix.md
+
+    The custom extension `x-implementation-status` marks whether an API is
+    currently implemented or still planned.
+servers:
+  - url: http://localhost:8080
+    description: Local backend
+security:
+  - bearerAuth: []
+tags:
+  - name: Profiles
+    description: User profile APIs
+  - name: GitHub Connections
+    description: GitHub OAuth connection and repository APIs
+  - name: GitHub Analyses
+    description: GitHub analysis result APIs
+  - name: Diagnoses
+    description: Capability diagnosis APIs
+  - name: Roadmaps
+    description: Learning roadmap and progress APIs
+
+paths:
+  /api/profiles:
+    post:
+      tags:
+        - Profiles
+      summary: Create or update my profile
+      operationId: saveProfile
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileSaveRequest'
+      responses:
+        '200':
+          description: Profile saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileSaveApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/profiles/me:
+    get:
+      tags:
+        - Profiles
+      summary: Get my profile
+      operationId: getMyProfile
+      x-implementation-status: planned
+      responses:
+        '200':
+          description: Current user's profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileDetailApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/github/connections:
+    post:
+      tags:
+        - GitHub Connections
+      summary: Register GitHub OAuth connection
+      operationId: createGithubConnection
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GithubConnectionRequest'
+      responses:
+        '200':
+          description: GitHub connection registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubConnectionApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/github/repositories:
+    get:
+      tags:
+        - GitHub Connections
+      summary: Get connected GitHub repositories
+      operationId: getGithubRepositories
+      x-implementation-status: planned
+      parameters:
+        - name: githubConnectionId
+          in: query
+          required: true
+          schema:
+            type: string
+          example: '201'
+      responses:
+        '200':
+          description: Connected repositories
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubRepositoriesApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/github-analyses:
+    post:
+      tags:
+        - GitHub Analyses
+      summary: Run GitHub analysis
+      operationId: createGithubAnalysis
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GithubAnalysisRequest'
+      responses:
+        '200':
+          description: GitHub analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubAnalysisApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/AnalysisFailed'
+
+  /api/github-analyses/{githubAnalysisId}/corrections:
+    patch:
+      tags:
+        - GitHub Analyses
+      summary: Save GitHub analysis corrections
+      operationId: saveGithubAnalysisCorrections
+      x-implementation-status: planned
+      parameters:
+        - $ref: '#/components/parameters/GithubAnalysisId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GithubAnalysisCorrectionRequest'
+      responses:
+        '200':
+          description: GitHub analysis corrections saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubAnalysisCorrectionApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/github-analyses/{githubAnalysisId}:
+    get:
+      tags:
+        - GitHub Analyses
+      summary: Get GitHub analysis result
+      operationId: getGithubAnalysis
+      x-implementation-status: planned
+      parameters:
+        - $ref: '#/components/parameters/GithubAnalysisId'
+      responses:
+        '200':
+          description: GitHub analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GithubAnalysisApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/diagnoses:
+    post:
+      tags:
+        - Diagnoses
+      summary: Run capability diagnosis
+      operationId: createDiagnosis
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagnosisRequest'
+      responses:
+        '200':
+          description: Capability diagnosis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/diagnoses/{diagnosisId}:
+    get:
+      tags:
+        - Diagnoses
+      summary: Get capability diagnosis result
+      operationId: getDiagnosis
+      x-implementation-status: planned
+      parameters:
+        - $ref: '#/components/parameters/DiagnosisId'
+      responses:
+        '200':
+          description: Capability diagnosis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/roadmaps:
+    post:
+      tags:
+        - Roadmaps
+      summary: Generate learning roadmap
+      operationId: createRoadmap
+      x-implementation-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoadmapRequest'
+      responses:
+        '200':
+          description: Learning roadmap generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadmapApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '500':
+          $ref: '#/components/responses/RoadmapGenerationFailed'
+
+  /api/roadmaps/{roadmapId}:
+    get:
+      tags:
+        - Roadmaps
+      summary: Get learning roadmap
+      operationId: getRoadmap
+      x-implementation-status: planned
+      parameters:
+        - $ref: '#/components/parameters/RoadmapId'
+      responses:
+        '200':
+          description: Learning roadmap detail with progress snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadmapApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/roadmaps/{roadmapId}/progress:
+    post:
+      tags:
+        - Roadmaps
+      summary: Save roadmap week progress
+      operationId: saveRoadmapProgress
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/RoadmapId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoadmapProgressRequest'
+      responses:
+        '200':
+          description: Roadmap progress saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoadmapProgressApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    GithubAnalysisId:
+      name: githubAnalysisId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: '401'
+    DiagnosisId:
+      name: diagnosisId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: '301'
+    RoadmapId:
+      name: roadmapId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: '601'
+
+  responses:
+    InvalidInput:
+      description: Request value is invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication is required or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: User does not have permission for the resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ResourceNotFound:
+      description: Resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Request conflicts with the current state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    AnalysisFailed:
+      description: GitHub analysis failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RoadmapGenerationFailed:
+      description: Roadmap generation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ApiMeta:
+      type: object
+      additionalProperties: true
+      example: {}
+
+    ErrorCode:
+      type: string
+      enum:
+        - INVALID_INPUT
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - RESOURCE_NOT_FOUND
+        - CONFLICT
+        - ANALYSIS_FAILED
+        - ROADMAP_GENERATION_FAILED
+        - INTERNAL_SERVER_ERROR
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+        - details
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          example: 요청 값이 올바르지 않습니다.
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
+          example:
+            field: currentLevel
+
+    CurrentLevel:
+      type: string
+      enum:
+        - BEGINNER
+        - BASIC
+        - JUNIOR
+        - INTERMEDIATE
+        - ADVANCED
+
+    ProficiencyLevel:
+      type: string
+      enum:
+        - NONE
+        - BASIC
+        - WORKING
+        - STRONG
+
+    SkillSourceType:
+      type: string
+      enum:
+        - USER_INPUT
+        - GITHUB_ESTIMATED
+        - SYSTEM_DERIVED
+
+    DiagnosisSeverity:
+      type: string
+      enum:
+        - LOW
+        - MEDIUM
+        - HIGH
+
+    GithubEvidenceType:
+      type: string
+      enum:
+        - README
+        - CODE
+        - CONFIG
+        - REPO_METADATA
+        - COMMIT
+
+    GithubDepthLevel:
+      type: string
+      enum:
+        - INTRO
+        - APPLIED
+        - PRACTICAL
+        - DEEP
+
+    ProgressStatus:
+      type: string
+      enum:
+        - TODO
+        - IN_PROGRESS
+        - DONE
+        - SKIPPED
+
+    RoadmapTaskType:
+      type: string
+      enum:
+        - READ_DOCS
+        - BUILD_EXAMPLE
+        - WRITE_NOTE
+        - APPLY_PROJECT
+        - REVIEW
+
+    MaterialType:
+      type: string
+      enum:
+        - DOCS
+        - ARTICLE
+        - REPOSITORY
+        - VIDEO
+        - TEMPLATE
+
+    ProfileSkillInput:
+      type: object
+      required:
+        - skillName
+      properties:
+        skillName:
+          type: string
+          maxLength: 100
+          example: Spring Boot
+        proficiencyLevel:
+          allOf:
+            - $ref: '#/components/schemas/ProficiencyLevel'
+          nullable: true
+
+    ProfileSkill:
+      type: object
+      required:
+        - skillName
+        - sourceType
+      properties:
+        skillName:
+          type: string
+          example: Spring Boot
+        proficiencyLevel:
+          allOf:
+            - $ref: '#/components/schemas/ProficiencyLevel'
+          nullable: true
+        sourceType:
+          $ref: '#/components/schemas/SkillSourceType'
+
+    ProfileSaveRequest:
+      type: object
+      required:
+        - targetRole
+        - currentLevel
+        - skills
+      properties:
+        targetRole:
+          type: string
+          description: job_roles.role_code value
+          example: BACKEND_ENGINEER
+        currentLevel:
+          $ref: '#/components/schemas/CurrentLevel'
+        skills:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ProfileSkillInput'
+        interestAreas:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            maxLength: 50
+          example:
+            - 백엔드
+            - 성능 최적화
+        weeklyStudyHours:
+          type: integer
+          minimum: 1
+          maximum: 40
+          nullable: true
+          example: 10
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-08-31'
+        resumeAssetId:
+          type: string
+          nullable: true
+          example: '1001'
+        portfolioAssetId:
+          type: string
+          nullable: true
+          example: '2001'
+
+    ProfileSaveResponseData:
+      type: object
+      required:
+        - profileId
+        - savedAt
+        - message
+      properties:
+        profileId:
+          type: string
+          example: '101'
+        savedAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+          example: 프로필이 저장되었습니다.
+
+    ProfileSaveApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/ProfileSaveResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    ProfileDetail:
+      type: object
+      required:
+        - profileId
+        - targetRole
+        - currentLevel
+        - skills
+      properties:
+        profileId:
+          type: string
+          example: '101'
+        targetRole:
+          type: string
+          example: BACKEND_ENGINEER
+        currentLevel:
+          $ref: '#/components/schemas/CurrentLevel'
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProfileSkill'
+        interestAreas:
+          type: array
+          items:
+            type: string
+        weeklyStudyHours:
+          type: integer
+          nullable: true
+          example: 10
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+        resumeAssetId:
+          type: string
+          nullable: true
+        portfolioAssetId:
+          type: string
+          nullable: true
+
+    ProfileDetailApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/ProfileDetail'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    GithubConnectionRequest:
+      type: object
+      required:
+        - authorizationCode
+      properties:
+        authorizationCode:
+          type: string
+          example: oauth-code-from-github
+
+    GithubConnectionResponseData:
+      type: object
+      required:
+        - githubConnectionId
+        - githubLogin
+        - connectedAt
+      properties:
+        githubConnectionId:
+          type: string
+          example: '201'
+        githubLogin:
+          type: string
+          example: example-user
+        connectedAt:
+          type: string
+          format: date-time
+
+    GithubConnectionApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/GithubConnectionResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    GithubRepository:
+      type: object
+      required:
+        - repositoryId
+        - repoFullName
+        - repoUrl
+      properties:
+        repositoryId:
+          type: string
+          example: '9001'
+        repoFullName:
+          type: string
+          example: team06/ai-growth-coach
+        repoUrl:
+          type: string
+          format: uri
+          example: https://github.com/team06/ai-growth-coach
+        primaryLanguage:
+          type: string
+          nullable: true
+          example: Java
+        defaultBranch:
+          type: string
+          nullable: true
+          example: main
+
+    GithubRepositoriesResponseData:
+      type: object
+      required:
+        - githubConnectionId
+        - repositories
+      properties:
+        githubConnectionId:
+          type: string
+          example: '201'
+        repositories:
+          type: array
+          items:
+            $ref: '#/components/schemas/GithubRepository'
+
+    GithubRepositoriesApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/GithubRepositoriesResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    GithubAnalysisRequest:
+      type: object
+      required:
+        - githubConnectionId
+        - selectedRepositoryIds
+      properties:
+        githubConnectionId:
+          type: string
+          example: '201'
+        selectedRepositoryIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          example:
+            - '9001'
+            - '9002'
+        coreRepositoryIds:
+          type: array
+          items:
+            type: string
+          example:
+            - '9001'
+
+    StaticSignals:
+      type: object
+      required:
+        - primaryLanguages
+        - activeRepos
+      properties:
+        primaryLanguages:
+          type: array
+          items:
+            type: object
+            required:
+              - lang
+              - ratio
+            properties:
+              lang:
+                type: string
+                example: Java
+              ratio:
+                type: number
+                format: double
+                example: 0.6
+        activeRepos:
+          type: integer
+          example: 12
+        commitFrequency:
+          type: string
+          example: WEEKLY
+        contributionPattern:
+          type: string
+          example: CONSISTENT
+
+    RepoSummary:
+      type: object
+      required:
+        - repoId
+        - repoName
+        - summary
+        - highlights
+      properties:
+        repoId:
+          type: string
+          example: '9001'
+        repoName:
+          type: string
+          example: team06/ai-growth-coach
+        summary:
+          type: string
+          maxLength: 1000
+        highlights:
+          type: array
+          items:
+            type: string
+
+    TechTag:
+      type: object
+      required:
+        - skillName
+        - tagReason
+      properties:
+        skillName:
+          type: string
+          example: Redis
+        tagReason:
+          type: string
+
+    DepthEstimate:
+      type: object
+      required:
+        - skillName
+        - level
+        - reason
+      properties:
+        skillName:
+          type: string
+          example: Redis
+        level:
+          $ref: '#/components/schemas/GithubDepthLevel'
+        reason:
+          type: string
+
+    GithubEvidence:
+      type: object
+      required:
+        - repoName
+        - type
+        - source
+        - summary
+      properties:
+        repoName:
+          type: string
+          example: team06/ai-growth-coach
+        type:
+          $ref: '#/components/schemas/GithubEvidenceType'
+        source:
+          type: string
+          example: src/main/java/.../CacheConfig.java
+        summary:
+          type: string
+
+    GithubUserCorrection:
+      type: object
+      required:
+        - skillName
+        - correction
+      properties:
+        skillName:
+          type: string
+          example: Redis
+        correction:
+          type: string
+
+    FinalTechProfile:
+      type: object
+      required:
+        - confirmedSkills
+        - focusAreas
+      properties:
+        confirmedSkills:
+          type: array
+          items:
+            type: string
+          example:
+            - Java
+            - Spring Boot
+        focusAreas:
+          type: array
+          items:
+            type: string
+          example:
+            - 백엔드
+
+    GithubAnalysis:
+      type: object
+      required:
+        - githubAnalysisId
+        - version
+        - staticSignals
+        - repoSummaries
+        - techTags
+        - depthEstimates
+        - evidences
+        - userCorrections
+        - finalTechProfile
+        - createdAt
+      properties:
+        githubAnalysisId:
+          type: string
+          example: '401'
+        version:
+          type: integer
+          minimum: 1
+          example: 1
+        staticSignals:
+          $ref: '#/components/schemas/StaticSignals'
+        repoSummaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/RepoSummary'
+        techTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/TechTag'
+        depthEstimates:
+          type: array
+          items:
+            $ref: '#/components/schemas/DepthEstimate'
+        evidences:
+          type: array
+          items:
+            $ref: '#/components/schemas/GithubEvidence'
+        userCorrections:
+          type: array
+          items:
+            $ref: '#/components/schemas/GithubUserCorrection'
+        finalTechProfile:
+          $ref: '#/components/schemas/FinalTechProfile'
+        createdAt:
+          type: string
+          format: date-time
+
+    GithubAnalysisApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/GithubAnalysis'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    GithubAnalysisCorrectionRequest:
+      type: object
+      required:
+        - userCorrections
+        - finalTechProfile
+      properties:
+        userCorrections:
+          type: array
+          items:
+            $ref: '#/components/schemas/GithubUserCorrection'
+        finalTechProfile:
+          $ref: '#/components/schemas/FinalTechProfile'
+
+    GithubAnalysisCorrectionResponseData:
+      type: object
+      required:
+        - githubAnalysisId
+        - savedAt
+        - finalTechProfile
+      properties:
+        githubAnalysisId:
+          type: string
+          example: '401'
+        savedAt:
+          type: string
+          format: date-time
+        finalTechProfile:
+          $ref: '#/components/schemas/FinalTechProfile'
+
+    GithubAnalysisCorrectionApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/GithubAnalysisCorrectionResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    DiagnosisRequest:
+      type: object
+      required:
+        - profileId
+      properties:
+        profileId:
+          type: string
+          example: '101'
+        githubAnalysisId:
+          type: string
+          nullable: true
+          example: '401'
+
+    MissingSkill:
+      type: object
+      required:
+        - skillName
+        - severity
+        - reason
+        - priorityOrder
+      properties:
+        skillName:
+          type: string
+          example: Redis
+        severity:
+          $ref: '#/components/schemas/DiagnosisSeverity'
+        reason:
+          type: string
+        priorityOrder:
+          type: integer
+          minimum: 1
+
+    Diagnosis:
+      type: object
+      required:
+        - diagnosisId
+        - version
+        - profileId
+        - targetRole
+        - currentLevel
+        - summary
+        - missingSkills
+        - strengths
+        - recommendations
+        - createdAt
+      properties:
+        diagnosisId:
+          type: string
+          example: '301'
+        version:
+          type: integer
+          minimum: 1
+        profileId:
+          type: string
+          example: '101'
+        githubAnalysisId:
+          type: string
+          nullable: true
+          example: '401'
+        targetRole:
+          type: string
+          example: BACKEND_ENGINEER
+        currentLevel:
+          $ref: '#/components/schemas/CurrentLevel'
+        summary:
+          type: string
+        missingSkills:
+          type: array
+          items:
+            $ref: '#/components/schemas/MissingSkill'
+        strengths:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    DiagnosisApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/Diagnosis'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    RoadmapRequest:
+      type: object
+      required:
+        - diagnosisId
+      properties:
+        diagnosisId:
+          type: string
+          example: '301'
+        githubAnalysisId:
+          type: string
+          nullable: true
+          example: '401'
+        codingTestAnalysisId:
+          type: string
+          nullable: true
+          description: Reserved optional context; coding-test API is not part of v1 contract.
+          example: '501'
+        weeklyStudyHours:
+          type: integer
+          minimum: 1
+          maximum: 40
+          nullable: true
+          example: 10
+        targetDate:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-08-31'
+
+    RoadmapTask:
+      type: object
+      required:
+        - type
+        - title
+      properties:
+        type:
+          $ref: '#/components/schemas/RoadmapTaskType'
+        title:
+          type: string
+          example: Redis 공식 문서에서 자료구조와 TTL 개념 읽기
+
+    RoadmapMaterial:
+      type: object
+      required:
+        - type
+        - title
+      properties:
+        type:
+          $ref: '#/components/schemas/MaterialType'
+        title:
+          type: string
+          example: Redis Documentation
+        url:
+          type: string
+          format: uri
+          nullable: true
+          example: https://redis.io/docs
+
+    RoadmapWeek:
+      type: object
+      required:
+        - roadmapWeekId
+        - weekNumber
+        - topic
+        - reason
+        - tasks
+        - materials
+        - estimatedHours
+      properties:
+        roadmapWeekId:
+          type: string
+          example: '7001'
+        weekNumber:
+          type: integer
+          minimum: 1
+          example: 1
+        topic:
+          type: string
+          example: Redis 기초
+        reason:
+          type: string
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoadmapTask'
+        materials:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoadmapMaterial'
+        estimatedHours:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+          example: 8.0
+        progressStatus:
+          allOf:
+            - $ref: '#/components/schemas/ProgressStatus'
+          nullable: true
+        progressNote:
+          type: string
+          nullable: true
+          maxLength: 1000
+        progressUpdatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    Roadmap:
+      type: object
+      required:
+        - roadmapId
+        - version
+        - totalWeeks
+        - summary
+        - weeks
+        - createdAt
+      properties:
+        roadmapId:
+          type: string
+          example: '601'
+        version:
+          type: integer
+          minimum: 1
+        diagnosisId:
+          type: string
+          nullable: true
+          example: '301'
+        totalWeeks:
+          type: integer
+          minimum: 1
+          example: 12
+        summary:
+          type: string
+        weeks:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoadmapWeek'
+        createdAt:
+          type: string
+          format: date-time
+
+    RoadmapApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/Roadmap'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    RoadmapProgressRequest:
+      type: object
+      required:
+        - roadmapWeekId
+        - status
+      properties:
+        roadmapWeekId:
+          type: string
+          example: '7001'
+        status:
+          $ref: '#/components/schemas/ProgressStatus'
+        note:
+          type: string
+          maxLength: 1000
+          nullable: true
+          example: TTL과 캐시 무효화 개념 정리 완료
+
+    RoadmapProgressResponseData:
+      type: object
+      required:
+        - progressLogId
+        - roadmapWeekId
+        - status
+        - savedAt
+      properties:
+        progressLogId:
+          type: string
+          example: '9001'
+        roadmapWeekId:
+          type: string
+          example: '7001'
+        status:
+          $ref: '#/components/schemas/ProgressStatus'
+        savedAt:
+          type: string
+          format: date-time
+
+    RoadmapProgressApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/RoadmapProgressResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
