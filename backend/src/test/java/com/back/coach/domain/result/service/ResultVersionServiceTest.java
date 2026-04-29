@@ -37,12 +37,39 @@ class ResultVersionServiceTest {
     }
 
     @Test
+    void nextGithubAnalysisVersion_whenPreviousResultExists_returnsNextVersion() {
+        given(githubAnalysisRepository.findMaxVersionByUserId(1L)).willReturn(5);
+
+        int nextVersion = resultVersionService.nextGithubAnalysisVersion(1L);
+
+        assertThat(nextVersion).isEqualTo(6);
+    }
+
+    @Test
+    void nextCapabilityDiagnosisVersion_whenNoPreviousResult_returnsOne() {
+        given(capabilityDiagnosisRepository.findMaxVersionByUserId(1L)).willReturn(null);
+
+        int nextVersion = resultVersionService.nextCapabilityDiagnosisVersion(1L);
+
+        assertThat(nextVersion).isEqualTo(1);
+    }
+
+    @Test
     void nextCapabilityDiagnosisVersion_whenPreviousResultExists_returnsNextVersion() {
         given(capabilityDiagnosisRepository.findMaxVersionByUserId(1L)).willReturn(3);
 
         int nextVersion = resultVersionService.nextCapabilityDiagnosisVersion(1L);
 
         assertThat(nextVersion).isEqualTo(4);
+    }
+
+    @Test
+    void nextLearningRoadmapVersion_whenNoPreviousResult_returnsOne() {
+        given(learningRoadmapRepository.findMaxVersionByUserId(1L)).willReturn(null);
+
+        int nextVersion = resultVersionService.nextLearningRoadmapVersion(1L);
+
+        assertThat(nextVersion).isEqualTo(1);
     }
 
     @Test
