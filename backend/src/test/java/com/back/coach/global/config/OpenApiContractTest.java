@@ -42,6 +42,8 @@ class OpenApiContractTest {
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/diagnoses/{diagnosisId}", "get")
                 .get("x-implementation-status")).isEqualTo("implemented");
+        assertThat(operation(paths, "/api/github-analyses/{githubAnalysisId}", "get")
+                .get("x-implementation-status")).isEqualTo("implemented");
     }
 
     @Test
