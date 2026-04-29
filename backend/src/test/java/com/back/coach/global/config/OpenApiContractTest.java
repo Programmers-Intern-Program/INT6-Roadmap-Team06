@@ -60,6 +60,14 @@ class OpenApiContractTest {
                 .isEqualTo(List.of("TODO", "IN_PROGRESS", "DONE", "SKIPPED"));
         Map<String, Object> errorResponseProperties = mapValue(mapValue(schemas, "ErrorResponse"), "properties");
         assertThat(errorResponseProperties).containsKeys("code", "message", "details");
+
+        Map<String, Object> dashboardGithubAnalysisSummary = mapValue(schemas, "DashboardGithubAnalysisSummary");
+        assertThat(dashboardGithubAnalysisSummary.get("required"))
+                .asList()
+                .contains("finalTechProfile", "userCorrectionCount");
+        Map<String, Object> dashboardGithubAnalysisProperties =
+                mapValue(dashboardGithubAnalysisSummary, "properties");
+        assertThat(dashboardGithubAnalysisProperties).containsKeys("finalTechProfile", "userCorrectionCount");
     }
 
     private Map<String, Object> loadOpenApiDocument() throws IOException {

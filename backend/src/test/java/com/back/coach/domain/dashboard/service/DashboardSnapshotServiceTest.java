@@ -3,6 +3,7 @@ package com.back.coach.domain.dashboard.service;
 import com.back.coach.domain.dashboard.dto.DashboardSnapshot;
 import com.back.coach.domain.diagnosis.entity.CapabilityDiagnosis;
 import com.back.coach.domain.diagnosis.repository.CapabilityDiagnosisRepository;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.roadmap.dto.RoadmapProgressSnapshot;
@@ -15,10 +16,15 @@ import com.back.coach.domain.user.entity.UserProfile;
 import com.back.coach.domain.user.repository.UserProfileRepository;
 import com.back.coach.global.code.CurrentLevel;
 import com.back.coach.global.code.ProgressStatus;
+import com.back.coach.global.exception.ErrorCode;
+import com.back.coach.global.exception.ServiceException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
@@ -27,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -51,6 +58,11 @@ class DashboardSnapshotServiceTest {
 
     @Mock
     private RoadmapProgressSnapshotService roadmapProgressSnapshotService;
+
+    @Spy
+    private ObjectMapper objectMapper = JsonMapper.builder()
+            .findAndAddModules()
+            .build();
 
     @InjectMocks
     private DashboardSnapshotService dashboardSnapshotService;
@@ -103,7 +115,9 @@ class DashboardSnapshotServiceTest {
                 20L,
                 3,
                 "latest analysis",
-                githubAnalysisCreatedAt
+                githubAnalysisCreatedAt,
+                finalTechProfile(),
+                1
         ));
         assertThat(result.diagnosis()).isEqualTo(new DashboardSnapshot.DiagnosisSummary(
                 30L,
@@ -158,6 +172,19 @@ class DashboardSnapshotServiceTest {
         assertThat(result.roadmap().progress()).isEqualTo(new DashboardSnapshot.ProgressSummary(0, 0, 0, 0, 0));
     }
 
+    @Test
+    void findSnapshot_whenGithubAnalysisPayloadIsInvalid_throwsInternalServerError() {
+        GithubAnalysis githubAnalysis = mock(GithubAnalysis.class);
+        given(githubAnalysis.getAnalysisPayload()).willReturn("{");
+        given(userProfileRepository.findByUserId(1L)).willReturn(Optional.empty());
+        given(githubAnalysisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.of(githubAnalysis));
+
+        assertThatThrownBy(() -> dashboardSnapshotService.findSnapshot(1L))
+                .isInstanceOfSatisfying(ServiceException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INTERNAL_SERVER_ERROR));
+    }
+
     private void givenNoLatestResults(Long userId) {
         given(userProfileRepository.findByUserId(userId)).willReturn(Optional.empty());
         given(githubAnalysisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(userId))
@@ -190,11 +217,22 @@ class DashboardSnapshotServiceTest {
     }
 
     private GithubAnalysis githubAnalysis(Long id, Integer version, String summary, Instant createdAt) {
+        return githubAnalysis(id, version, summary, createdAt, githubAnalysisPayload());
+    }
+
+    private GithubAnalysis githubAnalysis(
+            Long id,
+            Integer version,
+            String summary,
+            Instant createdAt,
+            String analysisPayload
+    ) {
         GithubAnalysis githubAnalysis = mock(GithubAnalysis.class);
         given(githubAnalysis.getId()).willReturn(id);
         given(githubAnalysis.getVersion()).willReturn(version);
         given(githubAnalysis.getSummary()).willReturn(summary);
         given(githubAnalysis.getCreatedAt()).willReturn(createdAt);
+        given(githubAnalysis.getAnalysisPayload()).willReturn(analysisPayload);
         return githubAnalysis;
     }
 
@@ -225,5 +263,29 @@ class DashboardSnapshotServiceTest {
 
     private RoadmapProgressSnapshot progressSnapshot(Long roadmapWeekId, ProgressStatus progressStatus) {
         return new RoadmapProgressSnapshot(roadmapWeekId, progressStatus, null, null);
+    }
+
+    private String githubAnalysisPayload() {
+        return """
+                {
+                  "userCorrections": [
+                    {
+                      "skillName": "Redis",
+                      "correction": "캐시에만 사용했고 Pub/Sub은 사용하지 않음"
+                    }
+                  ],
+                  "finalTechProfile": {
+                    "confirmedSkills": ["Java", "Spring Boot", "Redis"],
+                    "focusAreas": ["백엔드", "성능 최적화"]
+                  }
+                }
+                """;
+    }
+
+    private GithubAnalysisPayload.FinalTechProfile finalTechProfile() {
+        return new GithubAnalysisPayload.FinalTechProfile(
+                List.of("Java", "Spring Boot", "Redis"),
+                List.of("백엔드", "성능 최적화")
+        );
     }
 }
