@@ -1,0 +1,23 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #fafafa; color: #111; }
+a { color: #0366d6; }
+button {
+  cursor: pointer;
+  padding: 8px 14px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 14px;
+}
+button:hover { background: #f0f0f0; }
+.btn-primary { background: #24292e; color: #fff; border-color: #24292e; }
+.btn-primary:hover { background: #1b1f23; }
+pre {
+  background: #f4f4f4;
+  padding: 12px;
+  border-radius: 4px;
+  overflow: auto;
+  font-size: 13px;
+}
+.error { color: #b00020; }
+.muted { color: #666; font-size: 13px; }
