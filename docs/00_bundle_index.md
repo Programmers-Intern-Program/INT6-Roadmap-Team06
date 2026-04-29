@@ -10,6 +10,7 @@
 - 07_user_flow_screen_design_aligned.md
 - 08_db_physical_schema.md
 - 09_contract_appendix.md
+- 10_b_role_v1_handoff.md
 
 권장 읽기 순서
 1. 01 서비스 설계
@@ -21,3 +22,6 @@
 7. 08 DB 물리 스키마
 8. 09 계약 부록
 9. 05 아키텍처
+
+보조 문서
+- 10_b_role_v1_handoff.md: B 역할 v1 저장/상태/재조회/대시보드 범위 마감 체크와 후속 의존성 정리
