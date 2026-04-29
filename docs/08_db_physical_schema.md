@@ -201,6 +201,7 @@
 
 인덱스/제약
 - `uq_github_analyses_user_version` on (`user_id`, `version`)
+- `idx_github_analyses_user_version_created_at` on (`user_id`, `version desc`, `created_at desc`)
 - `idx_github_analyses_user_created_at` on (`user_id`, `created_at desc`)
 
 ### 4.9 capability_diagnoses
@@ -220,6 +221,7 @@
 
 인덱스/제약
 - `uq_capability_diagnoses_user_version` on (`user_id`, `version`)
+- `idx_capability_diagnoses_user_version_created_at` on (`user_id`, `version desc`, `created_at desc`)
 - `idx_capability_diagnoses_user_created_at` on (`user_id`, `created_at desc`)
 
 ### 4.10 learning_roadmaps
@@ -237,6 +239,7 @@
 
 인덱스/제약
 - `uq_learning_roadmaps_user_version` on (`user_id`, `version`)
+- `idx_learning_roadmaps_user_version_created_at` on (`user_id`, `version desc`, `created_at desc`)
 - `idx_learning_roadmaps_user_created_at` on (`user_id`, `created_at desc`)
 
 ### 4.11 roadmap_weeks
@@ -379,9 +382,9 @@
 ## 7. 조회 성능용 핵심 인덱스
 
 반드시 필요한 인덱스
-- 최신 GitHub 분석 조회: `github_analyses(user_id, created_at desc)`
-- 최신 진단 조회: `capability_diagnoses(user_id, created_at desc)`
-- 최신 로드맵 조회: `learning_roadmaps(user_id, created_at desc)`
+- 최신 GitHub 분석 조회: `github_analyses(user_id, version desc, created_at desc)`
+- 최신 진단 조회: `capability_diagnoses(user_id, version desc, created_at desc)`
+- 최신 로드맵 조회: `learning_roadmaps(user_id, version desc, created_at desc)`
 - 로드맵 주차 조회: `roadmap_weeks(roadmap_id, week_number)`
 - 진도 최신 상태 조회: `progress_logs(user_id, roadmap_week_id, created_at desc)`
 - 활성 snapshot 조회: `user_context_snapshots(user_id, context_type)` where `valid_to is null`

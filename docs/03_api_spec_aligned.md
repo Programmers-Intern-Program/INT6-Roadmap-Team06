@@ -340,6 +340,7 @@ v1 처리 기준
 - 보정 저장은 새 분석 실행이 아니므로 새 `github_analyses` row 또는 새 `version`을 만들지 않는다.
 - 기존 `analysis_payload`에서 `userCorrections`, `finalTechProfile`만 요청값으로 교체한다.
 - `staticSignals`, `repoSummaries`, `techTags`, `depthEstimates`, `evidences`는 분석 실행 당시의 AI/정적 분석 결과로 유지한다.
+- 이 저장은 기존 결과 row의 사용자 확정값 갱신이므로 latest 조회 기준의 `version` 값에는 영향을 주지 않는다.
 - 응답의 `savedAt`은 보정 저장 처리 시각이다.
 
 ### 3.3.3 GitHub 분석 결과 조회
@@ -618,6 +619,7 @@ v1 처리 기준
 
 조회 규칙
 - 현재 로그인 사용자의 최신 프로필, 최신 GitHub 분석, 최신 진단, 최신 로드맵을 조립한다
+- GitHub 분석, 진단, 로드맵의 최신 결과는 `version desc, created_at desc` 순서로 선택한다
 - 아직 생성되지 않은 결과 영역은 `null`로 반환한다
 - 로드맵 진행률은 `progress_logs` 최신 row 기준으로 계산한다
 - 대시보드는 화면 편의용 snapshot이며, 각 결과의 원본 상세 조회를 대체하지 않는다
@@ -707,7 +709,9 @@ data: {"sessionId":"10001"}
 규칙
 - 새 실행은 기존 row update가 아니라 새 row insert
 - 같은 사용자, 같은 결과 종류 내에서 `version` 1씩 증가
-- 기본 조회는 최신 결과 반환 정책을 따르되, 상세 조회는 ID 기준으로 고정한다
+- 기본 snapshot/latest 조회는 `version desc, created_at desc` 순서의 최신 결과 반환 정책을 따른다
+- 상세 조회는 `id` 기준으로 고정하며, `created_at` 또는 latest 기준으로 다른 row를 대체 조회하지 않는다
+- `PATCH /api/github-analyses/{githubAnalysisId}/corrections`는 새 분석 실행이 아니므로 `version`을 올리지 않고 기존 row의 보정 필드만 갱신한다
 
 ### 5.2 진도 상태 규칙
 
