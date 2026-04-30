@@ -1,6 +1,15 @@
-import { ScreenShell } from "@/components/screen-shell";
-import { screens } from "@/config/routes";
+import { DiagnosisDetailView } from "@/features/diagnosis/diagnosis-detail-view";
 
-export default function DiagnosisDetailPage() {
-  return <ScreenShell screen={screens.diagnosisDetail} />;
+type DiagnosisDetailPageProps = {
+  params: Promise<{
+    diagnosisId: string;
+  }>;
+};
+
+export default async function DiagnosisDetailPage({
+  params
+}: DiagnosisDetailPageProps) {
+  const { diagnosisId } = await params;
+
+  return <DiagnosisDetailView diagnosisId={diagnosisId} />;
 }
