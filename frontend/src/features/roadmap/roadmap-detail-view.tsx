@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
-import { getRoadmap } from "@/features/roadmap/api";
+import { getRoadmap, saveRoadmapProgress } from "@/features/roadmap/api";
 import {
   materialTypeLabels,
   progressStatusClassNames,
   progressStatusLabels,
+  progressStatusOptions,
   taskTypeLabels
 } from "@/features/roadmap/labels";
-import type { Roadmap } from "@/features/roadmap/types";
+import type { ProgressStatus, Roadmap } from "@/features/roadmap/types";
 import { ApiError } from "@/lib/api";
 
 type RoadmapDetailViewProps = {
@@ -23,6 +24,8 @@ type RoadmapState =
 
 export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
   const [state, setState] = useState<RoadmapState>({ status: "loading" });
+  const [savingWeekId, setSavingWeekId] = useState<string | null>(null);
+  const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     let ignore = false;
@@ -38,7 +41,10 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
         }
       } catch (error) {
         if (!ignore) {
-          setState({ message: getErrorMessage(error), status: "error" });
+          setState({
+            message: getErrorMessage(error, "로드맵을 불러오지 못했습니다."),
+            status: "error"
+          });
         }
       }
     }
@@ -49,6 +55,73 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
       ignore = true;
     };
   }, [roadmapId]);
+
+  async function handleProgressSubmit(
+    event: FormEvent<HTMLFormElement>,
+    roadmapWeekId: string
+  ) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const status = formData.get("status");
+    const note = formData.get("note");
+
+    if (!isProgressStatus(status)) {
+      setSaveErrors((current) => ({
+        ...current,
+        [roadmapWeekId]: "진도 상태를 선택해 주세요."
+      }));
+      return;
+    }
+
+    const normalizedNote =
+      typeof note === "string" && note.trim().length > 0 ? note.trim() : null;
+
+    setSavingWeekId(roadmapWeekId);
+    setSaveErrors((current) => {
+      const next = { ...current };
+      delete next[roadmapWeekId];
+      return next;
+    });
+
+    try {
+      const saved = await saveRoadmapProgress(roadmapId, {
+        note: normalizedNote,
+        roadmapWeekId,
+        status
+      });
+
+      setState((current) => {
+        if (current.status !== "success") {
+          return current;
+        }
+
+        return {
+          roadmap: {
+            ...current.roadmap,
+            weeks: current.roadmap.weeks.map((week) =>
+              week.roadmapWeekId === saved.roadmapWeekId
+                ? {
+                    ...week,
+                    progressNote: normalizedNote,
+                    progressStatus: saved.status,
+                    progressUpdatedAt: saved.savedAt
+                  }
+                : week
+            )
+          },
+          status: "success"
+        };
+      });
+    } catch (error) {
+      setSaveErrors((current) => ({
+        ...current,
+        [roadmapWeekId]: getErrorMessage(error, "진도를 저장하지 못했습니다.")
+      }));
+    } finally {
+      setSavingWeekId(null);
+    }
+  }
 
   if (state.status === "loading") {
     return <RoadmapStatePanel message="로드맵을 불러오는 중입니다." />;
@@ -134,6 +207,50 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
                   </div>
                 ) : null}
 
+                <form
+                  className="roadmap-progress-form"
+                  key={`${week.roadmapWeekId}-${progressStatus}-${week.progressUpdatedAt ?? ""}`}
+                  onSubmit={(event) =>
+                    handleProgressSubmit(event, week.roadmapWeekId)
+                  }
+                >
+                  <label>
+                    <span>진도 상태</span>
+                    <select defaultValue={progressStatus} name="status">
+                      {progressStatusOptions.map((status) => (
+                        <option key={status} value={status}>
+                          {progressStatusLabels[status]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>메모</span>
+                    <textarea
+                      defaultValue={week.progressNote ?? ""}
+                      maxLength={1000}
+                      name="note"
+                      placeholder="학습 결과나 다음에 볼 내용을 적어두세요."
+                      rows={3}
+                    />
+                  </label>
+
+                  <div className="roadmap-progress-actions">
+                    {saveErrors[week.roadmapWeekId] ? (
+                      <p role="alert">{saveErrors[week.roadmapWeekId]}</p>
+                    ) : null}
+                    <button
+                      disabled={savingWeekId === week.roadmapWeekId}
+                      type="submit"
+                    >
+                      {savingWeekId === week.roadmapWeekId
+                        ? "저장 중"
+                        : "진도 저장"}
+                    </button>
+                  </div>
+                </form>
+
                 <div className="roadmap-week-columns">
                   <section aria-label={`${week.weekNumber}주차 작업`}>
                     <h3>작업</h3>
@@ -188,12 +305,21 @@ function RoadmapStatePanel({
   );
 }
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof ApiError) {
     return error.message;
   }
 
-  return "로드맵을 불러오지 못했습니다.";
+  return fallbackMessage;
+}
+
+function isProgressStatus(
+  value: FormDataEntryValue | null
+): value is ProgressStatus {
+  return (
+    typeof value === "string" &&
+    progressStatusOptions.includes(value as ProgressStatus)
+  );
 }
 
 function formatDateTime(value: string) {

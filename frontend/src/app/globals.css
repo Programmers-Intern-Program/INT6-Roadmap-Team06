@@ -324,6 +324,81 @@ a {
   line-height: 1.5;
 }
 
+.roadmap-progress-form {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+}
+
+.roadmap-progress-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.roadmap-progress-form label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.roadmap-progress-form select,
+.roadmap-progress-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  font: inherit;
+}
+
+.roadmap-progress-form select {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.roadmap-progress-form textarea {
+  min-height: 84px;
+  resize: vertical;
+  padding: 10px;
+  line-height: 1.5;
+}
+
+.roadmap-progress-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.roadmap-progress-actions p {
+  margin: 0;
+  color: #a32020;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.roadmap-progress-actions button {
+  min-height: 38px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.roadmap-progress-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .roadmap-week-columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -400,6 +475,11 @@ a {
   }
 
   .roadmap-week-header {
+    flex-direction: column;
+  }
+
+  .roadmap-progress-actions {
+    align-items: stretch;
     flex-direction: column;
   }
 }
