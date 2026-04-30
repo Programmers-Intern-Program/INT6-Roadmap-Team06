@@ -73,7 +73,7 @@ class RestGithubApiClientTest {
     // ── getUserInfo ──
 
     @Test
-    @DisplayName("getUserInfo — id, login 파싱")
+    @DisplayName("getUserInfo — id(정수), login 파싱")
     void getUserInfo_parsesIdAndLogin() {
         wireMock.stubFor(get("/user")
                 .willReturn(aResponse()
@@ -82,6 +82,7 @@ class RestGithubApiClientTest {
 
         GithubUserInfoDto info = client.getUserInfo("ghp_token");
 
+        assertThat(info.id()).isEqualTo(42L);
         assertThat(info.login()).isEqualTo("testuser");
     }
 

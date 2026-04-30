@@ -61,14 +61,15 @@ public class GithubConnectionService {
     }
 
     private GithubConnection upsertConnection(Long userId, GithubUserInfoDto userInfo, String accessToken) {
-        return connectionRepo.findByUserIdAndGithubUserId(userId, userInfo.id())
+        String githubUserId = String.valueOf(userInfo.id());
+        return connectionRepo.findByUserIdAndGithubUserId(userId, githubUserId)
                 .map(existing -> {
                     existing.updateAccessToken(accessToken);
                     existing.updateLogin(userInfo.login());
                     return connectionRepo.save(existing);
                 })
                 .orElseGet(() -> connectionRepo.save(
-                        GithubConnection.connect(userId, userInfo.id(), userInfo.login(),
+                        GithubConnection.connect(userId, githubUserId, userInfo.login(),
                                 GithubAccessType.OAUTH, accessToken)));
     }
 

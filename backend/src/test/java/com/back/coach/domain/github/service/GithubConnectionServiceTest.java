@@ -47,7 +47,7 @@ class GithubConnectionServiceTest {
     @DisplayName("신규 연결: GithubConnection + GithubProject 행 생성 + metadata fetch")
     void connect_newConnection_createsConnectionAndProjects() {
         given(apiClient.exchangeCode("code-abc")).willReturn("ghp_token");
-        given(apiClient.getUserInfo("ghp_token")).willReturn(new GithubUserInfoDto("42", "testuser"));
+        given(apiClient.getUserInfo("ghp_token")).willReturn(new GithubUserInfoDto(42L, "testuser"));
         given(connectionRepo.findByUserIdAndGithubUserId(USER_ID, "42")).willReturn(Optional.empty());
 
         GithubConnection savedConnection = savedConnection(10L, USER_ID, "42", "testuser", "ghp_token");
@@ -80,7 +80,7 @@ class GithubConnectionServiceTest {
     @DisplayName("기존 연결 재연결: access_token 업데이트, 프로젝트 upsert")
     void connect_existingConnection_updatesToken() {
         given(apiClient.exchangeCode("code-abc")).willReturn("ghp_new_token");
-        given(apiClient.getUserInfo("ghp_new_token")).willReturn(new GithubUserInfoDto("42", "testuser"));
+        given(apiClient.getUserInfo("ghp_new_token")).willReturn(new GithubUserInfoDto(42L, "testuser"));
 
         GithubConnection existing = savedConnection(10L, USER_ID, "42", "testuser", "ghp_old_token");
         given(connectionRepo.findByUserIdAndGithubUserId(USER_ID, "42")).willReturn(Optional.of(existing));

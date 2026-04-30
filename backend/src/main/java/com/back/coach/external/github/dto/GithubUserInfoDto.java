@@ -5,6 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GithubUserInfoDto(
-        @JsonProperty("id") String id,
+        @JsonProperty("id") Long id,    // GitHub API returns integer
         @JsonProperty("login") String login
 ) {}

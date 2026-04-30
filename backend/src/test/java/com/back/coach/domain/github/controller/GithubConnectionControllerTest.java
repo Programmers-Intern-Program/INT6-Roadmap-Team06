@@ -104,7 +104,7 @@ class GithubConnectionControllerTest extends ApiTestBase {
         String token = jwtTokenProvider.createAccessToken(user.getId());
 
         stubOAuthExchange("ghp_test_token");
-        stubUserInfo("99", "testuser");
+        stubUserInfo(99L, "testuser");
         stubUserRepos(List.of(Map.of(
                 "node_id", "N1",
                 "full_name", "testuser/cool-repo",
@@ -207,7 +207,7 @@ class GithubConnectionControllerTest extends ApiTestBase {
                         .withBody("access_token=" + accessToken + "&token_type=bearer")));
     }
 
-    private void stubUserInfo(String id, String login) throws Exception {
+    private void stubUserInfo(long id, String login) throws Exception {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get("/user")
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
