@@ -1,6 +1,5 @@
-import { ScreenShell } from "@/components/screen-shell";
-import { screens } from "@/config/routes";
+import { ProfileView } from "@/features/profile/profile-view";
 
 export default function ProfilePage() {
-  return <ScreenShell screen={screens.profile} />;
+  return <ProfileView />;
 }
