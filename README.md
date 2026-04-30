@@ -46,6 +46,12 @@ npm run dev
 
 기본 주소는 `http://localhost:3000`입니다.
 
+프론트에서 백엔드 API를 호출하려면 `frontend/.env.local`에 API base URL을 설정합니다. 값이 없으면 같은 origin의 상대 경로로 요청합니다.
+
+```powershell
+Set-Content .env.local "NEXT_PUBLIC_API_BASE_URL=http://localhost:8080"
+```
+
 프론트 변경 검증은 다음 명령으로 확인합니다.
 
 ```powershell
