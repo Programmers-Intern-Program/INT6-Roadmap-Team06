@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SynthesisResponse",
+  "type": "object",
+  "required": ["techTags", "depthEstimates", "evidences", "finalTechProfile"],
+  "additionalProperties": false,
+  "properties": {
+    "techTags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["skillName", "tagReason"],
+        "additionalProperties": false,
+        "properties": {
+          "skillName": { "type": "string", "minLength": 1 },
+          "tagReason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "depthEstimates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["skillName", "level", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "skillName": { "type": "string", "minLength": 1 },
+          "level": { "type": "string", "enum": ["INTRO", "APPLIED", "PRACTICAL", "DEEP"] },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repoName", "type", "source", "summary"],
+        "additionalProperties": false,
+        "properties": {
+          "repoName": { "type": "string", "minLength": 1 },
+          "type": { "type": "string", "enum": ["README", "CODE", "CONFIG", "REPO_METADATA", "COMMIT"] },
+          "source": { "type": "string" },
+          "summary": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "finalTechProfile": {
+      "type": "object",
+      "required": ["confirmedSkills", "focusAreas"],
+      "additionalProperties": false,
+      "properties": {
+        "confirmedSkills": { "type": "array", "items": { "type": "string" } },
+        "focusAreas": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -22,9 +22,14 @@
 
 ### 2.1 인증
 
-- 로그인 방식: OAuth + JWT
-- 보호 API는 `Authorization: Bearer {accessToken}` 사용
+- 로그인 방식: OAuth (v1: GitHub) + JWT
+- OAuth 콜백은 access/refresh JWT를 `HttpOnly; Secure; SameSite=Lax` 쿠키로 발급한다
+- 보호 API는 다음 중 하나로 인증 가능하다 (둘 다 허용)
+  - `Authorization: Bearer {accessToken}` 헤더
+  - `accessToken` 쿠키 (브라우저 SPA 기본 경로)
+- refresh 토큰은 `refreshToken` 쿠키로만 전달되며, `POST /api/v1/auth/refresh` 가 새 토큰 쌍을 같은 쿠키로 재발급한다
 - 사용자 식별용 `userId`는 요청 body로 받지 않고 인증 컨텍스트에서 해석한다
+- 토큰은 만료 전까지 서버 측 무효화 수단이 없다 (revocation은 후속 과제). 따라서 access TTL은 짧게(15분), refresh TTL은 24시간으로 둔다
 
 ### 2.2 콘텐츠 타입
 

@@ -13,4 +13,6 @@ public interface GithubConnectionRepository extends JpaRepository<GithubConnecti
     Optional<GithubConnection> findByIdAndUserId(Long id, Long userId);
 
     boolean existsByIdAndUserId(Long id, Long userId);
+
+    Optional<GithubConnection> findByUserIdAndGithubUserId(Long userId, String githubUserId);
 }

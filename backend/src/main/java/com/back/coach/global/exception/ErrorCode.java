@@ -8,6 +8,7 @@ public enum ErrorCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     AUTH_INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다."),
     AUTH_EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰입니다."),
+    INVALID_OAUTH_STATE(HttpStatus.BAD_REQUEST, "OAuth 인증 state가 올바르지 않습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "해당 리소스에 접근할 권한이 없습니다."),
 
     // 사용자
@@ -29,7 +30,8 @@ public enum ErrorCode {
     // LLM 내부 코드 — 호출 지점에서 ANALYSIS_FAILED / ROADMAP_GENERATION_FAILED / RATE_LIMIT_EXCEEDED 로 매핑
     LLM_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "LLM 응답 시간이 초과되었습니다."),
     LLM_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "LLM 호출 제한에 도달했습니다."),
-    LLM_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "LLM 응답을 해석할 수 없습니다.");
+    LLM_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "LLM 응답을 해석할 수 없습니다."),
+    LLM_TRIAGE_FAILED(HttpStatus.BAD_GATEWAY, "코드 분석에 실패했습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;
