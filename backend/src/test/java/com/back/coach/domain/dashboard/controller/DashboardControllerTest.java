@@ -6,16 +6,12 @@ import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.global.code.CurrentLevel;
 import com.back.coach.global.exception.GlobalExceptionHandler;
 import com.back.coach.global.security.AuthenticatedUser;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,11 +31,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(MockitoExtension.class)
 class DashboardControllerTest {
 
-    private final ObjectMapper objectMapper = JsonMapper.builder()
-            .findAndAddModules()
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .build();
-
     @Mock
     private DashboardSnapshotService dashboardSnapshotService;
 
@@ -50,7 +41,6 @@ class DashboardControllerTest {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new DashboardController(dashboardSnapshotService))
                 .setControllerAdvice(new GlobalExceptionHandler())
-                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
     }
 

@@ -34,7 +34,7 @@ record RepoSignalInput(String primaryLanguage, RepoMetadata metadata) {}
 
 **이유** 원안은 JPA 엔티티 `GithubProject`를 직접 받아 집계 로직이 영속성 레이어에 의존한다. `RepoSignalInput`으로 래핑하면 집계 로직이 순수 함수가 되어 `GithubProject` 팩토리 없이 단위 테스트를 작성할 수 있다. 엔티티 → 입력 매핑은 오케스트레이터(`GithubAnalysisService`)가 담당한다.
 
-**위치** `service/github/signal/RepoSignalInput.java`, `service/github/signal/StaticSignalAggregator.java`
+**위치** `domain/github/service/RepoSignalInput.java`, `domain/github/service/StaticSignalAggregator.java`
 
 > 설계 문서 §11의 시그니처 서술은 원문 유지. 실제 시그니처는 이 문서 기준.
 
@@ -55,7 +55,7 @@ record ResolvedChampion(
 
 **이유** 프롬프트 빌더(`RepoSummaryPromptBuilder`)가 `RepoMetadata`를 알아야 본문을 조회할 수 있다면 빌더 단위 테스트에 `RepoMetadata` fixture가 필요해진다. 오케스트레이터가 `Champion` → `ResolvedChampion` 변환(sha로 커밋 조회, 번호로 PR/Issue 조회)을 수행하고, 빌더는 `ResolvedChampion` 목록만 받는다.
 
-**위치** `service/github/summary/ResolvedChampion.java`
+**위치** `domain/github/service/summary/ResolvedChampion.java`
 
 ---
 
@@ -69,7 +69,7 @@ record TriageResult(List<Champion> champions, boolean fallback) {}
 
 **이유** 폴백 경로로 진입했을 때 `analysis_payload.meta.triageFallback = true`를 기록해야 한다. 이 플래그가 반환형에 없으면 오케스트레이터가 폴백 여부를 알 방법이 없다. 폴백 플래그는 관찰자(모니터링, 품질 리뷰)가 분석이 퇴화 경로를 탔음을 판단하는 근거다.
 
-**위치** `service/github/triage/TriageResult.java`, `service/github/triage/ChampionTriageService.java`
+**위치** `domain/github/service/triage/TriageResult.java`, `domain/github/service/triage/ChampionTriageService.java`
 
 ---
 
@@ -116,7 +116,7 @@ public static GithubAnalysis create(Long userId, Long connectionId, int version,
 
 **이유** `RepoSummaryPromptBuilder`가 24KB 캡을 초과하면 **후미(낮은 우선순위) champion 부터 제거**한다. 이 동작이 정확하려면 목록 정렬 의미가 명확해야 한다. Slice 4의 bounded agentic Stage 2 확장 시 동일 계약을 유지할 수 있도록 지금 불변식을 문서화한다.
 
-**위치** `service/github/triage/ChampionTriageService.java` Javadoc, `service/github/summary/RepoSummaryPromptBuilder.java` 상수 주석
+**위치** `domain/github/service/triage/ChampionTriageService.java` Javadoc, `domain/github/service/summary/RepoSummaryPromptBuilder.java` 상수 주석
 
 ---
 
@@ -131,7 +131,7 @@ public static GithubAnalysis create(Long userId, Long connectionId, int version,
 
 정렬이 반대이면 폴백이 가장 오래된 커밋을 선택하고, 캡 초과 시 최신 항목을 잃는다. **Slice 3 HTTP fetcher는 이 정렬 보장을 반드시 지켜야 한다.**
 
-**위치** `service/github/model/RepoMetadata.java` 레코드/클래스 Javadoc
+**위치** `domain/github/service/RepoMetadata.java` 레코드/클래스 Javadoc
 
 ---
 
@@ -147,7 +147,7 @@ public static GithubAnalysis create(Long userId, Long connectionId, int version,
 
 **이유** 설계 문서 §6은 "블랙리스트 경로 패턴"을 나열하지만 매칭 구현 방식을 지정하지 않는다. unified diff를 `diff --git a/<path>` 헤더로 분리하고 경로를 추출해 `Predicate` 체인으로 검사 후 블록 전체를 drop한다. 정규식 대신 `Predicate`를 사용해 규칙 추가/제거를 코드 변경 없이 목록 편집으로 처리한다.
 
-**위치** `service/github/diff/DiffPreprocessor.java`
+**위치** `domain/github/service/summary/DiffPreprocessor.java`
 
 ---
 
@@ -157,7 +157,7 @@ public static GithubAnalysis create(Long userId, Long connectionId, int version,
 
 **이유** 설계 문서 §5.3은 "각 RepoSummary의 highlights를 앞 3개로 압축"이라 기술하지만 상수 이름과 "drop summaries" 대신 "compress highlights"를 선택한 이유를 명시하지 않는다. 저장소 전체를 제거하면 synthesis가 해당 저장소를 전혀 모르는 상태로 진행된다. highlight 압축은 저장소별 요약(`summary` 필드)은 유지하므로 컨텍스트 손실이 최소화된다.
 
-**위치** `service/github/synthesis/SynthesisPromptBuilder.java` — `COMPRESSED_HIGHLIGHTS_PER_SUMMARY = 3`
+**위치** `domain/github/service/synthesis/SynthesisPromptBuilder.java` — `COMPRESSED_HIGHLIGHTS_PER_SUMMARY = 3`
 
 ---
 
@@ -184,7 +184,7 @@ static void overrideAiGatewayUrl(DynamicPropertyRegistry registry) {
 
 **이유** 세 Stage가 동일 `AiGateway` 엔드포인트를 사용하므로 단일 WireMock 서버로 세 응답을 구분해야 한다. JSONPath 매칭은 요청 body 구조 변경에 강하며, 세 프롬프트에 각각만 등장하는 문자열을 앵커로 사용해 오매칭을 방지한다.
 
-**위치** `test/.../service/GithubAnalysisServiceIntegrationTest.java`
+**위치** `test/.../domain/github/service/GithubAnalysisFlowIntegrationTest.java`
 
 ---
 
@@ -205,7 +205,7 @@ if (!selectedIds.containsAll(coreIds)) {
 
 **이유** "core ⊆ selected"는 두 필드 간 교차 제약이므로 단일 필드 어노테이션으로 표현하기 어렵다. DTO에 넣으면 커스텀 `ConstraintValidator`가 필요하고 서비스 규칙이 DTO에 누출된다. 결과적으로 400 응답의 출처가 두 곳이 된다는 점을 명시해 기여자가 이 검사를 DTO로 옮기지 않도록 한다.
 
-**위치** `domain/github/controller/dto/GithubAnalysisRequest.java`, `service/github/GithubAnalysisService.java`
+**위치** `domain/github/dto/GithubAnalysisRequest.java`, `domain/github/service/GithubAnalysisService.java`
 
 ---
 

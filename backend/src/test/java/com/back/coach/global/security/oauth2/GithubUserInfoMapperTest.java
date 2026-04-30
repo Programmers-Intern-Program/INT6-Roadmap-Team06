@@ -2,7 +2,7 @@ package com.back.coach.global.security.oauth2;
 
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
-import com.back.coach.service.auth.GithubUserInfo;
+import com.back.coach.domain.user.service.GithubUserInfo;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.user.OAuth2User;

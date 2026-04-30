@@ -2,9 +2,9 @@ package com.back.coach.global.security.oauth2;
 
 import com.back.coach.global.security.CookieManager;
 import com.back.coach.global.security.JwtProperties;
-import com.back.coach.service.auth.AuthService;
-import com.back.coach.service.auth.GithubUserInfo;
-import com.back.coach.service.auth.OAuthLoginResult;
+import com.back.coach.domain.user.service.AuthService;
+import com.back.coach.domain.user.service.GithubUserInfo;
+import com.back.coach.domain.user.service.OAuthLoginResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
