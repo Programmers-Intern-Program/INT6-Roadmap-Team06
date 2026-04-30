@@ -1,6 +1,15 @@
-import { ScreenShell } from "@/components/screen-shell";
-import { screens } from "@/config/routes";
+import { RoadmapDetailView } from "@/features/roadmap/roadmap-detail-view";
 
-export default function RoadmapDetailPage() {
-  return <ScreenShell screen={screens.roadmapDetail} />;
+type RoadmapDetailPageProps = {
+  params: Promise<{
+    roadmapId: string;
+  }>;
+};
+
+export default async function RoadmapDetailPage({
+  params
+}: RoadmapDetailPageProps) {
+  const { roadmapId } = await params;
+
+  return <RoadmapDetailView roadmapId={roadmapId} />;
 }
