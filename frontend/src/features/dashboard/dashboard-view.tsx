@@ -139,7 +139,10 @@ export function DashboardView() {
                 사용자 보정 {dashboard.githubAnalysis.userCorrectionCount}개 ·{" "}
                 {formatDateTime(dashboard.githubAnalysis.createdAt)}
               </p>
-              <Link className="dashboard-card-link" href="/github/analysis">
+              <Link
+                className="dashboard-card-link"
+                href={`/github/analysis?githubAnalysisId=${dashboard.githubAnalysis.githubAnalysisId}`}
+              >
                 분석 보정 보기
               </Link>
             </>

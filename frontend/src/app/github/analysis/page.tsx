@@ -1,6 +1,27 @@
-import { ScreenShell } from "@/components/screen-shell";
-import { screens } from "@/config/routes";
+import { GithubAnalysisView } from "@/features/github-analysis/github-analysis-view";
 
-export default function GithubAnalysisPage() {
-  return <ScreenShell screen={screens.githubAnalysis} />;
+type GithubAnalysisPageProps = {
+  searchParams: Promise<{
+    githubAnalysisId?: string | string[];
+  }>;
+};
+
+export default async function GithubAnalysisPage({
+  searchParams
+}: GithubAnalysisPageProps) {
+  const { githubAnalysisId } = await searchParams;
+
+  return (
+    <GithubAnalysisView
+      initialGithubAnalysisId={getFirstQueryValue(githubAnalysisId)}
+    />
+  );
+}
+
+function getFirstQueryValue(value?: string | string[]) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
 }
