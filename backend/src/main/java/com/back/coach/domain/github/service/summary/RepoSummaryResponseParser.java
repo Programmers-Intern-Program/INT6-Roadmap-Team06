@@ -2,7 +2,7 @@ package com.back.coach.domain.github.service.summary;
 
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
-import com.back.coach.domain.github.service.AnalysisPayload;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
@@ -29,7 +29,7 @@ public class RepoSummaryResponseParser {
     private final ObjectMapper mapper = new ObjectMapper();
     private final JsonSchema schema = loadSchema();
 
-    public AnalysisPayload.RepoSummary parse(String llmJson) {
+    public GithubAnalysisPayload.RepoSummary parse(String llmJson) {
         JsonNode root;
         try {
             root = mapper.readTree(llmJson);
@@ -47,7 +47,7 @@ public class RepoSummaryResponseParser {
         List<String> highlights = new ArrayList<>();
         root.get("highlights").forEach(n -> highlights.add(n.asText()));
 
-        return new AnalysisPayload.RepoSummary(
+        return new GithubAnalysisPayload.RepoSummary(
                 root.get("repoId").asText(),
                 root.get("repoName").asText(),
                 root.get("summary").asText(),

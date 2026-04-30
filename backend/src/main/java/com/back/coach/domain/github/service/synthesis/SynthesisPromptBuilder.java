@@ -2,7 +2,7 @@ package com.back.coach.domain.github.service.synthesis;
 
 import com.back.coach.global.code.GithubDepthLevel;
 import com.back.coach.global.code.GithubEvidenceType;
-import com.back.coach.domain.github.service.AnalysisPayload;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -26,7 +26,7 @@ public class SynthesisPromptBuilder {
     private static final String EVIDENCE_VALUES = Arrays.stream(GithubEvidenceType.values())
             .map(Enum::name).collect(Collectors.joining(", "));
 
-    public String build(AnalysisPayload.StaticSignals signals, List<AnalysisPayload.RepoSummary> summaries) {
+    public String build(GithubAnalysisPayload.StaticSignals signals, List<GithubAnalysisPayload.RepoSummary> summaries) {
         String full = render(signals, summaries, /* compress */ false);
         if (full.getBytes().length <= MAX_PROMPT_BYTES) return full;
 
@@ -35,7 +35,7 @@ public class SynthesisPromptBuilder {
         return render(signals, summaries, true);
     }
 
-    private String render(AnalysisPayload.StaticSignals signals, List<AnalysisPayload.RepoSummary> summaries, boolean compress) {
+    private String render(GithubAnalysisPayload.StaticSignals signals, List<GithubAnalysisPayload.RepoSummary> summaries, boolean compress) {
         StringBuilder sb = new StringBuilder();
         sb.append("## Static Signals\n");
         sb.append("activeRepos: ").append(signals.activeRepos()).append("\n");
@@ -46,7 +46,7 @@ public class SynthesisPromptBuilder {
                 sb.append("  - ").append(pl.lang()).append(": ").append(pl.ratio()).append("\n"));
 
         sb.append("\n## Per-Repo Summaries\n");
-        for (AnalysisPayload.RepoSummary s : summaries) {
+        for (GithubAnalysisPayload.RepoSummary s : summaries) {
             sb.append("\n### ").append(s.repoName()).append(" (id=").append(s.repoId()).append(")\n");
             sb.append(s.summary()).append("\n");
             sb.append("highlights:\n");

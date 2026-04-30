@@ -66,7 +66,7 @@ class GithubAnalysisServiceTest {
                 new RepoSummaryResponseParser(),
                 new SynthesisPromptBuilder(),
                 new SynthesisResponseParser(),
-                new AnalysisPayloadJson(),
+                new GithubAnalysisPayloadJson(),
                 llmClient
         );
 
@@ -110,7 +110,6 @@ class GithubAnalysisServiceTest {
         assertThat(result.version()).isEqualTo(1);
         assertThat(result.id()).isEqualTo(7L);
         assertThat(result.payload().finalTechProfile().confirmedSkills()).contains("Spring Boot");
-        assertThat(result.payload().meta().triageFallback()).isFalse();
     }
 
     @Test
@@ -128,8 +127,8 @@ class GithubAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("Triage가 fallback되면 meta.triageFallback=true로 기록된다")
-    void run_triageFallback_setsFlag() {
+    @DisplayName("Triage LLM 실패해도 fallback commit으로 분석이 완료된다")
+    void run_triageFallback_analysisCompletes() {
         primeRepos();
         given(analysisRepo.findMaxVersionByUserId(USER_ID)).willReturn(null);
         given(analysisRepo.save(any(GithubAnalysis.class))).willAnswer(inv -> withId(inv.getArgument(0), 9L));
@@ -142,7 +141,8 @@ class GithubAnalysisServiceTest {
         GithubAnalysisService.GithubAnalysisResult result =
                 service.run(USER_ID, CONNECTION_ID, List.of(1L), List.of(1L));
 
-        assertThat(result.payload().meta().triageFallback()).isTrue();
+        assertThat(result.version()).isEqualTo(1);
+        assertThat(result.payload().finalTechProfile()).isNotNull();
     }
 
     @Test

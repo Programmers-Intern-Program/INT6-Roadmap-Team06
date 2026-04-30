@@ -4,7 +4,7 @@ import com.back.coach.global.code.GithubDepthLevel;
 import com.back.coach.global.code.GithubEvidenceType;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
-import com.back.coach.domain.github.service.AnalysisPayload;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.JsonSchema;
@@ -47,18 +47,18 @@ public class SynthesisResponseParser {
         }
 
         return new SynthesisResult(
-                mapList(root.get("techTags"), n -> new AnalysisPayload.TechTag(
+                mapList(root.get("techTags"), n -> new GithubAnalysisPayload.TechTag(
                         n.get("skillName").asText(), n.get("tagReason").asText())),
-                mapList(root.get("depthEstimates"), n -> new AnalysisPayload.DepthEstimate(
+                mapList(root.get("depthEstimates"), n -> new GithubAnalysisPayload.DepthEstimate(
                         n.get("skillName").asText(),
                         GithubDepthLevel.valueOf(n.get("level").asText()),
                         n.get("reason").asText())),
-                mapList(root.get("evidences"), n -> new AnalysisPayload.Evidence(
+                mapList(root.get("evidences"), n -> new GithubAnalysisPayload.GithubEvidence(
                         n.get("repoName").asText(),
                         GithubEvidenceType.valueOf(n.get("type").asText()),
                         n.get("source").asText(),
                         n.get("summary").asText())),
-                new AnalysisPayload.FinalTechProfile(
+                new GithubAnalysisPayload.FinalTechProfile(
                         mapList(root.get("finalTechProfile").get("confirmedSkills"), JsonNode::asText),
                         mapList(root.get("finalTechProfile").get("focusAreas"), JsonNode::asText))
         );
@@ -81,9 +81,9 @@ public class SynthesisResponseParser {
     }
 
     public record SynthesisResult(
-            List<AnalysisPayload.TechTag> techTags,
-            List<AnalysisPayload.DepthEstimate> depthEstimates,
-            List<AnalysisPayload.Evidence> evidences,
-            AnalysisPayload.FinalTechProfile finalTechProfile
+            List<GithubAnalysisPayload.TechTag> techTags,
+            List<GithubAnalysisPayload.DepthEstimate> depthEstimates,
+            List<GithubAnalysisPayload.GithubEvidence> evidences,
+            GithubAnalysisPayload.FinalTechProfile finalTechProfile
     ) {}
 }
