@@ -955,10 +955,16 @@ a {
   gap: 14px;
 }
 
+.github-analysis-section-heading {
+  display: grid;
+  gap: 6px;
+}
+
 .github-analysis-section h2 {
   margin-bottom: 0;
 }
 
+.github-analysis-section-heading p,
 .github-analysis-empty-text,
 .github-analysis-state-panel p {
   margin: 0;
@@ -1118,6 +1124,86 @@ a {
   color: #a32020;
 }
 
+.github-correction-form {
+  display: grid;
+  gap: 16px;
+}
+
+.github-correction-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.github-correction-form label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.github-correction-form textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  padding: 10px;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.github-correction-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.github-correction-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.github-correction-actions > div {
+  display: grid;
+  gap: 6px;
+}
+
+.github-correction-actions p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.github-correction-error {
+  color: #a32020;
+}
+
+.github-correction-success {
+  color: var(--success);
+}
+
+.github-correction-actions button {
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.github-correction-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 @media (max-width: 640px) {
   .topbar {
     align-items: flex-start;
@@ -1163,6 +1249,11 @@ a {
 
   .github-depth-list li > div {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .github-correction-actions {
+    align-items: stretch;
     flex-direction: column;
   }
 }

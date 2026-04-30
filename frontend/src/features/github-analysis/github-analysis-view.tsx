@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { getDashboard } from "@/features/dashboard/api";
-import { getGithubAnalysis } from "@/features/github-analysis/api";
+import {
+  getGithubAnalysis,
+  saveGithubAnalysisCorrections
+} from "@/features/github-analysis/api";
 import {
   githubDepthLevelClassNames,
   githubDepthLevelLabels,
@@ -37,6 +40,9 @@ export function GithubAnalysisView({
   const [state, setState] = useState<GithubAnalysisState>({
     status: "loading"
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -89,6 +95,63 @@ export function GithubAnalysisView({
       ignore = true;
     };
   }, [initialGithubAnalysisId]);
+
+  async function handleCorrectionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (state.status !== "success") {
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+    const correctionText = getStringFormValue(formData, "userCorrections");
+    const confirmedSkillsText = getStringFormValue(formData, "confirmedSkills");
+    const focusAreasText = getStringFormValue(formData, "focusAreas");
+    const parsedCorrections = parseCorrectionLines(correctionText);
+
+    if (parsedCorrections.error) {
+      setSaveError(parsedCorrections.error);
+      setSaveMessage(null);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveMessage(null);
+
+    try {
+      const saved = await saveGithubAnalysisCorrections(
+        state.analysis.githubAnalysisId,
+        {
+          finalTechProfile: {
+            confirmedSkills: parseLineList(confirmedSkillsText),
+            focusAreas: parseLineList(focusAreasText)
+          },
+          userCorrections: parsedCorrections.items
+        }
+      );
+
+      setState((current) => {
+        if (current.status !== "success") {
+          return current;
+        }
+
+        return {
+          ...current,
+          analysis: {
+            ...current.analysis,
+            finalTechProfile: saved.finalTechProfile,
+            userCorrections: parsedCorrections.items
+          }
+        };
+      });
+      setSaveMessage(`저장 완료 ${formatDateTime(saved.savedAt)}`);
+    } catch (error) {
+      setSaveError(getSaveErrorMessage(error));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   if (state.status === "loading") {
     return <GithubAnalysisStatePanel message="GitHub 분석 결과를 불러오는 중입니다." />;
@@ -196,6 +259,13 @@ export function GithubAnalysisView({
         )}
       </section>
 
+      <GithubCorrectionForm
+        analysis={analysis}
+        isSaving={isSaving}
+        onSubmit={handleCorrectionSubmit}
+        saveError={saveError}
+        saveMessage={saveMessage}
+      />
       <UserCorrectionPreview corrections={analysis.userCorrections} />
     </section>
   );
@@ -325,6 +395,76 @@ function UserCorrectionPreview({
   );
 }
 
+function GithubCorrectionForm({
+  analysis,
+  isSaving,
+  onSubmit,
+  saveError,
+  saveMessage
+}: {
+  analysis: GithubAnalysis;
+  isSaving: boolean;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  saveError: string | null;
+  saveMessage: string | null;
+}) {
+  return (
+    <form
+      className="panel github-correction-form"
+      key={getCorrectionFormKey(analysis)}
+      onSubmit={onSubmit}
+    >
+      <div className="github-analysis-section-heading">
+        <h2>보정 저장</h2>
+        <p>사용자 판단을 반영해 최종 기술 프로필을 저장합니다.</p>
+      </div>
+
+      <label>
+        <span>사용자 보정</span>
+        <textarea
+          defaultValue={formatCorrections(analysis.userCorrections)}
+          name="userCorrections"
+          placeholder="Redis|학습만 해봄"
+          rows={5}
+        />
+      </label>
+
+      <div className="github-correction-fields">
+        <label>
+          <span>확정 기술</span>
+          <textarea
+            defaultValue={analysis.finalTechProfile.confirmedSkills.join("\n")}
+            name="confirmedSkills"
+            placeholder="Java&#10;Spring Boot"
+            rows={5}
+          />
+        </label>
+        <label>
+          <span>집중 영역</span>
+          <textarea
+            defaultValue={analysis.finalTechProfile.focusAreas.join("\n")}
+            name="focusAreas"
+            placeholder="백엔드&#10;성능 개선"
+            rows={5}
+          />
+        </label>
+      </div>
+
+      <div className="github-correction-actions">
+        <div>
+          {saveError ? <p className="github-correction-error">{saveError}</p> : null}
+          {saveMessage ? (
+            <p className="github-correction-success">{saveMessage}</p>
+          ) : null}
+        </div>
+        <button disabled={isSaving} type="submit">
+          {isSaving ? "저장 중" : "보정 저장"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function DepthBadge({ estimate }: { estimate: DepthEstimate }) {
   return (
     <span
@@ -367,12 +507,83 @@ function normalizeOptionalId(value?: string | null) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function parseCorrectionLines(value: string): {
+  error: string | null;
+  items: GithubUserCorrection[];
+} {
+  const items: GithubUserCorrection[] = [];
+  const lines = value.split(/\r?\n/);
+
+  for (const [index, line] of lines.entries()) {
+    const trimmed = line.trim();
+
+    if (trimmed.length === 0) {
+      continue;
+    }
+
+    const [skillName, ...correctionParts] = trimmed.split("|");
+    const correction = correctionParts.join("|").trim();
+
+    if (!skillName.trim() || !correction) {
+      return {
+        error: `${index + 1}번째 보정은 기술명|보정내용 형식으로 입력해 주세요.`,
+        items: []
+      };
+    }
+
+    items.push({
+      correction,
+      skillName: skillName.trim()
+    });
+  }
+
+  return { error: null, items };
+}
+
+function parseLineList(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function getStringFormValue(formData: FormData, key: string) {
+  const value = formData.get(key);
+
+  return typeof value === "string" ? value : "";
+}
+
+function formatCorrections(corrections: GithubUserCorrection[]) {
+  return corrections
+    .map((correction) => `${correction.skillName}|${correction.correction}`)
+    .join("\n");
+}
+
+function getCorrectionFormKey(analysis: GithubAnalysis) {
+  return [
+    analysis.githubAnalysisId,
+    analysis.userCorrections
+      .map((correction) => `${correction.skillName}:${correction.correction}`)
+      .join(","),
+    analysis.finalTechProfile.confirmedSkills.join(","),
+    analysis.finalTechProfile.focusAreas.join(",")
+  ].join("|");
+}
+
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.message;
   }
 
   return "GitHub 분석 결과를 불러오지 못했습니다.";
+}
+
+function getSaveErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return "GitHub 분석 보정을 저장하지 못했습니다.";
 }
 
 function formatDateTime(value: string) {
