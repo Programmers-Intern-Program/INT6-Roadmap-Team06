@@ -1,6 +1,5 @@
-import { ScreenShell } from "@/components/screen-shell";
-import { screens } from "@/config/routes";
+import { DashboardView } from "@/features/dashboard/dashboard-view";
 
 export default function Home() {
-  return <ScreenShell screen={screens.dashboard} />;
+  return <DashboardView />;
 }
