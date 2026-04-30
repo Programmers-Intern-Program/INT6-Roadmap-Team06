@@ -31,7 +31,11 @@ public enum ErrorCode {
     LLM_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "LLM 응답 시간이 초과되었습니다."),
     LLM_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "LLM 호출 제한에 도달했습니다."),
     LLM_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "LLM 응답을 해석할 수 없습니다."),
-    LLM_TRIAGE_FAILED(HttpStatus.BAD_GATEWAY, "코드 분석에 실패했습니다.");
+    LLM_TRIAGE_FAILED(HttpStatus.BAD_GATEWAY, "코드 분석에 실패했습니다."),
+
+    // GitHub API
+    GITHUB_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "GitHub API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요."),
+    GITHUB_API_ERROR(HttpStatus.BAD_GATEWAY, "GitHub API 오류가 발생했습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;

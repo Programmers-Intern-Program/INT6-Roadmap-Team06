@@ -56,4 +56,25 @@ public class GithubProject extends BaseEntity {
     @CreatedDate
     @Column(name = "synced_at", nullable = false, updatable = false)
     private Instant syncedAt;
+
+    public static GithubProject create(Long userId, Long githubConnectionId,
+                                       String repoNodeId, String repoFullName, String repoUrl,
+                                       String primaryLanguage, String defaultBranch) {
+        GithubProject p = new GithubProject();
+        p.userId = userId;
+        p.githubConnectionId = githubConnectionId;
+        p.repoNodeId = repoNodeId;
+        p.repoFullName = repoFullName;
+        p.repoUrl = repoUrl;
+        p.primaryLanguage = primaryLanguage;
+        p.defaultBranch = defaultBranch;
+        p.selected = false;
+        p.coreRepo = false;
+        p.metadataPayload = "{}";
+        return p;
+    }
+
+    public void updateMetadataPayload(String json) {
+        this.metadataPayload = json;
+    }
 }

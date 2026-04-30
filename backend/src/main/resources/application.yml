@@ -67,6 +67,13 @@ ai:
     max-concurrent-calls: 4
     queue-timeout-seconds: 180
 
+github:
+  api:
+    base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
+    oauth-base-url: ${GITHUB_OAUTH_BASE_URL:https://github.com}
+    client-id: ${GITHUB_CLIENT_ID:}
+    client-secret: ${GITHUB_CLIENT_SECRET:}
+
 springdoc:
   swagger-ui:
     url: /openapi.yml
