@@ -29,3 +29,20 @@ export function githubLoginUrl(redirectUrl?: string): string {
   const qs = target ? `?redirectUrl=${encodeURIComponent(target)}` : "";
   return `${API_BASE}/oauth2/authorization/github${qs}`;
 }
+
+export {
+  ApiError,
+  apiClient,
+  getApiBaseUrl,
+  resolveApiUrl,
+  setApiTokenProvider
+} from "@/lib/api/client";
+export type {
+  ApiEnvelope,
+  ApiErrorBody,
+  ApiErrorDetails,
+  ApiErrorField,
+  ApiMeta,
+  ApiRequestOptions
+} from "@/lib/api/types";
+export type { ApiTokenProvider } from "@/lib/api/client";
