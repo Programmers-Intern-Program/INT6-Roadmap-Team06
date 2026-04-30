@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
@@ -10,9 +10,12 @@ export default function MePage() {
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const didInitialLoad = useRef(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     setError(null);
     const res = await api<Me>("/api/v1/auth/me");
     if (res.ok && res.data) {
@@ -26,7 +29,12 @@ export default function MePage() {
   }, []);
 
   useEffect(() => {
-    load();
+    if (didInitialLoad.current) {
+      return;
+    }
+
+    didInitialLoad.current = true;
+    void load(false);
   }, [load]);
 
   const refresh = async () => {
@@ -48,7 +56,7 @@ export default function MePage() {
       {me && <pre>{JSON.stringify(me, null, 2)}</pre>}
 
       <p>
-        <button onClick={load}>다시 조회</button>{" "}
+        <button onClick={() => void load()}>다시 조회</button>{" "}
         <button onClick={refresh}>토큰 갱신 (/refresh)</button>{" "}
         <button onClick={logout}>로그아웃</button>
       </p>
