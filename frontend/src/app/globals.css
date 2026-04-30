@@ -707,6 +707,51 @@ a {
   color: #a32020;
 }
 
+.profile-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-form-actions > div {
+  display: grid;
+  gap: 6px;
+}
+
+.profile-form-actions p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.profile-form-error {
+  color: #a32020;
+}
+
+.profile-form-success {
+  color: var(--success);
+}
+
+.profile-form-actions button {
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 14px;
+  background: var(--accent);
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.profile-form-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 @media (max-width: 640px) {
   .topbar {
     align-items: flex-start;
@@ -739,5 +784,10 @@ a {
 
   .dashboard-progress-summary dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-form-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
