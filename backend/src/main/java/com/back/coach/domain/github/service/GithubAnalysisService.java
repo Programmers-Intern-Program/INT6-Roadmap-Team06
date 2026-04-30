@@ -1,13 +1,11 @@
 package com.back.coach.domain.github.service;
 
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.entity.GithubProject;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.github.repository.GithubConnectionRepository;
 import com.back.coach.domain.github.repository.GithubProjectRepository;
-import com.back.coach.external.llm.LlmClient;
-import com.back.coach.global.exception.ErrorCode;
-import com.back.coach.global.exception.ServiceException;
 import com.back.coach.domain.github.service.summary.DiffPreprocessor;
 import com.back.coach.domain.github.service.summary.RepoSummaryPromptBuilder;
 import com.back.coach.domain.github.service.summary.RepoSummaryResponseParser;
@@ -15,9 +13,9 @@ import com.back.coach.domain.github.service.summary.ResolvedChampion;
 import com.back.coach.domain.github.service.synthesis.SynthesisPromptBuilder;
 import com.back.coach.domain.github.service.synthesis.SynthesisResponseParser;
 import com.back.coach.domain.github.service.triage.ChampionTriageService;
-import com.back.coach.domain.github.service.Champion;
-import com.back.coach.domain.github.service.RepoMetadata;
-import com.back.coach.domain.github.service.StaticSignalAggregator;
+import com.back.coach.external.llm.LlmClient;
+import com.back.coach.global.exception.ErrorCode;
+import com.back.coach.global.exception.ServiceException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +32,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 // Slice 2 메인 orchestrator. Triage → per-repo summary → synthesis → persist.
-// AnalysisPayload.meta.triageFallback은 어떤 core repo든 fallback으로 떨어졌으면 true.
 @Service
 public class GithubAnalysisService {
 
@@ -52,7 +49,7 @@ public class GithubAnalysisService {
     private final RepoSummaryResponseParser summaryResponseParser;
     private final SynthesisPromptBuilder synthesisPromptBuilder;
     private final SynthesisResponseParser synthesisResponseParser;
-    private final AnalysisPayloadJson payloadJson;
+    private final GithubAnalysisPayloadJson payloadJson;
     private final LlmClient llmClient;
 
     public GithubAnalysisService(GithubConnectionRepository connectionRepo,
@@ -65,7 +62,7 @@ public class GithubAnalysisService {
                                  RepoSummaryResponseParser summaryResponseParser,
                                  SynthesisPromptBuilder synthesisPromptBuilder,
                                  SynthesisResponseParser synthesisResponseParser,
-                                 AnalysisPayloadJson payloadJson,
+                                 GithubAnalysisPayloadJson payloadJson,
                                  LlmClient llmClient) {
         this.connectionRepo = connectionRepo;
         this.projectRepo = projectRepo;
@@ -100,15 +97,13 @@ public class GithubAnalysisService {
                 .map(p -> new StaticSignalAggregator.RepoSignalInput(
                         p.getPrimaryLanguage(), parseMetadata(p.getMetadataPayload())))
                 .toList();
-        AnalysisPayload.StaticSignals signals = signalAggregator.aggregate(signalInputs);
+        GithubAnalysisPayload.StaticSignals signals = signalAggregator.aggregate(signalInputs);
 
-        boolean anyFallback = false;
-        List<AnalysisPayload.RepoSummary> repoSummaries = new ArrayList<>();
+        List<GithubAnalysisPayload.RepoSummary> repoSummaries = new ArrayList<>();
         for (GithubProject core : coreProjects) {
             RepoMetadata metadata = parseMetadata(core.getMetadataPayload());
             ChampionTriageService.TriageResult triage =
                     triageService.triage(core.getRepoFullName(), core.getRepoUrl(), metadata);
-            if (triage.fallback()) anyFallback = true;
 
             List<ResolvedChampion> resolved = resolveChampions(triage.champions(), metadata);
             String summaryPrompt = summaryPromptBuilder.build(
@@ -122,11 +117,10 @@ public class GithubAnalysisService {
         String synthesisResponse = llmClient.complete(synthesisPrompt);
         SynthesisResponseParser.SynthesisResult synthesis = synthesisResponseParser.parse(synthesisResponse);
 
-        AnalysisPayload payload = new AnalysisPayload(
+        GithubAnalysisPayload payload = new GithubAnalysisPayload(
                 signals, repoSummaries,
                 synthesis.techTags(), synthesis.depthEstimates(), synthesis.evidences(),
-                List.of(), synthesis.finalTechProfile(),
-                new AnalysisPayload.AnalysisMeta(anyFallback)
+                List.of(), synthesis.finalTechProfile()
         );
 
         int version = nextVersion(userId);
@@ -231,12 +225,12 @@ public class GithubAnalysisService {
         return max == null ? 1 : max + 1;
     }
 
-    private String composeSummary(AnalysisPayload.FinalTechProfile profile) {
+    private String composeSummary(GithubAnalysisPayload.FinalTechProfile profile) {
         String text = "확정 스킬: " + String.join(", ", profile.confirmedSkills())
                 + " | 집중 영역: " + String.join(", ", profile.focusAreas());
         return text.length() > SUMMARY_TRUNCATE ? text.substring(0, SUMMARY_TRUNCATE) : text;
     }
 
-    public record GithubAnalysisResult(Long id, int version, AnalysisPayload payload,
+    public record GithubAnalysisResult(Long id, int version, GithubAnalysisPayload payload,
                                        String summary, Instant createdAt) {}
 }

@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service;
 
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.entity.GithubConnection;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
@@ -58,7 +59,7 @@ class GithubAnalysisFlowIntegrationTest {
     @Autowired GithubProjectRepository projectRepository;
     @Autowired GithubAnalysisRepository analysisRepository;
     @Autowired GithubAnalysisService analysisService;
-    @Autowired AnalysisPayloadJson payloadJson;
+    @Autowired GithubAnalysisPayloadJson payloadJson;
 
     @PersistenceContext EntityManager em;
 
@@ -102,9 +103,8 @@ class GithubAnalysisFlowIntegrationTest {
         assertThat(result.payload().finalTechProfile().confirmedSkills()).contains("Spring Boot");
 
         GithubAnalysis persisted = analysisRepository.findByIdAndUserId(result.id(), user.getId()).orElseThrow();
-        AnalysisPayload restored = payloadJson.fromJson(persisted.getAnalysisPayload());
+        GithubAnalysisPayload restored = payloadJson.fromJson(persisted.getAnalysisPayload());
         assertThat(restored.depthEstimates()).extracting(p -> p.level().name()).contains("PRACTICAL");
-        assertThat(restored.meta().triageFallback()).isFalse();
     }
 
     private static com.back.coach.domain.github.entity.GithubProject newProject(

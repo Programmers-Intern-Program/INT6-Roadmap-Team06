@@ -1,4 +1,5 @@
 package com.back.coach.domain.github.service;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,11 +20,11 @@ class StaticSignalAggregatorTest {
         StaticSignalAggregator.RepoSignalInput repo1 = input("Java", Map.of("Java", 7000L, "TypeScript", 3000L));
         StaticSignalAggregator.RepoSignalInput repo2 = input("Java", Map.of("Java", 5000L, "Python", 5000L));
 
-        AnalysisPayload.StaticSignals signals = aggregator.aggregate(List.of(repo1, repo2));
+        GithubAnalysisPayload.StaticSignals signals = aggregator.aggregate(List.of(repo1, repo2));
 
         assertThat(signals.activeRepos()).isEqualTo(2);
         assertThat(signals.primaryLanguages())
-                .extracting(AnalysisPayload.PrimaryLanguage::lang)
+                .extracting(GithubAnalysisPayload.PrimaryLanguage::lang)
                 .containsExactly("Java", "Python", "TypeScript");
         assertThat(signals.primaryLanguages().get(0).ratio()).isCloseTo(0.6, within(0.001));   // 12000/20000
         assertThat(signals.primaryLanguages().get(1).ratio()).isCloseTo(0.25, within(0.001));  // 5000/20000
@@ -35,7 +36,7 @@ class StaticSignalAggregatorTest {
     void aggregate_singleRepo() {
         StaticSignalAggregator.RepoSignalInput repo = input("Java", Map.of("Java", 1000L));
 
-        AnalysisPayload.StaticSignals signals = aggregator.aggregate(List.of(repo));
+        GithubAnalysisPayload.StaticSignals signals = aggregator.aggregate(List.of(repo));
 
         assertThat(signals.activeRepos()).isEqualTo(1);
         assertThat(signals.primaryLanguages()).hasSize(1);
@@ -50,11 +51,11 @@ class StaticSignalAggregatorTest {
         StaticSignalAggregator.RepoSignalInput repo2 = input("Java", Map.of());
         StaticSignalAggregator.RepoSignalInput repo3 = input("Python", Map.of());
 
-        AnalysisPayload.StaticSignals signals = aggregator.aggregate(List.of(repo1, repo2, repo3));
+        GithubAnalysisPayload.StaticSignals signals = aggregator.aggregate(List.of(repo1, repo2, repo3));
 
         assertThat(signals.activeRepos()).isEqualTo(3);
         assertThat(signals.primaryLanguages())
-                .extracting(AnalysisPayload.PrimaryLanguage::lang)
+                .extracting(GithubAnalysisPayload.PrimaryLanguage::lang)
                 .containsExactly("Java", "Python");
         assertThat(signals.primaryLanguages().get(0).ratio()).isCloseTo(2.0 / 3, within(0.001));
         assertThat(signals.primaryLanguages().get(1).ratio()).isCloseTo(1.0 / 3, within(0.001));
@@ -63,7 +64,7 @@ class StaticSignalAggregatorTest {
     @Test
     @DisplayName("commitFrequency/contributionPattern은 Slice 2에서 placeholder 값을 반환한다 (TODO slice-3)")
     void aggregate_returnsPlaceholderActivityFields() {
-        AnalysisPayload.StaticSignals signals = aggregator.aggregate(
+        GithubAnalysisPayload.StaticSignals signals = aggregator.aggregate(
                 List.of(input("Java", Map.of("Java", 100L)))
         );
 

@@ -2,7 +2,7 @@ package com.back.coach.domain.github.service.summary;
 
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
-import com.back.coach.domain.github.service.AnalysisPayload;
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +25,7 @@ class RepoSummaryResponseParserTest {
                 }
                 """;
 
-        AnalysisPayload.RepoSummary summary = parser.parse(json);
+        GithubAnalysisPayload.RepoSummary summary = parser.parse(json);
 
         assertThat(summary.repoId()).isEqualTo("1");
         assertThat(summary.repoName()).isEqualTo("user/cool-app");

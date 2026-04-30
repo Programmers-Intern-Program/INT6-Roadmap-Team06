@@ -1,8 +1,8 @@
 package com.back.coach.domain.github.service;
 
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import org.springframework.stereotype.Component;
 
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,9 +14,9 @@ public class StaticSignalAggregator {
     private static final String PLACEHOLDER_COMMIT_FREQUENCY = "WEEKLY";
     private static final String PLACEHOLDER_CONTRIBUTION_PATTERN = "CONSISTENT";
 
-    public AnalysisPayload.StaticSignals aggregate(List<RepoSignalInput> inputs) {
-        List<AnalysisPayload.PrimaryLanguage> languages = computeLanguageRatios(inputs);
-        return new AnalysisPayload.StaticSignals(
+    public GithubAnalysisPayload.StaticSignals aggregate(List<RepoSignalInput> inputs) {
+        List<GithubAnalysisPayload.PrimaryLanguage> languages = computeLanguageRatios(inputs);
+        return new GithubAnalysisPayload.StaticSignals(
                 languages,
                 inputs.size(),
                 PLACEHOLDER_COMMIT_FREQUENCY,
@@ -24,7 +24,7 @@ public class StaticSignalAggregator {
         );
     }
 
-    private List<AnalysisPayload.PrimaryLanguage> computeLanguageRatios(List<RepoSignalInput> inputs) {
+    private List<GithubAnalysisPayload.PrimaryLanguage> computeLanguageRatios(List<RepoSignalInput> inputs) {
         Map<String, Long> totals = new LinkedHashMap<>();
         for (RepoSignalInput input : inputs) {
             Map<String, Long> bytes = input.metadata().languageBytes();
@@ -49,7 +49,7 @@ public class StaticSignalAggregator {
 
         return totals.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .map(e -> new AnalysisPayload.PrimaryLanguage(e.getKey(), (double) e.getValue() / sum))
+                .map(e -> new GithubAnalysisPayload.PrimaryLanguage(e.getKey(), (double) e.getValue() / sum))
                 .toList();
     }
 
