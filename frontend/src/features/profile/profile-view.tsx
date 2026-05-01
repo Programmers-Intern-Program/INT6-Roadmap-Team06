@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
+import { StatePanel } from "@/components/state-panel";
 import { getMyProfile, saveProfile } from "@/features/profile/api";
 import {
   currentLevelLabels,
@@ -67,11 +68,22 @@ export function ProfileView() {
   }, []);
 
   if (state.status === "loading") {
-    return <ProfileStatePanel message="프로필을 불러오는 중입니다." />;
+    return (
+      <StatePanel
+        className="profile-state-panel"
+        message="프로필을 불러오는 중입니다."
+      />
+    );
   }
 
   if (state.status === "error") {
-    return <ProfileStatePanel message={state.message} tone="danger" />;
+    return (
+      <StatePanel
+        className="profile-state-panel"
+        message={state.message}
+        tone="danger"
+      />
+    );
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -265,20 +277,6 @@ function ProfileForm({
         </button>
       </div>
     </form>
-  );
-}
-
-function ProfileStatePanel({
-  message,
-  tone = "neutral"
-}: {
-  message: string;
-  tone?: "danger" | "neutral";
-}) {
-  return (
-    <section className="panel profile-state-panel" data-tone={tone}>
-      <p>{message}</p>
-    </section>
   );
 }
 

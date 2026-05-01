@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { StatePanel } from "@/components/state-panel";
 import { getDashboard } from "@/features/dashboard/api";
 import {
   getGithubAnalysis,
@@ -154,15 +155,31 @@ export function GithubAnalysisView({
   }
 
   if (state.status === "loading") {
-    return <GithubAnalysisStatePanel message="GitHub 분석 결과를 불러오는 중입니다." />;
+    return (
+      <StatePanel
+        className="github-analysis-state-panel"
+        message="GitHub 분석 결과를 불러오는 중입니다."
+      />
+    );
   }
 
   if (state.status === "empty") {
-    return <GithubAnalysisStatePanel message={state.message} />;
+    return (
+      <StatePanel
+        className="github-analysis-state-panel"
+        message={state.message}
+      />
+    );
   }
 
   if (state.status === "error") {
-    return <GithubAnalysisStatePanel message={state.message} tone="danger" />;
+    return (
+      <StatePanel
+        className="github-analysis-state-panel"
+        message={state.message}
+        tone="danger"
+      />
+    );
   }
 
   const { analysis, diagnosisId } = state;
@@ -267,20 +284,6 @@ export function GithubAnalysisView({
         saveMessage={saveMessage}
       />
       <UserCorrectionPreview corrections={analysis.userCorrections} />
-    </section>
-  );
-}
-
-function GithubAnalysisStatePanel({
-  message,
-  tone = "neutral"
-}: {
-  message: string;
-  tone?: "danger" | "neutral";
-}) {
-  return (
-    <section className="panel github-analysis-state-panel" data-tone={tone}>
-      <p>{message}</p>
     </section>
   );
 }
