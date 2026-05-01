@@ -64,11 +64,12 @@ async function request<TData>(
   path: string,
   options: ApiRequestOptions = {}
 ) {
-  const { body, token, headers, ...requestInit } = options;
+  const { body, token, headers, credentials = "include", ...requestInit } = options;
   const resolvedToken = token ?? (await tokenProvider?.()) ?? undefined;
   const response = await fetch(resolveApiUrl(path), {
     ...requestInit,
     body: serializeBody(body),
+    credentials,
     headers: buildHeaders(headers, body, resolvedToken),
     method
   });
