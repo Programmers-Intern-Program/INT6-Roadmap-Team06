@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
+import { StatePanel } from "@/components/state-panel";
 import { getRoadmap, saveRoadmapProgress } from "@/features/roadmap/api";
 import {
   materialTypeLabels,
@@ -124,11 +125,22 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
   }
 
   if (state.status === "loading") {
-    return <RoadmapStatePanel message="로드맵을 불러오는 중입니다." />;
+    return (
+      <StatePanel
+        className="roadmap-state-panel"
+        message="로드맵을 불러오는 중입니다."
+      />
+    );
   }
 
   if (state.status === "error") {
-    return <RoadmapStatePanel message={state.message} tone="danger" />;
+    return (
+      <StatePanel
+        className="roadmap-state-panel"
+        message={state.message}
+        tone="danger"
+      />
+    );
   }
 
   const { roadmap } = state;
@@ -158,7 +170,10 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
       </div>
 
       {roadmap.weeks.length === 0 ? (
-        <RoadmapStatePanel message="표시할 주차 계획이 없습니다." />
+        <StatePanel
+          className="roadmap-state-panel"
+          message="표시할 주차 계획이 없습니다."
+        />
       ) : (
         <div className="roadmap-week-list">
           {roadmap.weeks.map((week) => {
@@ -287,20 +302,6 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
           })}
         </div>
       )}
-    </section>
-  );
-}
-
-function RoadmapStatePanel({
-  message,
-  tone = "neutral"
-}: {
-  message: string;
-  tone?: "danger" | "neutral";
-}) {
-  return (
-    <section className="panel roadmap-state-panel" data-tone={tone}>
-      <p>{message}</p>
     </section>
   );
 }
