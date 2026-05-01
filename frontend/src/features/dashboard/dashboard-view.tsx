@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { StatePanel } from "@/components/state-panel";
 import { getDashboard } from "@/features/dashboard/api";
 import { currentLevelLabels } from "@/features/dashboard/labels";
 import type {
@@ -49,11 +50,22 @@ export function DashboardView() {
   }, []);
 
   if (state.status === "loading") {
-    return <DashboardStatePanel message="대시보드를 불러오는 중입니다." />;
+    return (
+      <StatePanel
+        className="roadmap-state-panel"
+        message="대시보드를 불러오는 중입니다."
+      />
+    );
   }
 
   if (state.status === "error") {
-    return <DashboardStatePanel message={state.message} tone="danger" />;
+    return (
+      <StatePanel
+        className="roadmap-state-panel"
+        message={state.message}
+        tone="danger"
+      />
+    );
   }
 
   const { dashboard } = state;
@@ -208,20 +220,6 @@ export function DashboardView() {
           )}
         </section>
       </div>
-    </section>
-  );
-}
-
-function DashboardStatePanel({
-  message,
-  tone = "neutral"
-}: {
-  message: string;
-  tone?: "danger" | "neutral";
-}) {
-  return (
-    <section className="panel roadmap-state-panel" data-tone={tone}>
-      <p>{message}</p>
     </section>
   );
 }
