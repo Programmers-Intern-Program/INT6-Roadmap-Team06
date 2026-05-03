@@ -54,4 +54,26 @@ public class CapabilityDiagnosis extends BaseEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static CapabilityDiagnosis create(
+            Long userId,
+            Long profileId,
+            Long githubAnalysisId,
+            Long jobRoleId,
+            Integer version,
+            CurrentLevel currentLevel,
+            String summary,
+            String diagnosisPayload
+    ) {
+        CapabilityDiagnosis diagnosis = new CapabilityDiagnosis();
+        diagnosis.userId = userId;
+        diagnosis.profileId = profileId;
+        diagnosis.githubAnalysisId = githubAnalysisId;
+        diagnosis.jobRoleId = jobRoleId;
+        diagnosis.version = version;
+        diagnosis.currentLevel = currentLevel;
+        diagnosis.summary = summary;
+        diagnosis.diagnosisPayload = diagnosisPayload;
+        return diagnosis;
+    }
 }
