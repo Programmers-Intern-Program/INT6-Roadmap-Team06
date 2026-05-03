@@ -215,7 +215,7 @@ paths:
         - Diagnoses
       summary: Run capability diagnosis
       operationId: createDiagnosis
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:
@@ -1053,13 +1053,13 @@ components:
       type: object
       required:
         - profileId
+        - githubAnalysisId
       properties:
         profileId:
           type: string
           example: '101'
         githubAnalysisId:
           type: string
-          nullable: true
           example: '401'
 
     MissingSkill:
