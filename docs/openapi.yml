@@ -267,7 +267,7 @@ paths:
         - Roadmaps
       summary: Generate learning roadmap
       operationId: createRoadmap
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:

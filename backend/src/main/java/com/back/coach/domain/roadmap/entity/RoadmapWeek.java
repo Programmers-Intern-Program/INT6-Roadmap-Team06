@@ -40,4 +40,24 @@ public class RoadmapWeek extends BaseEntity {
 
     @Column(name = "estimated_hours", nullable = false, precision = 4, scale = 1)
     private BigDecimal estimatedHours;
+
+    public static RoadmapWeek create(
+            Long roadmapId,
+            Integer weekNumber,
+            String topic,
+            String reasonText,
+            String tasksJson,
+            String materialsJson,
+            BigDecimal estimatedHours
+    ) {
+        RoadmapWeek roadmapWeek = new RoadmapWeek();
+        roadmapWeek.roadmapId = roadmapId;
+        roadmapWeek.weekNumber = weekNumber;
+        roadmapWeek.topic = topic;
+        roadmapWeek.reasonText = reasonText;
+        roadmapWeek.tasksJson = tasksJson;
+        roadmapWeek.materialsJson = materialsJson;
+        roadmapWeek.estimatedHours = estimatedHours;
+        return roadmapWeek;
+    }
 }

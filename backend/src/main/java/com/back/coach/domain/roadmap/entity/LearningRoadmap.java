@@ -44,4 +44,22 @@ public class LearningRoadmap extends BaseEntity {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
+
+    public static LearningRoadmap create(
+            Long userId,
+            Long diagnosisId,
+            Integer version,
+            Integer totalWeeks,
+            String summary,
+            String roadmapPayload
+    ) {
+        LearningRoadmap roadmap = new LearningRoadmap();
+        roadmap.userId = userId;
+        roadmap.diagnosisId = diagnosisId;
+        roadmap.version = version;
+        roadmap.totalWeeks = totalWeeks;
+        roadmap.summary = summary;
+        roadmap.roadmapPayload = roadmapPayload;
+        return roadmap;
+    }
 }
