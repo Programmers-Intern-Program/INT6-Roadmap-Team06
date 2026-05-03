@@ -38,6 +38,8 @@ class OpenApiContractTest {
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/roadmaps/{roadmapId}", "get")
                 .get("x-implementation-status")).isEqualTo("implemented");
+        assertThat(operation(paths, "/api/roadmaps", "post")
+                .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/dashboard", "get")
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/diagnoses/{diagnosisId}", "get")
@@ -74,6 +76,9 @@ class OpenApiContractTest {
         assertThat(mapValue(schemas, "DiagnosisRequest").get("required"))
                 .asList()
                 .contains("profileId", "githubAnalysisId");
+        assertThat(mapValue(schemas, "RoadmapRequest").get("required"))
+                .asList()
+                .contains("diagnosisId");
     }
 
     private Map<String, Object> loadOpenApiDocument() throws IOException {
