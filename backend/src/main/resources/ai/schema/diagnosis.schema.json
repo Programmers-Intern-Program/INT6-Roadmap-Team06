@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DiagnosisResponse",
+  "type": "object",
+  "required": ["summary", "missingSkills", "strengths", "recommendations"],
+  "additionalProperties": false,
+  "properties": {
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "missingSkills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["skillName", "severity", "reason", "priorityOrder"],
+        "additionalProperties": false,
+        "properties": {
+          "skillName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["LOW", "MEDIUM", "HIGH"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "priorityOrder": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
