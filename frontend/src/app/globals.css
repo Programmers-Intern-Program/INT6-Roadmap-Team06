@@ -1217,6 +1217,199 @@ a {
   line-height: 1.45;
 }
 
+.github-connection-page {
+  display: grid;
+  gap: 24px;
+}
+
+.github-connection-form,
+.github-repository-section,
+.github-connection-summary {
+  display: grid;
+  gap: 16px;
+}
+
+.github-connection-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.github-connection-heading h2 {
+  margin: 0;
+}
+
+.github-connection-heading p,
+.github-connection-state-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.github-connection-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.github-connection-form label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.github-connection-form input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  padding: 0 10px;
+}
+
+.github-connection-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.github-connection-actions > div {
+  display: grid;
+  gap: 6px;
+}
+
+.github-connection-actions p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.github-connection-error {
+  color: #a32020;
+}
+
+.github-connection-success {
+  color: var(--success);
+}
+
+.github-connection-actions button {
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.github-connection-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.github-connection-summary dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.github-connection-summary dl div,
+.github-repository-card dl div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 10px;
+}
+
+.github-connection-summary dt,
+.github-repository-card dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.github-connection-summary dd,
+.github-repository-card dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.github-repository-list {
+  display: grid;
+  gap: 12px;
+}
+
+.github-repository-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 14px;
+}
+
+.github-repository-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.github-repository-card h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.github-repository-card a {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.github-repository-card dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.github-repository-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.github-repository-options label {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  padding: 0 10px;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.github-repository-options input:disabled + span {
+  color: var(--muted);
+}
+
 .github-correction-form {
   display: grid;
   gap: 16px;
@@ -1347,6 +1540,12 @@ a {
 
   .github-depth-list li > div {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .github-connection-actions,
+  .github-repository-card > div:first-child {
+    align-items: stretch;
     flex-direction: column;
   }
 
