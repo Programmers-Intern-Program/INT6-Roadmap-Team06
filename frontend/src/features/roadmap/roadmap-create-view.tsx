@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { getMyProfile } from "@/features/profile/api";
@@ -17,6 +17,10 @@ function getErrorMessage(error: unknown): string {
   return "오류가 발생했습니다. 다시 시도해주세요.";
 }
 
+function getTomorrowDateValue() {
+  return new Date(Date.now() + 86400000).toISOString().split("T")[0];
+}
+
 type Props = {
   initialDiagnosisId?: string;
 };
@@ -28,14 +32,12 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
   const [weeklyStudyHours, setWeeklyStudyHours] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const loadedProfile = useRef(false);
-  const minDate = useMemo(
-    () => new Date(Date.now() + 86400000).toISOString().split("T")[0],
-    []
-  );
+  const targetDateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (loadedProfile.current) return;
     loadedProfile.current = true;
+    targetDateInputRef.current?.setAttribute("min", getTomorrowDateValue());
     getMyProfile()
       .then((profile) => {
         if (profile.weeklyStudyHours) {
@@ -126,9 +128,9 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
           <input
             id="targetDate"
             type="date"
+            ref={targetDateInputRef}
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
-            min={minDate}
             disabled={isSubmitting}
             required
           />
