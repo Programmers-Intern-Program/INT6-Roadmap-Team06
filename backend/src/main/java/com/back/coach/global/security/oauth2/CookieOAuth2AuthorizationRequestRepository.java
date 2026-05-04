@@ -95,6 +95,7 @@ public class CookieOAuth2AuthorizationRequestRepository
                     req.getScopes(),
                     req.getState(),
                     req.getAdditionalParameters(),
+                    req.getAttributes(),
                     req.getAuthorizationRequestUri()
             );
             byte[] payloadBytes = mapper.writeValueAsBytes(payload);
@@ -130,6 +131,7 @@ public class CookieOAuth2AuthorizationRequestRepository
                     .scopes(p.scopes())
                     .state(p.state())
                     .additionalParameters(p.additionalParameters())
+                    .attributes(p.attributes() == null ? Map.of() : p.attributes())
                     .authorizationRequestUri(p.authorizationRequestUri())
                     .build();
         } catch (Exception e) {
@@ -162,6 +164,7 @@ public class CookieOAuth2AuthorizationRequestRepository
             Set<String> scopes,
             String state,
             Map<String, Object> additionalParameters,
+            Map<String, Object> attributes,
             String authorizationRequestUri
     ) {}
 }
