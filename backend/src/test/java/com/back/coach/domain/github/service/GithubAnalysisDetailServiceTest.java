@@ -73,7 +73,10 @@ class GithubAnalysisDetailServiceTest {
                 "9001",
                 "team06/ai-growth-coach",
                 "Spring Boot backend service",
-                java.util.List.of("Redis cache", "Batch processing")
+                java.util.List.of(
+                        new GithubAnalysisPayload.Highlight("Redis cache", com.back.coach.global.code.HighlightStatus.ADOPTED),
+                        new GithubAnalysisPayload.Highlight("Batch processing", com.back.coach.global.code.HighlightStatus.ADOPTED)
+                )
         ));
         assertThat(result.techTags()).containsExactly(new GithubAnalysisPayload.TechTag(
                 "Redis",
@@ -149,7 +152,8 @@ class GithubAnalysisDetailServiceTest {
                 "9001",
                 "team06/ai-growth-coach",
                 "Spring Boot backend service",
-                List.of("Redis cache", "Batch processing")
+                List.of(new GithubAnalysisPayload.Highlight("Redis cache", com.back.coach.global.code.HighlightStatus.ADOPTED),
+                        new GithubAnalysisPayload.Highlight("Batch processing", com.back.coach.global.code.HighlightStatus.ADOPTED))
         ));
         assertThat(updatedPayload.techTags()).containsExactly(new GithubAnalysisPayload.TechTag(
                 "Redis",
@@ -242,8 +246,8 @@ class GithubAnalysisDetailServiceTest {
                       "repoName": "team06/ai-growth-coach",
                       "summary": "Spring Boot backend service",
                       "highlights": [
-                        "Redis cache",
-                        "Batch processing"
+                        {"text": "Redis cache", "status": "ADOPTED"},
+                        {"text": "Batch processing", "status": "ADOPTED"}
                       ]
                     }
                   ],

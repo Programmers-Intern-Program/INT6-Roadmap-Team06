@@ -84,7 +84,8 @@ class GithubAnalysisControllerUnitTest {
                                 "9001",
                                 "team06/ai-growth-coach",
                                 "Spring Boot backend service",
-                                List.of("Redis cache", "Batch processing")
+                                List.of(new GithubAnalysisPayload.Highlight("Redis cache", com.back.coach.global.code.HighlightStatus.ADOPTED),
+                                        new GithubAnalysisPayload.Highlight("Batch processing", com.back.coach.global.code.HighlightStatus.ADOPTED))
                         )),
                         List.of(new GithubAnalysisPayload.TechTag(
                                 "Redis",
@@ -126,7 +127,8 @@ class GithubAnalysisControllerUnitTest {
                 .andExpect(jsonPath("$.data.repoSummaries[0].repoId").value("9001"))
                 .andExpect(jsonPath("$.data.repoSummaries[0].repoName").value("team06/ai-growth-coach"))
                 .andExpect(jsonPath("$.data.repoSummaries[0].summary").value("Spring Boot backend service"))
-                .andExpect(jsonPath("$.data.repoSummaries[0].highlights[0]").value("Redis cache"))
+                .andExpect(jsonPath("$.data.repoSummaries[0].highlights[0].text").value("Redis cache"))
+                .andExpect(jsonPath("$.data.repoSummaries[0].highlights[0].status").value("ADOPTED"))
                 .andExpect(jsonPath("$.data.techTags[0].skillName").value("Redis"))
                 .andExpect(jsonPath("$.data.depthEstimates[0].level").value("APPLIED"))
                 .andExpect(jsonPath("$.data.evidences[0].type").value("CODE"))

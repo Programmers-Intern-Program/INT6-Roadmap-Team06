@@ -1,6 +1,7 @@
 package com.back.coach.domain.github.service.synthesis;
 
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
+import com.back.coach.global.code.HighlightStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -23,9 +24,17 @@ class SynthesisPromptBuilderTest {
         );
         List<GithubAnalysisPayload.RepoSummary> summaries = List.of(
                 new GithubAnalysisPayload.RepoSummary("1", "user/a", "Spring Boot 백엔드",
-                        List.of("OAuth2", "JPA", "Flyway", "Testcontainers")),
+                        List.of(
+                                new GithubAnalysisPayload.Highlight("OAuth2", HighlightStatus.ADOPTED),
+                                new GithubAnalysisPayload.Highlight("JPA", HighlightStatus.EVOLVED),
+                                new GithubAnalysisPayload.Highlight("Flyway", HighlightStatus.REVERSED),
+                                new GithubAnalysisPayload.Highlight("Testcontainers", HighlightStatus.ADOPTED)
+                        )),
                 new GithubAnalysisPayload.RepoSummary("2", "user/b", "Python ETL",
-                        List.of("pandas", "Airflow"))
+                        List.of(
+                                new GithubAnalysisPayload.Highlight("pandas", HighlightStatus.ADOPTED),
+                                new GithubAnalysisPayload.Highlight("Airflow", HighlightStatus.ADOPTED)
+                        ))
         );
 
         String prompt = builder.build(signals, summaries);
@@ -33,6 +42,8 @@ class SynthesisPromptBuilderTest {
         assertThat(prompt).contains("Java").contains("0.7").contains("Python");
         assertThat(prompt).contains("user/a").contains("user/b");
         assertThat(prompt).contains("OAuth2").contains("pandas");
+        assertThat(prompt).contains("[REVERSED] Flyway");
+        assertThat(prompt).doesNotContain("[REVERSED] OAuth2");
         // 출력 형식 / enum 값 안내
         assertThat(prompt).contains("INTRO").contains("APPLIED").contains("PRACTICAL").contains("DEEP");
         assertThat(prompt).contains("README").contains("CODE").contains("CONFIG").contains("REPO_METADATA").contains("COMMIT");
@@ -46,7 +57,10 @@ class SynthesisPromptBuilderTest {
         List<GithubAnalysisPayload.RepoSummary> bigSummaries = IntStream.range(0, 8)
                 .mapToObj(i -> new GithubAnalysisPayload.RepoSummary(
                         String.valueOf(i), "repo" + i, "S".repeat(500),
-                        IntStream.range(0, 30).mapToObj(j -> "highlight-" + i + "-" + j + "-" + "X".repeat(80)).toList()
+                        IntStream.range(0, 30).mapToObj(j -> new GithubAnalysisPayload.Highlight(
+                                "highlight-" + i + "-" + j + "-" + "X".repeat(80),
+                                HighlightStatus.ADOPTED
+                        )).toList()
                 ))
                 .toList();
 

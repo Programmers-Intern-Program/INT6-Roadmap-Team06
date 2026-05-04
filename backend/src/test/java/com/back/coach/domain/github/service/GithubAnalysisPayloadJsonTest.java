@@ -3,6 +3,7 @@ package com.back.coach.domain.github.service;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.global.code.GithubDepthLevel;
 import com.back.coach.global.code.GithubEvidenceType;
+import com.back.coach.global.code.HighlightStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +24,8 @@ class GithubAnalysisPayloadJsonTest {
                                 new GithubAnalysisPayload.PrimaryLanguage("TypeScript", 0.3)),
                         3, "WEEKLY", "CONSISTENT"),
                 List.of(new GithubAnalysisPayload.RepoSummary("1", "user/cool-app", "Spring Boot 백엔드",
-                        List.of("OAuth2 도입", "JPA 마이그레이션"))),
+                        List.of(new GithubAnalysisPayload.Highlight("OAuth2 도입", HighlightStatus.ADOPTED),
+                                new GithubAnalysisPayload.Highlight("JPA 마이그레이션", HighlightStatus.EVOLVED)))),
                 List.of(new GithubAnalysisPayload.TechTag("Spring Boot", "주요 백엔드 프레임워크")),
                 List.of(new GithubAnalysisPayload.DepthEstimate("Spring Boot", GithubDepthLevel.PRACTICAL, "여러 repo에서 일관된 사용")),
                 List.of(new GithubAnalysisPayload.GithubEvidence("user/cool-app", GithubEvidenceType.COMMIT, "abc123", "OAuth2 핸들러 추가")),

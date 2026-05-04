@@ -45,6 +45,7 @@ class CodeEnumsTest {
         assertCodes(RoadmapTaskType.class, "READ_DOCS", "BUILD_EXAMPLE", "WRITE_NOTE", "APPLY_PROJECT", "REVIEW");
         assertCodes(MaterialType.class, "DOCS", "ARTICLE", "REPOSITORY", "VIDEO", "TEMPLATE");
         assertCodes(JobStatus.class, "REQUESTED", "RUNNING", "SUCCEEDED", "FAILED");
+        assertCodes(HighlightStatus.class, "ADOPTED", "EVOLVED", "REVERSED");
     }
 
     @SafeVarargs
