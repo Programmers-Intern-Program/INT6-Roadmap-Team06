@@ -48,6 +48,14 @@ export type Roadmap = {
   weeks: RoadmapWeek[];
 };
 
+export type RoadmapRequest = {
+  codingTestAnalysisId?: string | null;
+  diagnosisId: string;
+  githubAnalysisId?: string | null;
+  targetDate?: string | null;
+  weeklyStudyHours?: number | null;
+};
+
 export type RoadmapProgressRequest = {
   note?: string | null;
   roadmapWeekId: string;

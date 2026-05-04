@@ -1,6 +1,5 @@
-import { ScreenShell } from "@/components/screen-shell";
-import { screens } from "@/config/routes";
+import { RoadmapCreateView } from "@/features/roadmap/roadmap-create-view";
 
 export default function RoadmapCreatePage() {
-  return <ScreenShell screen={screens.roadmapCreate} />;
+  return <RoadmapCreateView />;
 }
