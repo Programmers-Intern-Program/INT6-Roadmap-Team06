@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
+import {
+  StatusBadge,
+  type StatusBadgeTone
+} from "@/components/status-badge";
 import { TagList } from "@/components/tag-list";
 import { getDashboard } from "@/features/dashboard/api";
 import { createDiagnosis } from "@/features/diagnosis/api";
@@ -13,13 +17,13 @@ import {
   saveGithubAnalysisCorrections
 } from "@/features/github-analysis/api";
 import {
-  githubDepthLevelClassNames,
   githubDepthLevelLabels,
   githubEvidenceTypeLabels
 } from "@/features/github-analysis/labels";
 import type {
   DepthEstimate,
   GithubAnalysis,
+  GithubDepthLevel,
   GithubUserCorrection
 } from "@/features/github-analysis/types";
 import { ApiError } from "@/lib/api";
@@ -519,14 +523,18 @@ function GithubCorrectionForm({
 
 function DepthBadge({ estimate }: { estimate: DepthEstimate }) {
   return (
-    <span
-      className="github-depth-badge"
-      data-depth={githubDepthLevelClassNames[estimate.level]}
-    >
+    <StatusBadge tone={githubDepthLevelTones[estimate.level]}>
       {githubDepthLevelLabels[estimate.level]}
-    </span>
+    </StatusBadge>
   );
 }
+
+const githubDepthLevelTones: Record<GithubDepthLevel, StatusBadgeTone> = {
+  APPLIED: "info",
+  DEEP: "warning",
+  INTRO: "neutral",
+  PRACTICAL: "success"
+};
 
 function normalizeOptionalId(value?: string | null) {
   if (!value) {
