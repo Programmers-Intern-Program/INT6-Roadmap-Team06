@@ -2,6 +2,8 @@ package com.back.coach.global.security.oauth2;
 
 import com.back.coach.global.security.CookieManager;
 import com.back.coach.global.security.JwtProperties;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -13,22 +15,20 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * STATELESS 환경에서 OAuth2AuthorizationRequest 를 쿠키에 저장한다.
  *
  * <p>형식: {@code base64url(payloadLen | payload | hmacSha256(payload))}.
- * 서버는 자기 서명을 검증한 뒤에만 역직렬화하므로, 외부에서 임의 페이로드를 주입한
- * 쿠키로는 절대 deserialization 이 일어나지 않는다 (RCE 차단).
+ * payload 는 Java 직렬화 대신 JSON 으로 저장해 쿠키 크기를 ~400바이트로 유지한다.
+ * HMAC 검증 후에만 역직렬화하므로 외부 주입 페이로드로 인한 RCE 위험이 없다.
  */
 @Component
 @ConditionalOnProperty(prefix = "spring.security.oauth2.client.registration.github", name = "client-id")
@@ -36,12 +36,14 @@ public class CookieOAuth2AuthorizationRequestRepository
         implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
     private static final Logger log = LoggerFactory.getLogger(CookieOAuth2AuthorizationRequestRepository.class);
+
     static final String COOKIE_NAME = "oauth2_auth_request";
     private static final Duration COOKIE_TTL = Duration.ofMinutes(5);
     private static final String HMAC_ALGO = "HmacSHA256";
 
     private final CookieManager cookieManager;
     private final SecretKeySpec hmacKey;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public CookieOAuth2AuthorizationRequestRepository(CookieManager cookieManager, JwtProperties jwt) {
         this.cookieManager = cookieManager;
@@ -84,16 +86,21 @@ public class CookieOAuth2AuthorizationRequestRepository
         return existing;
     }
 
-    private String serialize(OAuth2AuthorizationRequest authRequest) {
+    private String serialize(OAuth2AuthorizationRequest req) {
         try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-                oos.writeObject(authRequest);
-            }
-            byte[] payload = baos.toByteArray();
-            byte[] sig = sign(payload);
-            ByteBuffer buf = ByteBuffer.allocate(4 + payload.length + sig.length);
-            buf.putInt(payload.length).put(payload).put(sig);
+            CookiePayload payload = new CookiePayload(
+                    req.getAuthorizationUri(),
+                    req.getClientId(),
+                    req.getRedirectUri(),
+                    req.getScopes(),
+                    req.getState(),
+                    req.getAdditionalParameters(),
+                    req.getAuthorizationRequestUri()
+            );
+            byte[] payloadBytes = mapper.writeValueAsBytes(payload);
+            byte[] sig = sign(payloadBytes);
+            ByteBuffer buf = ByteBuffer.allocate(4 + payloadBytes.length + sig.length);
+            buf.putInt(payloadBytes.length).put(payloadBytes).put(sig);
             return Base64.getUrlEncoder().withoutPadding().encodeToString(buf.array());
         } catch (Exception e) {
             throw new IllegalStateException("OAuth2AuthorizationRequest serialize failed", e);
@@ -107,18 +114,24 @@ public class CookieOAuth2AuthorizationRequestRepository
             ByteBuffer buf = ByteBuffer.wrap(raw);
             int len = buf.getInt();
             if (len <= 0 || len > raw.length - 4 - 32) return null;
-            byte[] payload = new byte[len];
-            buf.get(payload);
+            byte[] payloadBytes = new byte[len];
+            buf.get(payloadBytes);
             byte[] expectedSig = new byte[32];
             buf.get(expectedSig);
-            byte[] actualSig = sign(payload);
+            byte[] actualSig = sign(payloadBytes);
             if (!MessageDigest.isEqual(expectedSig, actualSig)) {
                 return null;
             }
-            try (ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(payload))) {
-                Object obj = ois.readObject();
-                return (obj instanceof OAuth2AuthorizationRequest req) ? req : null;
-            }
+            CookiePayload p = mapper.readValue(payloadBytes, CookiePayload.class);
+            return OAuth2AuthorizationRequest.authorizationCode()
+                    .authorizationUri(p.authorizationUri())
+                    .clientId(p.clientId())
+                    .redirectUri(p.redirectUri())
+                    .scopes(p.scopes())
+                    .state(p.state())
+                    .additionalParameters(p.additionalParameters())
+                    .authorizationRequestUri(p.authorizationRequestUri())
+                    .build();
         } catch (Exception e) {
             log.warn("oauth2_auth_request deserialization exception: {}", e.getMessage());
             return null;
@@ -140,4 +153,15 @@ public class CookieOAuth2AuthorizationRequestRepository
             throw new IllegalStateException("Cannot derive HMAC key", e);
         }
     }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record CookiePayload(
+            String authorizationUri,
+            String clientId,
+            String redirectUri,
+            Set<String> scopes,
+            String state,
+            Map<String, Object> additionalParameters,
+            String authorizationRequestUri
+    ) {}
 }

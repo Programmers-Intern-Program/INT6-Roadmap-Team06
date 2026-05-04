@@ -172,9 +172,11 @@ public class GithubAnalysisService {
         List<ResolvedChampion> out = new ArrayList<>();
         for (Champion c : champions) {
             switch (c.kind()) {
-                case COMMIT -> findCommit(metadata, c.ref()).ifPresent(commit ->
-                        out.add(new ResolvedChampion(c.kind(), c.ref(), commit.subject(),
-                                diffPreprocessor.clean(commit.diffExcerpt()))));
+                case COMMIT -> findCommit(metadata, c.ref()).ifPresent(commit -> {
+                    List<String> subsequent = subsequentSubjects(metadata, c.ref());
+                    out.add(new ResolvedChampion(c.kind(), c.ref(), commit.subject(),
+                            diffPreprocessor.clean(commit.diffExcerpt()), subsequent));
+                });
                 case PR -> findPr(metadata, c.ref()).ifPresent(pr ->
                         out.add(new ResolvedChampion(c.kind(), c.ref(), pr.title(),
                                 pr.bodyExcerpt() == null ? "" : pr.bodyExcerpt())));
@@ -189,6 +191,21 @@ public class GithubAnalysisService {
     private static java.util.Optional<RepoMetadata.CommitItem> findCommit(RepoMetadata m, String sha) {
         return m.commits() == null ? java.util.Optional.empty()
                 : m.commits().stream().filter(c -> sha.equals(c.sha())).findFirst();
+    }
+
+    // GitHub API는 커밋을 최신순(newest-first)으로 반환한다.
+    // 따라서 champion SHA의 인덱스보다 앞(lower index)에 있는 커밋이 champion 이후에 온 커밋이다.
+    private static List<String> subsequentSubjects(RepoMetadata m, String sha) {
+        if (m.commits() == null) return List.of();
+        List<RepoMetadata.CommitItem> commits = m.commits();
+        int idx = -1;
+        for (int i = 0; i < commits.size(); i++) {
+            if (sha.equals(commits.get(i).sha())) { idx = i; break; }
+        }
+        if (idx <= 0) return List.of();
+        return commits.subList(0, Math.min(idx, 5)).stream()
+                .map(RepoMetadata.CommitItem::subject)
+                .toList();
     }
 
     private static java.util.Optional<RepoMetadata.PullRequestItem> findPr(RepoMetadata m, String ref) {

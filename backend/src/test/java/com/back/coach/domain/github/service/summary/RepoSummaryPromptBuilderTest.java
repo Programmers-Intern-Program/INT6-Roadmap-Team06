@@ -28,8 +28,9 @@ class RepoSummaryPromptBuilderTest {
         assertThat(prompt).contains("COMMIT").contains("abc").contains("feat: OAuth").contains("diff body here");
         assertThat(prompt).contains("PR").contains("42").contains("Add OAuth").contains("PR body discussion");
         assertThat(prompt).contains("ISSUE").contains("7").contains("Login broken").contains("issue thread");
-        // RepoSummary JSON 응답 형식을 LLM에 알려주는 instruction marker가 있어야 함
-        assertThat(prompt.toLowerCase()).contains("json");
+        // RepoSummary JSON 응답 형식과 highlight status enum을 LLM에 알려주는 instruction이 있어야 함
+        assertThat(prompt).contains("highlights[{text, status}]");
+        assertThat(prompt).contains("ADOPTED").contains("EVOLVED").contains("REVERSED");
     }
 
     @Test
@@ -64,11 +65,26 @@ class RepoSummaryPromptBuilderTest {
     }
 
     @Test
+    @DisplayName("COMMIT champion에 후속 커밋이 있으면 Subsequent activity 섹션이 렌더링된다")
+    void build_renderSubsequentActivity() {
+        List<ResolvedChampion> champions = List.of(
+                new ResolvedChampion(Champion.Kind.COMMIT, "abc", "feat: OAuth", "diff",
+                        List.of("revert: OAuth 롤백", "fix: 인증 우회"))
+        );
+
+        String prompt = builder.build("1", "user/r", "Java", champions);
+
+        assertThat(prompt).contains("Subsequent activity");
+        assertThat(prompt).contains("revert: OAuth 롤백");
+        assertThat(prompt).contains("fix: 인증 우회");
+    }
+
+    @Test
     @DisplayName("champion이 비어있어도 빌드 성공 — repo header만 포함")
     void build_emptyChampions() {
         String prompt = builder.build("1", "user/r", "Java", List.of());
 
         assertThat(prompt).contains("user/r");
-        assertThat(prompt.toLowerCase()).contains("json"); // 출력 형식 안내는 항상 포함
+        assertThat(prompt).contains("highlights[{text, status}]");
     }
 }

@@ -74,7 +74,7 @@ class GithubAnalysisServiceTest {
                 {"champions":[{"kind":"COMMIT","ref":"abc","reason":"OAuth"}]}
                 """;
         repoSummaryJson = """
-                {"repoId":"1","repoName":"user/a","summary":"Spring Boot","highlights":["OAuth"]}
+                {"repoId":"1","repoName":"user/a","summary":"Spring Boot","highlights":[{"text":"OAuth","status":"ADOPTED"}]}
                 """;
         synthesisJson = """
                 {

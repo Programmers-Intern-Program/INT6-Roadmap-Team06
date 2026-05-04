@@ -2,6 +2,7 @@ package com.back.coach.domain.github.dto;
 
 import com.back.coach.global.code.GithubDepthLevel;
 import com.back.coach.global.code.GithubEvidenceType;
+import com.back.coach.global.code.HighlightStatus;
 
 import java.util.List;
 
@@ -33,7 +34,13 @@ public record GithubAnalysisPayload(
             String repoId,
             String repoName,
             String summary,
-            List<String> highlights
+            List<Highlight> highlights
+    ) {
+    }
+
+    public record Highlight(
+            String text,
+            HighlightStatus status
     ) {
     }
 

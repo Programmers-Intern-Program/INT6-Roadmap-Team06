@@ -1,0 +1,845 @@
+╭─── Claude Code v2.1.123 ─────────────────────────────────────────────────────╮
+│                                                    │ What's new              │
+│                   Welcome back J!                  │ Fixed OAuth authentica… │
+│                                                    │ Added `ANTHROPIC_BEDRO… │
+│                       ▐▛███▜▌                      │ Pasting a PR URL into … │
+│                      ▝▜█████▛▘                     │ /release-notes for more │
+│                        ▘▘ ▝▝                       │                         │
+│   Opus 4.7 · Claude Pro · lozy960422@gmail.com's   │                         │
+│   Organization                                     │                         │
+│     ~\IdeaProjects\INT6-Roadmap-Team06\backend     │                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+✻ Conversation compacted (ctrl+o for history)
+
+
+❯ /compact                                                                      
+  ⎿  Compacted (ctrl+o to see full summary)
+  ⎿  Read src\test\java\com\back\coach\domain\github\service\GithubConnectionServiceTest.java (125 lines)
+  ⎿  Read src\test\java\com\back\coach\domain\github\controller\GithubConnectionControllerTest.java (265 lines)
+  ⎿  Read src\test\java\com\back\coach\external\github\RestGithubApiClientTest.java (272 lines)
+  ⎿  Read src\main\java\com\back\coach\domain\github\service\GithubConnectionService.java (116 lines)
+  ⎿  Read src\main\java\com\back\coach\external\github\dto\GithubUserInfoDto.java (11 lines)
+  ⎿  Plan file referenced (~\.claude\plans\cryptic-exploring-quail.md)
+
+❯ continue slice 3 (write issue template first though)                          
+
+● Let me check the current state before proceeding.
+
+● Bash(git status --short && echo "---" && git stash list)
+  ⎿  ---
+     stash@{0}: WIP on main: f91f798 Doc: docs: GitHub 분석 2단계 분리,
+     분석
+      순서 변경 등변경사항 반영, Context Manager 설계 변경(Use-case), 로드
+     … +4 lines (ctrl+o to expand)
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Bash(git status && echo "---" && git branch)
+  ⎿  On branch feat/github-http-fetcher
+     Your branch is ahead of 'origin/dev' by 2 commits.
+       (use "git push" to publish your local commits)
+     … +10 lines (ctrl+o to expand)
+
+● The commits are already in. Let me check what was committed, then look at the
+  existing GitHub issue templates.
+
+● Bash(git log --oneline -5)
+  ⎿  2062e1b refactor: convention에 맞추기
+     e2e4b81    feat(github): Slice 3 — GitHub HTTP 패처 + 연결/저장소 API
+     c84a635 Merge pull request #109 from Programmers-Intern-Program/feat/g
+     … +5 lines (ctrl+o to expand)
+
+  Searched for 1 pattern (ctrl+o to expand)
+
+● Good — Slice 3 is committed. Now I need to create the GitHub issue template.
+  Let me check what PR templates already exist and look at existing issues for
+  style.
+
+  Searched for 1 pattern, read 4 files, listed 2 directories (ctrl+o to expand)
+  ⎿  Interrupted · What should Claude do instead?
+
+❯ wait , i meant continue after the slice 3, slice 3 is done.                   
+
+● Got it — skipping the issue template, moving straight to Slice 4. Let me read
+  the plan to get the details.
+
+  Read 1 file (ctrl+o to expand)
+
+● The plan only covers Slice 3. Let me find the docs to understand Slice 4's
+  scope.
+
+  Searched for 1 pattern, read 2 files (ctrl+o to expand)
+
+● Now I have a clear picture. Let me also check
+  12_github_analysis_implementation_notes.md and the current state of the
+  analysis codebase.
+
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)
+
+● Good picture of the codebase. Slice 4 has four distinct tracks from the docs:
+
+  1. Hunk-level diff cleanup — import-only / whitespace-only / @generated hunk
+  drop inside DiffPreprocessor (purely additive, TDD-safe)
+  2. Decision Reversal — arc grouping on Triage input, champion-context
+  injection to Stage 2, currentStatus: ADOPTED|EVOLVED|REVERSED on highlights,
+  HEAD file sampling
+  3. Bounded Agentic Stage 2 A/B — LLM-with-tools path vs. current pre-digest,
+  ≤10 tool calls
+  4. Multi-provider routing — Anthropic/OpenAI fallback in AiGatewayLlmClient
+
+  Before I start building, a few scoping questions:
+
+  a) Priority order — docs list them all as "Slice 4" without ordering. My
+  recommendation: hunk cleanup → Decision Reversal → multi-provider routing, and
+   defer bounded agentic A/B to Slice 4.5 (it's genuinely experimental and needs
+   live LLM calls to validate). Agree?
+
+  b) Decision Reversal depth — the doc says "HEAD 시점 핵심 파일 샘플링으로 현재
+   상태 검증." This implies calling the GitHub API again at analysis time (not
+  just at connect time). Should HEAD sampling re-use GithubApiClient directly
+  from GithubAnalysisService, or does it need its own fetcher component?
+
+  c) Arc grouping — the doc mentions grouping commits/PRs into "arcs" (decision
+  bundles). Is the grouping logic: same file touched in consecutive commits =
+  same arc, or is it LLM-assigned (Stage 1 labels the arc)?
+
+  d) New branch — should I fork from feat/github-http-fetcher (the current
+  branch ahead of dev by 2 commits), or wait for it to be merged to dev first
+  and branch from there?
+
+❯ i agree with a). for now... work from the same current branch.                
+  (github-http-fetcher). I need to think about b) and c)                        
+● Explore(Explore DiffPreprocessor and related test patterns)
+  ⎿  Done (6 tool uses · 29.4k tokens · 24s)
+  (ctrl+o to expand)
+
+● Good — I have everything I need. The existing DiffPreprocessor works at
+  file-block level (drops entire diff --git blocks). Slice 4 hunk cleanup needs
+  to go one level deeper: split each kept block by @@ ... @@ hunk headers and
+  drop individual hunks that are import-only / whitespace-only /
+  @generated-only.
+
+  Let me write the plan — scoped to hunk cleanup only (Decision Reversal
+  deferred pending your decisions on b/c).
+
+● Updated plan
+  ⎿  /plan to preview
+
+● User approved Claude's plan
+  ⎿  Plan saved to: ~\.claude\plans\cryptic-exploring-quail.md · /plan to edit
+     Plan — Slice 4a: Hunk-level Diff Cleanup
+
+     Context
+
+     Slice 2's DiffPreprocessor.clean() already drops entire file blocks for
+     lockfiles, binaries, and vendored paths. The doc (§6, §11) explicitly
+     deferred hunk-level cleanup to Slice 4:
+
+     ▎ Hunk 단위 cleanup (import-only / whitespace-only / @generated 마커 hunk 
+     ▎ drop)
+
+     These hunks add noise to Stage 2 LLM input without contributing signal —
+     import reorders, blank-line formatting, and @generated annotation changes
+     tell the LLM nothing about the developer's decisions. Dropping them reduces
+      token usage and sharpens per-repo summaries.
+
+     Branch: feat/github-http-fetcher (stays on current branch per user
+     decision).
+     Decision Reversal (Slice 4b) is deferred until b/c design questions are
+     resolved.
+
+     ---
+     Scope
+
+     Single file to modify: DiffPreprocessor.java
+     Single test file to extend: DiffPreprocessorTest.java
+
+     No callers change — GithubAnalysisService calls
+     diffPreprocessor.clean(diff) unchanged.
+
+     ---
+     Design
+
+     Current flow (file-level)
+
+     unified diff
+       → split on "diff --git a/<path>" headers
+       → drop entire block if path is blacklisted
+       → concatenate kept blocks
+
+     New flow (adds hunk-level pass)
+
+     unified diff
+       → split on "diff --git a/<path>" headers
+       → drop entire block if path is blacklisted           ← unchanged
+       → for each kept block: split on "@@ ... @@" headers
+           → drop hunk if ALL changed lines are:
+               • import-only  (Java/Python/JS/TS/Rust/Go import lines)
+               • whitespace-only  (line is blank or spaces/tabs after +/-)
+               • @generated-only  (line adds/removes only @Generated/@generated
+     annotations)
+           → reassemble surviving hunks
+       → concatenate kept blocks
+
+     Hunk header pattern
+
+     private static final Pattern HUNK_HEADER = Pattern.compile(
+         "^(@@ -\\d+(?:,\\d+)? \\+\\d+(?:,\\d+)? @@[^\n]*\n)",
+     Pattern.MULTILINE);
+
+     Changed-line extraction
+
+     A "changed line" in a hunk is any line starting with + or - (excluding
+     +++/--- meta lines).
+
+     Drop predicates (applied to the set of changed lines in a hunk)
+
+     ┌──────────────────────┬───────────────────────────────────────────────────
+     ┐
+     │      Predicate       │                       Rule
+     │
+     ├──────────────────────┼───────────────────────────────────────────────────
+     ┤
+     │                      │ Every changed line (stripped of leading +/-)
+     │
+     │ isImportOnlyHunk     │ matches one of: ^import , ^from .+ import , ^use  
+     │
+     │                      │ , ^require 
+     │
+     ├──────────────────────┼───────────────────────────────────────────────────
+     ┤
+     │ isWhitespaceOnlyHunk │ Every changed line (stripped of +/-) is blank or
+     │
+     │                      │ contains only \s characters
+     │
+     ├──────────────────────┼───────────────────────────────────────────────────
+     ┤
+     │                      │ Every changed line (stripped of +/-) matches
+     │
+     │ isGeneratedOnlyHunk  │ ^\s*@\s*[Gg]enerated\b or ^\s*//\s*[Gg]enerated
+     │
+     │                      │ or ^\s*/\*.*[Gg]enerated
+     │
+     └──────────────────────┴───────────────────────────────────────────────────
+     ┘
+
+     A hunk with zero changed lines (context-only) is kept as-is — it doesn't
+     hurt and removing it would break line-number accounting for the reader.
+
+     New private method
+
+     private String filterHunks(String fileBlock) {
+         // split on hunk headers, filter, rejoin
+     }
+
+     clean() calls filterHunks(block) after the blacklist check, before
+     appending to output.
+
+     ---
+     File Map
+
+     File: domain/github/service/summary/DiffPreprocessor.java
+     Change: Add HUNK_HEADER pattern, filterHunks(), three predicate helpers
+     ────────────────────────────────────────
+     File: domain/github/service/summary/DiffPreprocessorTest.java
+     Change: Add 5 new test cases (see TDD Steps)
+
+     ---
+     TDD Steps
+
+     Red → Green order
+
+     Step 1 — import-only hunk in a Java file is dropped, non-import hunk is
+     kept
+     @Test
+     void clean_dropsImportOnlyHunk() {
+         String diff = """
+             diff --git a/src/Foo.java b/src/Foo.java
+             @@ -1,3 +1,4 @@
+             +import java.util.List;
+             +import java.util.Map;
+              class Foo {}
+             @@ -10,3 +11,4 @@
+             -    int old = 1;
+             +    int newVal = 2;
+             """;
+         String cleaned = preprocessor.clean(diff);
+         assertThat(cleaned).doesNotContain("import java.util");
+         assertThat(cleaned).contains("newVal");
+     }
+
+     Step 2 — whitespace-only hunk dropped
+     @Test
+     void clean_dropsWhitespaceOnlyHunk() {
+         String diff = """
+             diff --git a/src/Bar.java b/src/Bar.java
+             @@ -5,3 +5,4 @@
+             +
+             +   
+              context
+             @@ -20,2 +21,3 @@
+             -    return old;
+             +    return newVal;
+             """;
+         String cleaned = preprocessor.clean(diff);
+         assertThat(cleaned).doesNotContain("@@ -5,");
+         assertThat(cleaned).contains("newVal");
+     }
+
+     Step 3 — @generated hunk dropped
+     @Test
+     void clean_dropsGeneratedAnnotationHunk() {
+         String diff = """
+             diff --git a/src/Gen.java b/src/Gen.java
+             @@ -1,2 +1,3 @@
+             +@Generated("com.example.generator")
+              public class Gen {}
+             @@ -10,2 +11,3 @@
+             +    String realField = "value";
+             """;
+         String cleaned = preprocessor.clean(diff);
+         assertThat(cleaned).doesNotContain("@Generated");
+         assertThat(cleaned).contains("realField");
+     }
+
+     Step 4 — mixed hunk (imports + real change) is kept whole
+     @Test
+     void clean_keepsMixedHunk() {
+         String diff = """
+             diff --git a/src/Baz.java b/src/Baz.java
+             @@ -1,3 +1,5 @@
+             +import java.util.List;
+             +    int x = 42;
+              class Baz {}
+             """;
+         String cleaned = preprocessor.clean(diff);
+         assertThat(cleaned).contains("import java.util.List");
+         assertThat(cleaned).contains("x = 42");
+     }
+
+     Step 5 — context-only hunk (zero changed lines) is preserved
+     @Test
+     void clean_keepsContextOnlyHunk() {
+         String diff = """
+             diff --git a/src/Ctx.java b/src/Ctx.java
+             @@ -1,3 +1,3 @@
+              line1
+              line2
+              line3
+             """;
+         String cleaned = preprocessor.clean(diff);
+         assertThat(cleaned).contains("line1");
+     }
+
+     ---
+     Verification
+
+     ./gradlew test --tests "*.DiffPreprocessorTest"   # new cases GREEN
+     ./gradlew test                                     # full suite stays GREEN
+
+     Existing GithubAnalysisFlowIntegrationTest unchanged — clean() signature is
+      identical.
+
+     ---
+     Deferred (Slice 4b)
+
+     Decision Reversal (arc grouping, currentStatus on highlights, HEAD file
+     sampling) waits for design decisions on:
+     - b) Whether HEAD sampling re-uses GithubApiClient directly from
+     GithubAnalysisService or gets its own fetcher
+     - c) Whether arc grouping is rule-based (co-touched files) or LLM-assigned
+     (Stage 1 labels)
+
+● Starting TDD. First, the 5 failing tests.
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(src\test\java\com\back\coach\domain\github\service\summary\DiffPreproce
+        ssorTest.java)
+  ⎿  Added 93 lines
+       89          assertThat(preprocessor.clean("")).isEmpty();
+       90          assertThat(preprocessor.clean(null)).isEmpty();
+       91      }
+       92 +                                                              
+       93 +    // ── Hunk-level cleanup (Slice 4a) ──                    
+       94 +                                                              
+       95 +    @Test                                                     
+       96 +    @DisplayName("import-only hunk는 drop되고 실질 변경 hunk는
+          + 유지된다")                                                   
+       97 +    void clean_dropsImportOnlyHunk() {                        
+       98 +        String diff = """                                     
+       99 +                diff --git a/src/Foo.java b/src/Foo.java      
+      100 +                @@ -1,3 +1,4 @@                               
+      101 +                +import java.util.List;                       
+      102 +                +import java.util.Map;                        
+      103 +                 class Foo {}                                 
+      104 +                @@ -10,3 +11,4 @@                             
+      105 +                -    int old = 1;                             
+      106 +                +    int newVal = 2;                          
+      107 +                """;                                          
+      108 +                                                              
+      109 +        String cleaned = preprocessor.clean(diff);            
+      110 +                                                              
+      111 +        assertThat(cleaned).doesNotContain("import java.util")
+          +;                                                             
+      112 +        assertThat(cleaned).contains("newVal");               
+      113 +    }                                                         
+      114 +                                                              
+      115 +    @Test                                                     
+      116 +    @DisplayName("whitespace-only hunk는 drop되고 실질 변경 hu
+          +nk는 유지된다")                                               
+      117 +    void clean_dropsWhitespaceOnlyHunk() {                    
+      118 +        String diff = """                                     
+      119 +                diff --git a/src/Bar.java b/src/Bar.java      
+      120 +                @@ -5,3 +5,4 @@                               
+      121 +                +                                             
+      122 +                +\t                                           
+      123 +                 context                                      
+      124 +                @@ -20,2 +21,3 @@                             
+      125 +                -    return old;                              
+      126 +                +    return newVal;                           
+      127 +                """;                                          
+      128 +                                                              
+      129 +        String cleaned = preprocessor.clean(diff);            
+      130 +                                                              
+      131 +        assertThat(cleaned).doesNotContain("@@ -5,");         
+      132 +        assertThat(cleaned).contains("newVal");               
+      133 +    }                                                         
+      134 +                                                              
+      135 +    @Test                                                     
+      136 +    @DisplayName("@Generated hunk는 drop되고 실질 변경 hunk는 
+          +유지된다")                                                    
+      137 +    void clean_dropsGeneratedAnnotationHunk() {               
+      138 +        String diff = """                                     
+      139 +                diff --git a/src/Gen.java b/src/Gen.java      
+      140 +                @@ -1,2 +1,3 @@                               
+      141 +                +@Generated("com.example.generator")          
+      142 +                 public class Gen {}                          
+      143 +                @@ -10,2 +11,3 @@                             
+      144 +                +    String realField = "value";              
+      145 +                """;                                          
+      146 +                                                              
+      147 +        String cleaned = preprocessor.clean(diff);            
+      148 +                                                              
+      149 +        assertThat(cleaned).doesNotContain("@Generated");     
+      150 +        assertThat(cleaned).contains("realField");            
+      151 +    }                                                         
+      152 +                                                              
+      153 +    @Test                                                     
+      154 +    @DisplayName("import + 실질 변경이 섞인 hunk는 통째로 유지
+          +된다")                                                        
+      155 +    void clean_keepsMixedHunk() {                             
+      156 +        String diff = """                                     
+      157 +                diff --git a/src/Baz.java b/src/Baz.java      
+      158 +                @@ -1,3 +1,5 @@                               
+      159 +                +import java.util.List;                       
+      160 +                +    int x = 42;                              
+      161 +                 class Baz {}                                 
+      162 +                """;                                          
+      163 +                                                              
+      164 +        String cleaned = preprocessor.clean(diff);            
+      165 +                                                              
+      166 +        assertThat(cleaned).contains("import java.util.List");
+      167 +        assertThat(cleaned).contains("x = 42");               
+      168 +    }                                                         
+      169 +                                                              
+      170 +    @Test                                                     
+      171 +    @DisplayName("context-only hunk(변경 줄 없음)는 그대로 유 
+          +지된다")                                                      
+      172 +    void clean_keepsContextOnlyHunk() {                       
+      173 +        String diff = """                                     
+      174 +                diff --git a/src/Ctx.java b/src/Ctx.java      
+      175 +                @@ -1,3 +1,3 @@                               
+      176 +                 line1                                        
+      177 +                 line2                                        
+      178 +                 line3                                        
+      179 +                """;                                          
+      180 +                                                              
+      181 +        String cleaned = preprocessor.clean(diff);            
+      182 +                                                              
+      183 +        assertThat(cleaned).contains("line1");                
+      184 +    }                                                         
+      185  }
+
+● Now verify the 5 new tests are RED:
+
+● Bash(./gradlew test --tests "*.DiffPreprocessorTest" -q 2>&1 | tail -20)
+  ⎿  9 tests completed, 3 failed
+
+     FAILURE: Build failed with an exception.
+     … +12 lines (ctrl+o to expand)
+  ⎿  (timeout 1m)
+
+● Good — 3 fail (import-only, whitespace-only, @Generated), 2 pass (mixed,
+  context-only). Now implement the Green.
+
+  Read 1 file (ctrl+o to expand)
+
+● Update(src\main\java\com\back\coach\domain\github\service\summary\DiffPreproce
+        ssor.java)
+  ⎿  Added 12 lines, removed 1 line
+       8  import java.util.regex.Pattern;
+       9  
+      10  // Stage 2 입력 전처리. unified diff에서 노이즈 파일(lockfile/g
+          enerated/binary/vendored)의 hunk를 통째로 drop.
+      11 -// 언어 불가지론적 — 파일 경로만 본다. Hunk 단위 cleanup(import
+         --only 등)은 Slice 4.                                           
+      11 +// 언어 불가지론적 — 파일 경로만 본다.                         
+      12  @Component
+      13  public class DiffPreprocessor {
+      14  
+      15      // diff --git a/<path> b/<path>
+      16      private static final Pattern DIFF_HEADER = Pattern.compile(
+          "^diff --git a/(\\S+) b/\\S+", Pattern.MULTILINE);
+      17  
+      18 +    // @@ -x,y +a,b @@ optional-context                        
+      19 +    private static final Pattern HUNK_HEADER = Pattern.compile(
+         +"^@@[^\n]*\n", Pattern.MULTILINE);                             
+      20 +                                                               
+      21 +    // import-only: Java/Kotlin, Python, JS/TS (ESM), Rust, Go 
+      22 +    private static final Pattern IMPORT_LINE = Pattern.compile(
+      23 +            "^(import |from .+ import |use |require )", Pattern
+         +.CASE_SENSITIVE);                                              
+      24 +                                                               
+      25 +    // @generated annotation or comment variants               
+      26 +    private static final Pattern GENERATED_LINE = Pattern.compi
+         +le(                                                            
+      27 +            "^\\s*(@\\s*[Gg]enerated\\b|//\\s*[Gg]enerated|/\\*
+         +.*[Gg]enerated)");                                             
+      28 +                                                               
+      29      public static final List<Predicate<String>> BLACKLISTED_PAT
+          H_PATTERNS = List.of(
+      30              // Lockfiles
+      31              exactName("package-lock.json"),
+
+● Now add the filterHunks call in clean() and the implementation:
+
+● Update(src\main\java\com\back\coach\domain\github\service\summary\DiffPreproce
+        ssor.java)
+  ⎿  Added 1 line, removed 1 line
+      61              int blockStart = m.start();
+      62              int blockEnd = (idx + 1 < starts.length) ? starts[i
+          dx + 1] : unifiedDiff.length();
+      63              if (!isBlacklisted(path)) {
+      64 -                out.append(unifiedDiff, blockStart, blockEnd); 
+      64 +                out.append(filterHunks(unifiedDiff.substring(bl
+         +ockStart, blockEnd)));                                         
+      65              }
+      66              idx++;
+      67          }
+
+● Now add filterHunks and the helper methods before the closing brace:
+
+● Update(src\main\java\com\back\coach\domain\github\service\summary\DiffPreproce
+        ssor.java)
+  ⎿  Added 62 lines
+       94      private static Predicate<String> prefix(String prefix) {
+       95          return p -> p.startsWith(prefix) || p.contains("/" + p
+           refix);
+       96      }
+       97 +                                                              
+       98 +    // ── Hunk-level cleanup ──                               
+       99 +                                                              
+      100 +    private static String filterHunks(String fileBlock) {     
+      101 +        Matcher m = HUNK_HEADER.matcher(fileBlock);           
+      102 +        if (!m.find()) return fileBlock; // no hunks — keep as
+          +-is                                                           
+      103 +                                                              
+      104 +        // preamble: everything before the first @@ header (in
+          +dex, ---, +++ lines)                                          
+      105 +        StringBuilder out = new StringBuilder(fileBlock, 0, m.
+          +start());                                                     
+      106 +                                                              
+      107 +        do {                                                  
+      108 +            int hunkStart = m.start();                        
+      109 +            int hunkEnd = m.find() ? m.start() : fileBlock.len
+          +gth();                                                        
+      110 +            String hunk = fileBlock.substring(hunkStart, hunkE
+          +nd);                                                          
+      111 +            if (!shouldDropHunk(hunk)) {                      
+      112 +                out.append(hunk);                             
+      113 +            }                                                 
+      114 +            // m.find() already advanced; if it found next hea
+          +der the loop continues                                        
+      115 +        } while (false); // loop control handled inside — rewr
+          +ite with while loop below                                     
+      116 +                                                              
+      117 +        // Reset and redo with proper iteration               
+      118 +        out = new StringBuilder(fileBlock, 0, 0);             
+      119 +        m = HUNK_HEADER.matcher(fileBlock);                   
+      120 +        List<Integer> hunkStarts = new java.util.ArrayList<>()
+          +;                                                             
+      121 +        while (m.find()) hunkStarts.add(m.start());           
+      122 +        if (hunkStarts.isEmpty()) return fileBlock;           
+      123 +                                                              
+      124 +        out.append(fileBlock, 0, hunkStarts.get(0)); // preamb
+          +le                                                            
+      125 +        for (int i = 0; i < hunkStarts.size(); i++) {         
+      126 +            int start = hunkStarts.get(i);                    
+      127 +            int end = (i + 1 < hunkStarts.size()) ? hunkStarts
+          +.get(i + 1) : fileBlock.length();                             
+      128 +            String hunk = fileBlock.substring(start, end);    
+      129 +            if (!shouldDropHunk(hunk)) {                      
+      130 +                out.append(hunk);                             
+      131 +            }                                                 
+      132 +        }                                                     
+      133 +        return out.toString();                                
+      134 +    }                                                         
+      135 +                                                              
+      136 +    private static boolean shouldDropHunk(String hunk) {      
+      137 +        List<String> changedLines = hunk.lines()              
+      138 +                .filter(l -> (l.startsWith("+") || l.startsWit
+          +h("-"))                                                       
+      139 +                        && !l.startsWith("+++") && !l.startsWi
+          +th("---"))                                                    
+      140 +                .map(l -> l.substring(1)) // strip leading +/-
+      141 +                .toList();                                    
+      142 +        if (changedLines.isEmpty()) return false; // context-o
+          +nly hunk — keep                                               
+      143 +        return changedLines.stream().allMatch(DiffPreprocessor
+          +::isImportLine)                                               
+      144 +                || changedLines.stream().allMatch(DiffPreproce
+          +ssor::isWhitespaceLine)                                       
+      145 +                || changedLines.stream().allMatch(DiffPreproce
+          +ssor::isGeneratedLine);                                       
+      146 +    }                                                         
+      147 +                                                              
+      148 +    private static boolean isImportLine(String line) {        
+      149 +        return IMPORT_LINE.matcher(line.stripLeading()).find()
+          +;                                                             
+      150 +    }                                                         
+      151 +                                                              
+      152 +    private static boolean isWhitespaceLine(String line) {    
+      153 +        return line.isBlank();                                
+      154 +    }                                                         
+      155 +                                                              
+      156 +    private static boolean isGeneratedLine(String line) {     
+      157 +        return GENERATED_LINE.matcher(line).find();           
+      158 +    }                                                         
+      159  }
+
+● The filterHunks has a dead do-while block that I need to clean up — the
+  working version is the second iteration:
+
+● Update(src\main\java\com\back\coach\domain\github\service\summary\DiffPreproce
+        ssor.java)
+  ⎿  Added 2 lines, removed 19 lines
+       99  
+      100      private static String filterHunks(String fileBlock) {
+      101          Matcher m = HUNK_HEADER.matcher(fileBlock);
+      102 -        if (!m.find()) return fileBlock; // no hunks — keep as
+          --is                                                           
+      103 -                                                              
+      104 -        // preamble: everything before the first @@ header (in
+          -dex, ---, +++ lines)                                          
+      105 -        StringBuilder out = new StringBuilder(fileBlock, 0, m.
+          -start());                                                     
+      106 -                                                              
+      107 -        do {                                                  
+      108 -            int hunkStart = m.start();                        
+      109 -            int hunkEnd = m.find() ? m.start() : fileBlock.len
+          -gth();                                                        
+      110 -            String hunk = fileBlock.substring(hunkStart, hunkE
+          -nd);                                                          
+      111 -            if (!shouldDropHunk(hunk)) {                      
+      112 -                out.append(hunk);                             
+      113 -            }                                                 
+      114 -            // m.find() already advanced; if it found next hea
+          -der the loop continues                                        
+      115 -        } while (false); // loop control handled inside — rewr
+          -ite with while loop below                                     
+      116 -                                                              
+      117 -        // Reset and redo with proper iteration               
+      118 -        out = new StringBuilder(fileBlock, 0, 0);             
+      119 -        m = HUNK_HEADER.matcher(fileBlock);                   
+      102          List<Integer> hunkStarts = new java.util.ArrayList<>()
+           ;
+      103          while (m.find()) hunkStarts.add(m.start());
+      104          if (hunkStarts.isEmpty()) return fileBlock;
+      105  
+      124 -        out.append(fileBlock, 0, hunkStarts.get(0)); // preamb
+          -le                                                            
+      106 +        StringBuilder out = new StringBuilder();              
+      107 +        out.append(fileBlock, 0, hunkStarts.get(0)); // preamb
+          +le: index/---/+++ lines                                       
+      108          for (int i = 0; i < hunkStarts.size(); i++) {
+      109              int start = hunkStarts.get(i);
+      110              int end = (i + 1 < hunkStarts.size()) ? hunkStarts
+           .get(i + 1) : fileBlock.length();
+
+● Bash(./gradlew test --tests "*.DiffPreprocessorTest" -q 2>&1 | tail -15)
+  ⎿  * What went wrong:
+     Execution failed for task ':compileJava'.
+     > Compilation failed; see the compiler output below.
+     … +16 lines (ctrl+o to expand)
+  ⎿  (timeout 1m)
+
+● Update(src\main\java\com\back\coach\domain\github\service\summary\DiffPreproce
+        ssor.java)
+  ⎿  Added 1 line, removed 1 line
+      20  
+      21      // import-only: Java/Kotlin, Python, JS/TS (ESM), Rust, Go
+      22      private static final Pattern IMPORT_LINE = Pattern.compile(
+      23 -            "^(import |from .+ import |use |require )", Pattern
+         -.CASE_SENSITIVE);                                              
+      23 +            "^(import |from .+ import |use |require )");       
+      24  
+      25      // @generated annotation or comment variants
+      26      private static final Pattern GENERATED_LINE = Pattern.compi
+          le(
+
+● Bash(./gradlew test --tests "*.DiffPreprocessorTest" -q 2>&1 | tail -15)
+  ⎿  (No output)
+  ⎿  (timeout 1m)
+● All 9 tests pass. Run the full suite:
+
+● Bash(./gradlew test -q 2>&1 | tail -10)
+  ⎿  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot l
+     oader classes because bootstrap classpath has been appended
+     2026-04-30T17:17:53.576+09:00 INFO  [SpringApplicationShutdownHook] tr
+     … +8 lines (ctrl+o to expand)
+  ⎿  (timeout 2m)
+
+● Bash(./gradlew test -q 2>&1 | grep -E "BUILD|tests completed|FAILED")
+  ⎿  No matches found
+  ⎿  (timeout 2m)
+
+● Bash(./gradlew test 2>&1 | grep -E "BUILD|tests completed|FAILED|passed")
+  ⎿  BUILD SUCCESSFUL in 2s
+  ⎿  (timeout 3m)
+
+● All GREEN. Let me do a final review of the file before committing:
+
+  Read 1 file (ctrl+o to expand)
+
+● Clean. Now commit:
+
+● Bash(git diff --stat HEAD)
+  ⎿  warning: LF will be replaced by CRLF in backend/src/main/java/com/back
+     /coach/domain/github/service/summary/DiffPreprocessor.java.
+     The file will have its original line endings in your working directory
+     … +8 lines (ctrl+o to expand)
+
+● Bash(git add backend/src/main/java/com/back/coach/domain/github/service/summar
+      y/DiffPreprocessor.java
+      backend/src/test/java/com/back/coach/domain/github/service/summ…)
+  ⎿  Error: Exit code 128
+     warning: could not open directory 'backend/backend/src/': No such file or 
+     directory
+     fatal: pathspec 'backend/src/main/java/com/back/coach/domain/github/service
+     /summary/DiffPreprocessor.java' did not match any files
+
+● Bash(git add src/main/java/com/back/coach/domain/github/service/summary/DiffPr
+      eprocessor.java
+      src/test/java/com/back/coach/domain/github/service/summary/DiffPreproce…)
+  ⎿  warning: LF will be replaced by CRLF in backend/src/main/java/com/back
+     /coach/domain/github/service/summary/DiffPreprocessor.java.
+     The file will have its original line endings in your working directory
+     … +6 lines (ctrl+o to expand)
+
+● Done. Slice 4a is committed — 9 tests GREEN (4 existing + 5 new), full suite
+  passes.
+
+  What was added: DiffPreprocessor now has a second filtering pass that operates
+   inside each file block. After the file-level blacklist drops
+  lockfiles/binaries/vendored, filterHunks() splits by @@ ... @@ headers and
+  drops individual hunks where every changed line is an import statement,
+  whitespace, or @Generated annotation. Mixed hunks and context-only hunks are
+  kept intact.
+
+  When you've thought through questions b) and c) for Decision Reversal, we can
+  plan Slice 4b.
+
+❯ what shoudl I do?                                                             
+
+● Two things, in order:
+
+  1. Push the branch and open a PR to dev — you have 3 solid commits
+  (feat/github-http-fetcher is 3 ahead of origin/dev), tests are green,
+  convention-checked. This should ship before starting more work.
+  2. Decide on the two Slice 4b questions so we can continue:
+    - b) HEAD sampling — my recommendation: reuse GithubApiClient directly in
+  GithubAnalysisService (no new fetcher). It's one or two getFileContent() calls
+   per champion file, not a general-purpose fetch. A separate fetcher would be
+  over-abstraction at this scale.
+    - c) Arc grouping — my recommendation: LLM-assigned. Rule-based (co-touched
+  files) is fragile for typical intern/junior commit patterns where file churn
+  is noisy. Stage 1 already reads commit subjects and paths — giving it
+  arc-grouping as an additional output adds zero extra API calls.
+
+  Want me to open the PR now?
+
+※ recap: Building an AI Developer Growth Coach backend in Spring Boot. Slice 3 (GitHub HTTP fetcher) and Slice 4a (hunk-level diff cleanup) are done and committed. Next: push the branch and open a PR to dev.
+
+❯ 일단 hunk commit만 따로 stash 해줘.                                           
+
+● 마지막 커밋(Slice 4a)을 되돌리고 stash에 넣겠습니다.
+
+● Bash(git reset HEAD~1 && git stash push -m "slice-4a: hunk 단위 diff 전처리")
+  ⎿  Unstaged changes after reset:
+     M  backend/src/main/java/com/back/coach/domain/github/service/summary/D
+     i
+     ffPreprocessor.java
+     … +10 lines (ctrl+o to expand)
+
+● 완료. 현재 상태:
+
+  - 브랜치: feat/github-http-fetcher — Slice 3 + convention 커밋 2개만 남음
+  - git stash list로 확인하면 slice-4a: hunk 단위 diff 전처리 가 보관돼 있음
+  - 나중에 git stash pop으로 되살릴 수 있음
+
+※ recap: Building a GitHub-analysis AI coaching service. Slice 3 (GitHub HTTP fetcher) is committed, Slice 4a (hunk diff cleanup) is stashed. Next: push the branch and open a PR to dev.
+
+❯ 깃허브 이슈 템플릿 해줘, 3이랑 4a                                             
+
+● Bash(gh repo view --json nameWithOwner,url 2>&1 | head -5)
+  ⎿  /usr/bin/bash: gh: command not found
+
+● gh CLI가 없네요. 이슈 템플릿 YAML 파일로 만들어드릴게요 —
+  .github/ISSUE_TEMPLATE/ 에 추가하는 방식으로. 기존 feature.yml 스타일에 맞춰
+  작성합니다.
+
+  Slice 3용과 Slice 4a용, 두 파일 동시에 씁니다.
+
+● Write(~\IdeaProjects\INT6-Roadmap-Team06\.github\ISSUE_TEMPLATE\slice3-github-
+       http-fetcher.yml)
+  ⎿  Wrote 54 lines to
+     ..\.github\ISSUE_TEMPLATE\slice3-github-http-fetcher.yml
+       2 description: GitHub OAuth 연결 + 저장소 메타데이터 수집 작업을 
+         등록합니다.
+       3 title: "[Slice 3] GitHub HTTP 패처 — 연결/저장소 API + metadata_
+       4 body:ad 채우기"
+       5   - type: textarea
+       6     id: purpose
+       8       label: 목적
+       9       description: 이 작업이 필요한 이유와 해결하려는 문제를 적
+         어주세요.
+      10       placeholder: |
+     … +65 lines (ctrl+o to expand)
+
+● Write(~\IdeaProjects\INT6-Roadmap-Team06\.github\ISSUE_TEMPLATE\slice4a-hunk-d
+       iff-cleanup.yml)  ⎿  Wrote 49 lines to
+     ..\.github\ISSUE_TEMPLATE\slice4a-hunk-diff-cleanup.yml
+       2 description: DiffPreprocessor 에 hunk 단위 노이즈 제거 작업을 등
+         록합니다.
+       3 title: "[Slice 4a] Hunk 단위 Diff 전처리 — import-only / whitesp
+       4 body:nly / @Generated hunk drop"
+       5   - type: textarea
+       6     id: purpose
+       8       label: 목적
+       9       value: |
+      10         Slice 2의 `DiffPreprocessor`는 lockfile/바이너리/vendore
+         d 파일 블록 전체를 drop한다.
+     … +50 lines (ctrl+o to expand)
+
+● 두 파일 생성 완료:
+
+  - .github/ISSUE_TEMPLATE/slice3-github-http-fetcher.yml
+  - .github/ISSUE_TEMPLATE/slice4a-hunk-diff-cleanup.yml
+
+  기존 feature.yml 스타일(목적 / 작업 내용 / 완료 조건)을 그대로 따랐고, 제목
+  prefix만 [Slice 3] / [Slice 4a] 로 붙였습니다. GitHub 이슈 생성 화면에서 바로
+  선택해서 쓸 수 있습니다.
+
+※ recap: Slice 3 (GitHub HTTP fetcher) and Slice 4a (hunk-level diff cleanup) are done and committed. Slice 4a changes are stashed. Next: push the branch and open a PR to dev.

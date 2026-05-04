@@ -43,6 +43,8 @@ class CookieOAuth2AuthorizationRequestRepositoryTest {
                 .contains("SameSite=Lax");
 
         String value = extractCookieValue(cookieHeader);
+        // JSON 직렬화로 쿠키 크기가 4KB 미만임을 검증
+        assertThat(value.length()).isLessThan(2000);
         MockHttpServletRequest loadRequest = new MockHttpServletRequest();
         loadRequest.setCookies(new Cookie("oauth2_auth_request", value));
 
