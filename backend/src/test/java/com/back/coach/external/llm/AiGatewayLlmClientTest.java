@@ -50,27 +50,27 @@ class AiGatewayLlmClientTest {
 
     @Test
     void complete_callsGatewayAndReturnsText() {
-        wireMock.stubFor(post("/v1/completions")
+        wireMock.stubFor(post("/v1/chat/completions")
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"text\":\"ok\"}")));
+                        .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}}]}")));
 
         String result = client.complete("hello");
 
         assertThat(result).isEqualTo("ok");
-        wireMock.verify(postRequestedFor(urlEqualTo("/v1/completions"))
+        wireMock.verify(postRequestedFor(urlEqualTo("/v1/chat/completions"))
                 .withHeader("Authorization", com.github.tomakehurst.wiremock.client.WireMock.equalTo("Bearer dummy-key"))
                 .withRequestBody(equalToJson("""
                         {
                           "model": "test-model",
-                          "prompt": "hello"
+                          "messages": [{"role": "user", "content": "hello"}]
                         }
                         """)));
     }
 
     @Test
     void rateLimitedResponse_throwsRateLimitedError() {
-        wireMock.stubFor(post("/v1/completions")
+        wireMock.stubFor(post("/v1/chat/completions")
                 .willReturn(aResponse().withStatus(429)));
 
         assertThatThrownBy(() -> client.complete("hello"))
@@ -81,7 +81,7 @@ class AiGatewayLlmClientTest {
 
     @Test
     void gatewayTimeoutResponse_throwsTimeoutError() {
-        wireMock.stubFor(post("/v1/completions")
+        wireMock.stubFor(post("/v1/chat/completions")
                 .willReturn(aResponse().withStatus(504)));
 
         assertThatThrownBy(() -> client.complete("hello"))
@@ -92,10 +92,10 @@ class AiGatewayLlmClientTest {
 
     @Test
     void blankTextResponse_throwsInvalidResponseError() {
-        wireMock.stubFor(post("/v1/completions")
+        wireMock.stubFor(post("/v1/chat/completions")
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"text\":\"\"}")));
+                        .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"\"}}]}")));
 
         assertThatThrownBy(() -> client.complete("hello"))
                 .isInstanceOf(ServiceException.class)

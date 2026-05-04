@@ -13,16 +13,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
-/**
- * Team AI Gateway client boundary.
- *
- * <p>Minimum HTTP contract:
- * <ul>
- *   <li>POST /v1/completions</li>
- *   <li>request: { "model": "...", "prompt": "..." }</li>
- *   <li>response: { "text": "..." }</li>
- * </ul>
- */
+// Grepp AI Gateway — OpenAI-compatible chat completions endpoint.
+// POST {base-url}/v1/chat/completions
+// request:  { "model": "...", "messages": [{"role": "user", "content": "..."}] }
+// response: { "choices": [{ "message": { "content": "..." } }] }
 @Component
 public class AiGatewayLlmClient implements LlmClient {
 
@@ -50,12 +44,15 @@ public class AiGatewayLlmClient implements LlmClient {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "prompt is empty");
         }
         try {
-            CompletionResponse response = restClient.post()
-                    .uri("/v1/completions")
+            ChatCompletionResponse response = restClient.post()
+                    .uri("/v1/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .headers(headers -> setAuthorization(headers, properties.apiKey()))
-                    .body(new CompletionRequest(properties.model(), prompt))
+                    .body(new ChatCompletionRequest(
+                            properties.model(),
+                            java.util.List.of(new Message("user", prompt))
+                    ))
                     .retrieve()
                     .onStatus(status -> status.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
                             (request, responseEntity) -> {
@@ -69,12 +66,16 @@ public class AiGatewayLlmClient implements LlmClient {
                             (request, responseEntity) -> {
                                 throw new ServiceException(ErrorCode.ANALYSIS_FAILED);
                             })
-                    .body(CompletionResponse.class);
+                    .body(ChatCompletionResponse.class);
 
-            if (response == null || response.text() == null || response.text().isBlank()) {
+            if (response == null || response.choices() == null || response.choices().isEmpty()) {
                 throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
             }
-            return response.text();
+            String content = response.choices().get(0).message().content();
+            if (content == null || content.isBlank()) {
+                throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
+            }
+            return content;
         } catch (ServiceException e) {
             throw e;
         } catch (RuntimeException e) {
@@ -92,25 +93,19 @@ public class AiGatewayLlmClient implements LlmClient {
     }
 
     private ErrorCode classify(RuntimeException e) {
-        if (e instanceof ResourceAccessException) {
-            return ErrorCode.LLM_TIMEOUT;
-        }
+        if (e instanceof ResourceAccessException) return ErrorCode.LLM_TIMEOUT;
         String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
-        if (msg.contains("timeout") || msg.contains("timed out")) {
-            return ErrorCode.LLM_TIMEOUT;
-        }
-        if (msg.contains("rate") && msg.contains("limit")) {
-            return ErrorCode.LLM_RATE_LIMITED;
-        }
-        if (msg.contains("invalid") || msg.contains("schema") || msg.contains("parse")) {
-            return ErrorCode.LLM_INVALID_RESPONSE;
-        }
+        if (msg.contains("timeout") || msg.contains("timed out")) return ErrorCode.LLM_TIMEOUT;
+        if (msg.contains("rate") && msg.contains("limit")) return ErrorCode.LLM_RATE_LIMITED;
+        if (msg.contains("invalid") || msg.contains("schema") || msg.contains("parse")) return ErrorCode.LLM_INVALID_RESPONSE;
         return ErrorCode.ANALYSIS_FAILED;
     }
 
-    private record CompletionRequest(String model, String prompt) {
-    }
+    private record Message(String role, String content) {}
 
-    private record CompletionResponse(String text) {
-    }
+    private record ChatCompletionRequest(String model, java.util.List<Message> messages) {}
+
+    private record ChatCompletionResponse(java.util.List<Choice> choices) {}
+
+    private record Choice(Message message) {}
 }
