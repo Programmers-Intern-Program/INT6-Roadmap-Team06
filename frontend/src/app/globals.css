@@ -191,6 +191,73 @@ a {
   font-weight: 700;
 }
 
+.tag-list {
+  display: grid;
+  gap: 8px;
+}
+
+.tag-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tag-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-pill {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-badge {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-badge[data-tone="neutral"] {
+  background: #eef2f7;
+  color: #475467;
+}
+
+.status-badge[data-tone="info"] {
+  background: #e8f0ff;
+  color: #2563eb;
+}
+
+.status-badge[data-tone="success"] {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.status-badge[data-tone="warning"] {
+  background: #fff4e5;
+  color: #a15c00;
+}
+
+.status-badge[data-tone="danger"] {
+  background: #fff1f1;
+  color: #b42318;
+}
+
 .item-list {
   display: grid;
   gap: 10px;
@@ -272,37 +339,6 @@ a {
   margin: 0;
   font-size: 20px;
   line-height: 1.35;
-}
-
-.progress-badge {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0 10px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.progress-badge[data-status="todo"] {
-  background: #eef2f7;
-  color: #475467;
-}
-
-.progress-badge[data-status="in-progress"] {
-  background: #e8f0ff;
-  color: #2563eb;
-}
-
-.progress-badge[data-status="done"] {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.progress-badge[data-status="skipped"] {
-  background: #fff4e5;
-  color: #a15c00;
 }
 
 .roadmap-week-reason {
@@ -610,36 +646,6 @@ a {
   font-weight: 700;
 }
 
-.dashboard-tag-group {
-  display: grid;
-  gap: 8px;
-}
-
-.dashboard-tag-group p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.dashboard-tag-group div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.dashboard-tag-group span {
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0 9px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .dashboard-progress-summary {
   display: grid;
   gap: 12px;
@@ -940,32 +946,6 @@ a {
   line-height: 1.55;
 }
 
-.diagnosis-severity-badge {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0 10px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.diagnosis-severity-badge[data-severity="low"] {
-  background: #eef2f7;
-  color: #475467;
-}
-
-.diagnosis-severity-badge[data-severity="medium"] {
-  background: #fff4e5;
-  color: #a15c00;
-}
-
-.diagnosis-severity-badge[data-severity="high"] {
-  background: #fff1f1;
-  color: #b42318;
-}
-
 .diagnosis-result-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1066,26 +1046,6 @@ a {
   margin: 0;
 }
 
-.github-tag-group {
-  display: grid;
-  gap: 8px;
-}
-
-.github-tag-group p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.github-tag-group div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.github-tag-group span,
-.github-depth-badge,
 .github-evidence-list span {
   min-height: 28px;
   display: inline-flex;
@@ -1168,26 +1128,6 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-}
-
-.github-depth-badge[data-depth="intro"] {
-  background: #eef2f7;
-  color: #475467;
-}
-
-.github-depth-badge[data-depth="applied"] {
-  background: #e8f0ff;
-  color: #2563eb;
-}
-
-.github-depth-badge[data-depth="practical"] {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.github-depth-badge[data-depth="deep"] {
-  background: #fff4e5;
-  color: #a15c00;
 }
 
 .github-evidence-list code {

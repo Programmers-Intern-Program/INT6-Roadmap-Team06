@@ -3,10 +3,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
+import {
+  StatusBadge,
+  type StatusBadgeTone
+} from "@/components/status-badge";
 import { getRoadmap, saveRoadmapProgress } from "@/features/roadmap/api";
 import {
   materialTypeLabels,
-  progressStatusClassNames,
   progressStatusLabels,
   progressStatusOptions,
   taskTypeLabels
@@ -186,12 +189,9 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
                     <p className="roadmap-week-kicker">{week.weekNumber}주차</p>
                     <h2>{week.topic}</h2>
                   </div>
-                  <span
-                    className="progress-badge"
-                    data-status={progressStatusClassNames[progressStatus]}
-                  >
+                  <StatusBadge tone={progressStatusTones[progressStatus]}>
                     {progressStatusLabels[progressStatus]}
-                  </span>
+                  </StatusBadge>
                 </div>
 
                 <p className="roadmap-week-reason">{week.reason}</p>
@@ -313,6 +313,13 @@ function getErrorMessage(error: unknown, fallbackMessage: string) {
 
   return fallbackMessage;
 }
+
+const progressStatusTones: Record<ProgressStatus, StatusBadgeTone> = {
+  DONE: "success",
+  IN_PROGRESS: "info",
+  SKIPPED: "warning",
+  TODO: "neutral"
+};
 
 function isProgressStatus(
   value: FormDataEntryValue | null

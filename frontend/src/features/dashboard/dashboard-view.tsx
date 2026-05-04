@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { StatePanel } from "@/components/state-panel";
+import { TagList } from "@/components/tag-list";
 import { getDashboard } from "@/features/dashboard/api";
 import { currentLevelLabels } from "@/features/dashboard/labels";
 import type {
@@ -239,23 +240,6 @@ function EmptySummary({
       <Link className="dashboard-card-link" href={actionHref}>
         {actionLabel}
       </Link>
-    </div>
-  );
-}
-
-function TagList({ items, label }: { items: string[]; label: string }) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="dashboard-tag-group">
-      <p>{label}</p>
-      <div>
-        {items.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-      </div>
     </div>
   );
 }

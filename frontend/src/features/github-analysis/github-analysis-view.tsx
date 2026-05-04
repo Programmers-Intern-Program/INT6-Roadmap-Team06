@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
+import {
+  StatusBadge,
+  type StatusBadgeTone
+} from "@/components/status-badge";
+import { TagList } from "@/components/tag-list";
 import { getDashboard } from "@/features/dashboard/api";
 import { createDiagnosis } from "@/features/diagnosis/api";
 import {
@@ -12,13 +17,13 @@ import {
   saveGithubAnalysisCorrections
 } from "@/features/github-analysis/api";
 import {
-  githubDepthLevelClassNames,
   githubDepthLevelLabels,
   githubEvidenceTypeLabels
 } from "@/features/github-analysis/labels";
 import type {
   DepthEstimate,
   GithubAnalysis,
+  GithubDepthLevel,
   GithubUserCorrection
 } from "@/features/github-analysis/types";
 import { ApiError } from "@/lib/api";
@@ -347,6 +352,7 @@ function StaticSignalsPanel({ analysis }: { analysis: GithubAnalysis }) {
         </div>
       </dl>
       <TagList
+        emptyLabel="없음"
         items={staticSignals.primaryLanguages.map(
           (language) => `${language.lang} ${formatRatio(language.ratio)}`
         )}
@@ -361,10 +367,15 @@ function FinalTechProfilePanel({ analysis }: { analysis: GithubAnalysis }) {
     <section className="panel github-analysis-section">
       <h2>최종 기술 프로필</h2>
       <TagList
+        emptyLabel="없음"
         items={analysis.finalTechProfile.confirmedSkills}
         label="확정 기술"
       />
-      <TagList items={analysis.finalTechProfile.focusAreas} label="집중 영역" />
+      <TagList
+        emptyLabel="없음"
+        items={analysis.finalTechProfile.focusAreas}
+        label="집중 영역"
+      />
     </section>
   );
 }
@@ -512,36 +523,18 @@ function GithubCorrectionForm({
 
 function DepthBadge({ estimate }: { estimate: DepthEstimate }) {
   return (
-    <span
-      className="github-depth-badge"
-      data-depth={githubDepthLevelClassNames[estimate.level]}
-    >
+    <StatusBadge tone={githubDepthLevelTones[estimate.level]}>
       {githubDepthLevelLabels[estimate.level]}
-    </span>
+    </StatusBadge>
   );
 }
 
-function TagList({ items, label }: { items: string[]; label: string }) {
-  if (items.length === 0) {
-    return (
-      <div className="github-tag-group">
-        <p>{label}</p>
-        <span>없음</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="github-tag-group">
-      <p>{label}</p>
-      <div>
-        {items.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
+const githubDepthLevelTones: Record<GithubDepthLevel, StatusBadgeTone> = {
+  APPLIED: "info",
+  DEEP: "warning",
+  INTRO: "neutral",
+  PRACTICAL: "success"
+};
 
 function normalizeOptionalId(value?: string | null) {
   if (!value) {

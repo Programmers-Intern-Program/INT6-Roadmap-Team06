@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { StatePanel } from "@/components/state-panel";
+import {
+  StatusBadge,
+  type StatusBadgeTone
+} from "@/components/status-badge";
 import { getDiagnosis } from "@/features/diagnosis/api";
 import {
   currentLevelLabels,
-  diagnosisSeverityClassNames,
   diagnosisSeverityLabels
 } from "@/features/diagnosis/labels";
 import type { Diagnosis, MissingSkill } from "@/features/diagnosis/types";
@@ -183,14 +186,17 @@ function DiagnosisListSection({
 
 function SeverityBadge({ skill }: { skill: MissingSkill }) {
   return (
-    <span
-      className="diagnosis-severity-badge"
-      data-severity={diagnosisSeverityClassNames[skill.severity]}
-    >
+    <StatusBadge tone={diagnosisSeverityTones[skill.severity]}>
       {diagnosisSeverityLabels[skill.severity]}
-    </span>
+    </StatusBadge>
   );
 }
+
+const diagnosisSeverityTones: Record<MissingSkill["severity"], StatusBadgeTone> = {
+  HIGH: "danger",
+  LOW: "neutral",
+  MEDIUM: "warning"
+};
 
 function comparePriorityOrder(a: MissingSkill, b: MissingSkill) {
   return a.priorityOrder - b.priorityOrder;
