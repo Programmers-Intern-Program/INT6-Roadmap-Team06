@@ -67,6 +67,12 @@ export type GithubAnalysis = {
   version: number;
 };
 
+export type GithubAnalysisRequest = {
+  coreRepositoryIds: string[];
+  githubConnectionId: string;
+  selectedRepositoryIds: string[];
+};
+
 export type GithubAnalysisCorrectionRequest = {
   finalTechProfile: FinalTechProfile;
   userCorrections: GithubUserCorrection[];

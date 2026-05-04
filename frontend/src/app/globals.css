@@ -1344,6 +1344,46 @@ a {
   overflow-wrap: anywhere;
 }
 
+.github-analysis-start-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.github-analysis-start-panel > div {
+  display: grid;
+  gap: 6px;
+}
+
+.github-analysis-start-panel h2,
+.github-analysis-start-panel p {
+  margin: 0;
+}
+
+.github-analysis-start-panel p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.github-analysis-start-panel button {
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 0 18px;
+  white-space: nowrap;
+}
+
+.github-analysis-start-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .github-repository-list {
   display: grid;
   gap: 12px;
@@ -1544,6 +1584,7 @@ a {
   }
 
   .github-connection-actions,
+  .github-analysis-start-panel,
   .github-repository-card > div:first-child {
     align-items: stretch;
     flex-direction: column;

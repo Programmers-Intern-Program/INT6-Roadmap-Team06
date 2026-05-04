@@ -2,8 +2,13 @@ import { apiClient } from "@/lib/api";
 import type {
   GithubAnalysis,
   GithubAnalysisCorrectionRequest,
-  GithubAnalysisCorrectionResponse
+  GithubAnalysisCorrectionResponse,
+  GithubAnalysisRequest
 } from "@/features/github-analysis/types";
+
+export function createGithubAnalysis(payload: GithubAnalysisRequest) {
+  return apiClient.post<GithubAnalysis>("/api/github-analyses", payload);
+}
 
 export function getGithubAnalysis(githubAnalysisId: string) {
   return apiClient.get<GithubAnalysis>(

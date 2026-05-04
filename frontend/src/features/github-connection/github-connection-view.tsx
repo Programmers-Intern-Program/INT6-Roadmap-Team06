@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
+import { createGithubAnalysis } from "@/features/github-analysis/api";
 import {
   connectGithub,
   getGithubRepositories
@@ -20,6 +22,7 @@ type RepositorySelection = {
 };
 
 export function GithubConnectionView() {
+  const router = useRouter();
   const [connection, setConnection] = useState<GithubConnectionResponse | null>(
     null
   );
@@ -29,7 +32,9 @@ export function GithubConnectionView() {
     selectedRepositoryIds: []
   });
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [connectionMessage, setConnectionMessage] = useState<string | null>(null);
 
   async function handleConnectSubmit(event: FormEvent<HTMLFormElement>) {
@@ -56,6 +61,7 @@ export function GithubConnectionView() {
       setConnection(connected);
       setRepositories(repositoryList.repositories);
       setSelection({ coreRepositoryIds: [], selectedRepositoryIds: [] });
+      setAnalysisError(null);
       setConnectionMessage(
         `${connected.githubLogin} 계정의 저장소 ${repositoryList.repositories.length}개를 불러왔습니다.`
       );
@@ -63,6 +69,42 @@ export function GithubConnectionView() {
       setLoadError(getErrorMessage(error));
     } finally {
       setIsConnecting(false);
+    }
+  }
+
+  async function handleAnalysisCreate() {
+    if (!connection) {
+      setAnalysisError("GitHub 연결 후 분석을 실행해 주세요.");
+      return;
+    }
+
+    if (selection.selectedRepositoryIds.length === 0) {
+      setAnalysisError("분석 대상 저장소를 1개 이상 선택해 주세요.");
+      return;
+    }
+
+    if (selection.coreRepositoryIds.length === 0) {
+      setAnalysisError("핵심 repo를 1개 이상 선택해 주세요.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const analysis = await createGithubAnalysis({
+        coreRepositoryIds: selection.coreRepositoryIds,
+        githubConnectionId: connection.githubConnectionId,
+        selectedRepositoryIds: selection.selectedRepositoryIds
+      });
+
+      router.push(
+        `/github/analysis?githubAnalysisId=${analysis.githubAnalysisId}`
+      );
+    } catch (error) {
+      setAnalysisError(getAnalysisErrorMessage(error));
+    } finally {
+      setIsAnalyzing(false);
     }
   }
 
@@ -180,12 +222,37 @@ export function GithubConnectionView() {
       ) : null}
 
       {repositories.length > 0 ? (
-        <RepositorySelectionPanel
-          onCoreToggle={toggleCoreRepository}
-          onSelectedToggle={toggleSelectedRepository}
-          repositories={repositories}
-          selection={selection}
-        />
+        <>
+          <RepositorySelectionPanel
+            onCoreToggle={toggleCoreRepository}
+            onSelectedToggle={toggleSelectedRepository}
+            repositories={repositories}
+            selection={selection}
+          />
+          <section className="panel github-analysis-start-panel">
+            <div>
+              <h2>분석 실행</h2>
+              <p>
+                분석 대상 {selection.selectedRepositoryIds.length}개, 핵심 repo{" "}
+                {selection.coreRepositoryIds.length}개를 선택했습니다.
+              </p>
+              {analysisError ? (
+                <p className="github-connection-error">{analysisError}</p>
+              ) : null}
+            </div>
+            <button
+              disabled={
+                isAnalyzing ||
+                selection.selectedRepositoryIds.length === 0 ||
+                selection.coreRepositoryIds.length === 0
+              }
+              onClick={handleAnalysisCreate}
+              type="button"
+            >
+              {isAnalyzing ? "분석 실행 중" : "GitHub 분석 실행"}
+            </button>
+          </section>
+        </>
       ) : null}
     </section>
   );
@@ -274,6 +341,14 @@ function getErrorMessage(error: unknown) {
   }
 
   return "GitHub 저장소를 불러오지 못했습니다.";
+}
+
+function getAnalysisErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return "GitHub 분석을 실행하지 못했습니다.";
 }
 
 function formatDateTime(value: string) {
