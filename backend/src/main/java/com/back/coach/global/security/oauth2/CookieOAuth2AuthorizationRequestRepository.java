@@ -4,6 +4,8 @@ import com.back.coach.global.security.CookieManager;
 import com.back.coach.global.security.JwtProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
@@ -33,6 +35,7 @@ import java.util.Base64;
 public class CookieOAuth2AuthorizationRequestRepository
         implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
+    private static final Logger log = LoggerFactory.getLogger(CookieOAuth2AuthorizationRequestRepository.class);
     static final String COOKIE_NAME = "oauth2_auth_request";
     private static final Duration COOKIE_TTL = Duration.ofMinutes(5);
     private static final String HMAC_ALGO = "HmacSHA256";
@@ -48,7 +51,16 @@ public class CookieOAuth2AuthorizationRequestRepository
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
         String value = cookieManager.readValue(request, COOKIE_NAME);
-        return value == null ? null : tryDeserialize(value);
+        if (value == null) {
+            log.debug("oauth2_auth_request cookie not found in request");
+            return null;
+        }
+        log.debug("oauth2_auth_request cookie found, size={} chars", value.length());
+        OAuth2AuthorizationRequest result = tryDeserialize(value);
+        if (result == null) {
+            log.warn("oauth2_auth_request cookie deserialization failed (HMAC mismatch, truncation, or format error)");
+        }
+        return result;
     }
 
     @Override
@@ -59,7 +71,9 @@ public class CookieOAuth2AuthorizationRequestRepository
             cookieManager.clear(response, COOKIE_NAME);
             return;
         }
-        cookieManager.add(response, COOKIE_NAME, serialize(authorizationRequest), COOKIE_TTL);
+        String serialized = serialize(authorizationRequest);
+        log.debug("Saving oauth2_auth_request cookie, size={} chars", serialized.length());
+        cookieManager.add(response, COOKIE_NAME, serialized, COOKIE_TTL);
     }
 
     @Override
@@ -106,6 +120,7 @@ public class CookieOAuth2AuthorizationRequestRepository
                 return (obj instanceof OAuth2AuthorizationRequest req) ? req : null;
             }
         } catch (Exception e) {
+            log.warn("oauth2_auth_request deserialization exception: {}", e.getMessage());
             return null;
         }
     }
