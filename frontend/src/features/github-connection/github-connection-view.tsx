@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, githubConnectionOAuthUrl } from "@/lib/api";
 import { getRepositories, runAnalysis } from "@/features/github-connection/api";
@@ -8,6 +8,7 @@ import type { Repository } from "@/features/github-connection/types";
 import { StatePanel } from "@/components/state-panel";
 
 const CONNECTION_ID_KEY = "githubConnectionId";
+const CONNECTION_ID_CHANGE_EVENT = "githubConnectionIdChange";
 
 type ViewState =
   | { status: "disconnected" }
@@ -21,18 +22,42 @@ function getErrorMessage(error: unknown): string {
   return "오류가 발생했습니다. 다시 시도해주세요.";
 }
 
+function getConnectionIdSnapshot() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(CONNECTION_ID_KEY);
+}
+
+function subscribeToConnectionId(onChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+
+  window.addEventListener("storage", onChange);
+  window.addEventListener(CONNECTION_ID_CHANGE_EVENT, onChange);
+
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(CONNECTION_ID_CHANGE_EVENT, onChange);
+  };
+}
+
+function clearConnectionId() {
+  localStorage.removeItem(CONNECTION_ID_KEY);
+  window.dispatchEvent(new Event(CONNECTION_ID_CHANGE_EVENT));
+}
+
 export function GithubConnectionView() {
   const router = useRouter();
+  const connectionId = useSyncExternalStore(
+    subscribeToConnectionId,
+    getConnectionIdSnapshot,
+    () => null
+  );
   const [state, setState] = useState<ViewState>({ status: "loading-repos" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [connectUrl] = useState(() => githubConnectionOAuthUrl());
 
   useEffect(() => {
-    const connectionId = localStorage.getItem(CONNECTION_ID_KEY);
-    if (!connectionId) {
-      setState({ status: "disconnected" });
-      return;
-    }
+    if (!connectionId) return;
+
     let cancelled = false;
     getRepositories(connectionId)
       .then((repos) => {
@@ -41,14 +66,13 @@ export function GithubConnectionView() {
       .catch((err) => {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 404) {
-          localStorage.removeItem(CONNECTION_ID_KEY);
-          setState({ status: "disconnected" });
+          clearConnectionId();
         } else {
           setState({ status: "error", message: getErrorMessage(err) });
         }
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [connectionId]);
 
   function toggleRepo(id: string) {
     setSelected((prev) => {
@@ -59,7 +83,6 @@ export function GithubConnectionView() {
   }
 
   async function handleAnalyze() {
-    const connectionId = localStorage.getItem(CONNECTION_ID_KEY);
     if (!connectionId || selected.size === 0) return;
     setState({ status: "analyzing" });
     try {
@@ -69,6 +92,20 @@ export function GithubConnectionView() {
     } catch (err) {
       setState({ status: "error", message: getErrorMessage(err) });
     }
+  }
+
+  if (!connectionId || state.status === "disconnected") {
+    return (
+      <div>
+        <h1>GitHub 연동</h1>
+        <p>GitHub 저장소를 연결하고 분석을 시작하세요.</p>
+        <a href={connectUrl}>
+          <button className="btn-primary" disabled={!connectUrl}>
+            GitHub 연결하기
+          </button>
+        </a>
+      </div>
+    );
   }
 
   if (state.status === "loading-repos") {
@@ -84,24 +121,10 @@ export function GithubConnectionView() {
       <div>
         <StatePanel message={state.message} tone="danger" />
         <p>
-          <button onClick={() => setState({ status: "disconnected" })}>
+          <button onClick={clearConnectionId}>
             다시 연결하기
           </button>
         </p>
-      </div>
-    );
-  }
-
-  if (state.status === "disconnected") {
-    return (
-      <div>
-        <h1>GitHub 연동</h1>
-        <p>GitHub 저장소를 연결하고 분석을 시작하세요.</p>
-        <a href={connectUrl}>
-          <button className="btn-primary" disabled={!connectUrl}>
-            GitHub 연결하기
-          </button>
-        </a>
       </div>
     );
   }
@@ -148,8 +171,7 @@ export function GithubConnectionView() {
       <p style={{ marginTop: "1rem" }}>
         <button
           onClick={() => {
-            localStorage.removeItem(CONNECTION_ID_KEY);
-            setState({ status: "disconnected" });
+            clearConnectionId();
             setSelected(new Set());
           }}
           style={{ fontSize: "0.875rem", color: "#888" }}
