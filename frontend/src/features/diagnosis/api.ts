@@ -11,3 +11,10 @@ export function createDiagnosis(payload: DiagnosisRequest) {
 export function getDiagnosis(diagnosisId: string) {
   return apiClient.get<Diagnosis>(`/api/diagnoses/${diagnosisId}`);
 }
+
+export function createDiagnosis(profileId: string, githubAnalysisId: string) {
+  return apiClient.post<Diagnosis>("/api/diagnoses", {
+    profileId: Number(profileId),
+    githubAnalysisId: Number(githubAnalysisId),
+  });
+}

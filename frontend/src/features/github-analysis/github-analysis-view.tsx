@@ -1,29 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
-import {
-  StatusBadge,
-  type StatusBadgeTone
-} from "@/components/status-badge";
-import { TagList } from "@/components/tag-list";
 import { getDashboard } from "@/features/dashboard/api";
-import { createDiagnosis } from "@/features/diagnosis/api";
 import {
   getGithubAnalysis,
   saveGithubAnalysisCorrections
 } from "@/features/github-analysis/api";
 import {
+  githubDepthLevelClassNames,
   githubDepthLevelLabels,
   githubEvidenceTypeLabels
 } from "@/features/github-analysis/labels";
 import type {
   DepthEstimate,
   GithubAnalysis,
-  GithubDepthLevel,
   GithubUserCorrection
 } from "@/features/github-analysis/types";
 import { ApiError } from "@/lib/api";
@@ -40,21 +33,17 @@ type GithubAnalysisState =
       status: "success";
       analysis: GithubAnalysis;
       diagnosisId: string | null;
-      profileId: string | null;
     };
 
 export function GithubAnalysisView({
   initialGithubAnalysisId
 }: GithubAnalysisViewProps) {
-  const router = useRouter();
   const [state, setState] = useState<GithubAnalysisState>({
     status: "loading"
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreatingDiagnosis, setIsCreatingDiagnosis] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -88,7 +77,6 @@ export function GithubAnalysisView({
           setState({
             analysis,
             diagnosisId: dashboard?.diagnosis?.diagnosisId ?? null,
-            profileId: dashboard?.profile?.profileId ?? null,
             status: "success"
           });
         }
@@ -166,29 +154,6 @@ export function GithubAnalysisView({
     }
   }
 
-  async function handleDiagnosisCreate() {
-    if (state.status !== "success" || !state.profileId) {
-      setDiagnosisError("진단 생성 전에 프로필을 먼저 저장해 주세요.");
-      return;
-    }
-
-    setIsCreatingDiagnosis(true);
-    setDiagnosisError(null);
-
-    try {
-      const diagnosis = await createDiagnosis({
-        githubAnalysisId: state.analysis.githubAnalysisId,
-        profileId: state.profileId
-      });
-
-      router.push(`/diagnoses/${diagnosis.diagnosisId}`);
-    } catch (error) {
-      setDiagnosisError(getDiagnosisErrorMessage(error));
-    } finally {
-      setIsCreatingDiagnosis(false);
-    }
-  }
-
   if (state.status === "loading") {
     return (
       <StatePanel
@@ -217,7 +182,7 @@ export function GithubAnalysisView({
     );
   }
 
-  const { analysis, diagnosisId, profileId } = state;
+  const { analysis, diagnosisId } = state;
 
   return (
     <section className="github-analysis-page" aria-labelledby="analysis-title">
@@ -236,22 +201,17 @@ export function GithubAnalysisView({
               진단 결과 보기
             </Link>
           ) : (
-            <button
+            <Link
               className="action-link primary"
-              disabled={isCreatingDiagnosis || !profileId}
-              onClick={handleDiagnosisCreate}
-              type="button"
+              href={`/diagnoses/new?githubAnalysisId=${analysis.githubAnalysisId}`}
             >
-              {isCreatingDiagnosis ? "진단 생성 중" : "진단 생성"}
-            </button>
+              진단 생성
+            </Link>
           )}
           <Link className="action-link" href="/github">
             저장소 선택
           </Link>
         </div>
-        {diagnosisError ? (
-          <p className="github-analysis-action-error">{diagnosisError}</p>
-        ) : null}
         <dl className="github-analysis-summary-list" aria-label="분석 요약">
           <div>
             <dt>분석 ID</dt>
@@ -352,7 +312,6 @@ function StaticSignalsPanel({ analysis }: { analysis: GithubAnalysis }) {
         </div>
       </dl>
       <TagList
-        emptyLabel="없음"
         items={staticSignals.primaryLanguages.map(
           (language) => `${language.lang} ${formatRatio(language.ratio)}`
         )}
@@ -367,15 +326,10 @@ function FinalTechProfilePanel({ analysis }: { analysis: GithubAnalysis }) {
     <section className="panel github-analysis-section">
       <h2>최종 기술 프로필</h2>
       <TagList
-        emptyLabel="없음"
         items={analysis.finalTechProfile.confirmedSkills}
         label="확정 기술"
       />
-      <TagList
-        emptyLabel="없음"
-        items={analysis.finalTechProfile.focusAreas}
-        label="집중 영역"
-      />
+      <TagList items={analysis.finalTechProfile.focusAreas} label="집중 영역" />
     </section>
   );
 }
@@ -523,18 +477,36 @@ function GithubCorrectionForm({
 
 function DepthBadge({ estimate }: { estimate: DepthEstimate }) {
   return (
-    <StatusBadge tone={githubDepthLevelTones[estimate.level]}>
+    <span
+      className="github-depth-badge"
+      data-depth={githubDepthLevelClassNames[estimate.level]}
+    >
       {githubDepthLevelLabels[estimate.level]}
-    </StatusBadge>
+    </span>
   );
 }
 
-const githubDepthLevelTones: Record<GithubDepthLevel, StatusBadgeTone> = {
-  APPLIED: "info",
-  DEEP: "warning",
-  INTRO: "neutral",
-  PRACTICAL: "success"
-};
+function TagList({ items, label }: { items: string[]; label: string }) {
+  if (items.length === 0) {
+    return (
+      <div className="github-tag-group">
+        <p>{label}</p>
+        <span>없음</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="github-tag-group">
+      <p>{label}</p>
+      <div>
+        {items.map((item) => (
+          <span key={item}>{item}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function normalizeOptionalId(value?: string | null) {
   if (!value) {
@@ -622,14 +594,6 @@ function getSaveErrorMessage(error: unknown) {
   }
 
   return "GitHub 분석 보정을 저장하지 못했습니다.";
-}
-
-function getDiagnosisErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  return "진단을 생성하지 못했습니다.";
 }
 
 function formatDateTime(value: string) {
