@@ -53,6 +53,8 @@ class CookieOAuth2AuthorizationRequestRepositoryTest {
         assertThat(restored.getState()).isEqualTo("state-123");
         assertThat(restored.getClientId()).isEqualTo("test-client");
         assertThat(restored.getAuthorizationUri()).isEqualTo("https://github.com/login/oauth/authorize");
+        String registrationId = restored.getAttribute("registration_id");
+        assertThat(registrationId).isEqualTo("github");
     }
 
     @Test
@@ -69,9 +71,11 @@ class CookieOAuth2AuthorizationRequestRepositoryTest {
         repo.saveAuthorizationRequest(original, new MockHttpServletRequest(), saveResponse);
 
         String cookieValue = extractCookieValue(saveResponse.getHeader(HttpHeaders.SET_COOKIE));
-        // 마지막 한 글자 변조 → 서명 mismatch
-        String tampered = cookieValue.substring(0, cookieValue.length() - 1)
-                + (cookieValue.charAt(cookieValue.length() - 1) == 'A' ? 'B' : 'A');
+        // 중간 한 글자 변조 → payload/HMAC 바이트가 실제로 바뀌어 서명 mismatch
+        int tamperIndex = cookieValue.length() / 2;
+        String tampered = cookieValue.substring(0, tamperIndex)
+                + (cookieValue.charAt(tamperIndex) == 'A' ? 'B' : 'A')
+                + cookieValue.substring(tamperIndex + 1);
 
         MockHttpServletRequest loadRequest = new MockHttpServletRequest();
         loadRequest.setCookies(new Cookie("oauth2_auth_request", tampered));

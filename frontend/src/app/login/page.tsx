@@ -1,12 +1,29 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useSyncExternalStore } from "react";
 import { githubLoginUrl } from "@/lib/api";
+
+function subscribeToOrigin() {
+  return () => {};
+}
+
+function getOriginSnapshot() {
+  return window.location.origin;
+}
+
+function getServerOriginSnapshot() {
+  return "";
+}
 
 function LoginInner() {
   const params = useSearchParams();
   const error = params.get("error");
-  const [loginUrl] = useState(() => githubLoginUrl());
+  const origin = useSyncExternalStore(
+    subscribeToOrigin,
+    getOriginSnapshot,
+    getServerOriginSnapshot
+  );
+  const loginUrl = origin ? githubLoginUrl(`${origin}/me`) : null;
 
   return (
     <>
@@ -17,9 +34,15 @@ function LoginInner() {
         </p>
       )}
       <p>
-        <a href={loginUrl}>
-          <button className="btn-primary">GitHub으로 다시 시도</button>
-        </a>
+        {loginUrl ? (
+          <a href={loginUrl}>
+            <button className="btn-primary">GitHub으로 다시 시도</button>
+          </a>
+        ) : (
+          <button className="btn-primary" disabled type="button">
+            GitHub으로 다시 시도
+          </button>
+        )}
       </p>
     </>
   );
