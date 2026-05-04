@@ -25,3 +25,4 @@
 
 보조 문서
 - 10_b_role_v1_handoff.md: B 역할 v1 저장/상태/재조회/대시보드 범위 마감 체크와 후속 의존성 정리
+- 13_v1_smoke_test_checklist.md: v1 전체 화면 흐름 수동검증 체크리스트와 blocker 기록 기준
