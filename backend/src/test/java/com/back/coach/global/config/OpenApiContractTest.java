@@ -47,7 +47,7 @@ class OpenApiContractTest {
         assertThat(operation(paths, "/api/diagnoses", "post")
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/github-analyses", "post")
-                .get("x-implementation-status")).isEqualTo("planned");
+                .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/github-analyses/{githubAnalysisId}", "get")
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/github-analyses/{githubAnalysisId}/corrections", "patch")
