@@ -8,12 +8,23 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 // Stage 2 입력 전처리. unified diff에서 노이즈 파일(lockfile/generated/binary/vendored)의 hunk를 통째로 drop.
-// 언어 불가지론적 — 파일 경로만 본다. Hunk 단위 cleanup(import-only 등)은 Slice 4.
+// 언어 불가지론적 — 파일 경로만 본다.
 @Component
 public class DiffPreprocessor {
 
     // diff --git a/<path> b/<path>
     private static final Pattern DIFF_HEADER = Pattern.compile("^diff --git a/(\\S+) b/\\S+", Pattern.MULTILINE);
+
+    // @@ -x,y +a,b @@ optional-context
+    private static final Pattern HUNK_HEADER = Pattern.compile("^@@[^\n]*\n", Pattern.MULTILINE);
+
+    // import-only: Java/Kotlin, Python, JS/TS (ESM), Rust, Go
+    private static final Pattern IMPORT_LINE = Pattern.compile(
+            "^(import |from .+ import |use |require )");
+
+    // @generated annotation or comment variants
+    private static final Pattern GENERATED_LINE = Pattern.compile(
+            "^\\s*(@\\s*[Gg]enerated\\b|//\\s*[Gg]enerated|/\\*.*[Gg]enerated)");
 
     public static final List<Predicate<String>> BLACKLISTED_PATH_PATTERNS = List.of(
             // Lockfiles
@@ -50,7 +61,7 @@ public class DiffPreprocessor {
             int blockStart = m.start();
             int blockEnd = (idx + 1 < starts.length) ? starts[idx + 1] : unifiedDiff.length();
             if (!isBlacklisted(path)) {
-                out.append(unifiedDiff, blockStart, blockEnd);
+                out.append(filterHunks(unifiedDiff.substring(blockStart, blockEnd)));
             }
             idx++;
         }
@@ -82,5 +93,50 @@ public class DiffPreprocessor {
 
     private static Predicate<String> prefix(String prefix) {
         return p -> p.startsWith(prefix) || p.contains("/" + prefix);
+    }
+
+    // ── Hunk-level cleanup ──
+
+    private static String filterHunks(String fileBlock) {
+        Matcher m = HUNK_HEADER.matcher(fileBlock);
+        List<Integer> hunkStarts = new java.util.ArrayList<>();
+        while (m.find()) hunkStarts.add(m.start());
+        if (hunkStarts.isEmpty()) return fileBlock;
+
+        StringBuilder out = new StringBuilder();
+        out.append(fileBlock, 0, hunkStarts.get(0)); // preamble: index/---/+++ lines
+        for (int i = 0; i < hunkStarts.size(); i++) {
+            int start = hunkStarts.get(i);
+            int end = (i + 1 < hunkStarts.size()) ? hunkStarts.get(i + 1) : fileBlock.length();
+            String hunk = fileBlock.substring(start, end);
+            if (!shouldDropHunk(hunk)) {
+                out.append(hunk);
+            }
+        }
+        return out.toString();
+    }
+
+    private static boolean shouldDropHunk(String hunk) {
+        List<String> changedLines = hunk.lines()
+                .filter(l -> (l.startsWith("+") || l.startsWith("-"))
+                        && !l.startsWith("+++") && !l.startsWith("---"))
+                .map(l -> l.substring(1)) // strip leading +/-
+                .toList();
+        if (changedLines.isEmpty()) return false; // context-only hunk — keep
+        return changedLines.stream().allMatch(DiffPreprocessor::isImportLine)
+                || changedLines.stream().allMatch(DiffPreprocessor::isWhitespaceLine)
+                || changedLines.stream().allMatch(DiffPreprocessor::isGeneratedLine);
+    }
+
+    private static boolean isImportLine(String line) {
+        return IMPORT_LINE.matcher(line.stripLeading()).find();
+    }
+
+    private static boolean isWhitespaceLine(String line) {
+        return line.isBlank();
+    }
+
+    private static boolean isGeneratedLine(String line) {
+        return GENERATED_LINE.matcher(line).find();
     }
 }
