@@ -1,237 +1,143 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
-
-import { StatePanel } from "@/components/state-panel";
-import { getDashboard } from "@/features/dashboard/api";
-import type { Dashboard } from "@/features/dashboard/types";
-import { createRoadmap } from "@/features/roadmap/api";
 import { ApiError } from "@/lib/api";
+import { getMyProfile } from "@/features/profile/api";
+import { apiClient } from "@/lib/api";
+import { StatePanel } from "@/components/state-panel";
 
-type RoadmapCreateState =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | { status: "success"; dashboard: Dashboard };
+type CreateState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { status: "error"; message: string };
 
-export function RoadmapCreateView() {
+function getErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) return error.message;
+  return "오류가 발생했습니다. 다시 시도해주세요.";
+}
+
+type Props = {
+  initialDiagnosisId?: string;
+};
+
+export function RoadmapCreateView({ initialDiagnosisId }: Props) {
   const router = useRouter();
-  const [state, setState] = useState<RoadmapCreateState>({ status: "loading" });
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [state, setState] = useState<CreateState>({ status: "idle" });
+  const [diagnosisId, setDiagnosisId] = useState(initialDiagnosisId ?? "");
+  const [weeklyStudyHours, setWeeklyStudyHours] = useState("");
+  const [targetDate, setTargetDate] = useState("");
+  const loadedProfile = useRef(false);
+  const minDate = useMemo(
+    () => new Date(Date.now() + 86400000).toISOString().split("T")[0],
+    []
+  );
 
   useEffect(() => {
-    let ignore = false;
-
-    async function loadDashboard() {
-      setState({ status: "loading" });
-
-      try {
-        const dashboard = await getDashboard();
-
-        if (!ignore) {
-          setState({ dashboard, status: "success" });
+    if (loadedProfile.current) return;
+    loadedProfile.current = true;
+    getMyProfile()
+      .then((profile) => {
+        if (profile.weeklyStudyHours) {
+          setWeeklyStudyHours(String(profile.weeklyStudyHours));
         }
-      } catch (error) {
-        if (!ignore) {
-          setState({
-            message: getErrorMessage(error),
-            status: "error"
-          });
+        if (profile.targetDate) {
+          setTargetDate(profile.targetDate);
         }
-      }
-    }
-
-    loadDashboard();
-
-    return () => {
-      ignore = true;
-    };
+      })
+      .catch(() => {});
   }, []);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (state.status !== "success" || !state.dashboard.diagnosis) {
-      setCreateError("로드맵 생성 전에 진단 결과를 먼저 생성해 주세요.");
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const hours = Number(weeklyStudyHours);
+    if (!diagnosisId.trim()) {
+      setState({ status: "error", message: "진단 ID를 입력해주세요." });
+      return;
+    }
+    if (!hours || hours < 1 || hours > 40) {
+      setState({ status: "error", message: "주당 학습 시간은 1~40 사이로 입력해주세요." });
+      return;
+    }
+    if (!targetDate) {
+      setState({ status: "error", message: "목표 날짜를 입력해주세요." });
+      return;
+    }
+    if (new Date(targetDate) <= new Date()) {
+      setState({ status: "error", message: "목표 날짜는 오늘 이후여야 합니다." });
       return;
     }
 
-    const formData = new FormData(event.currentTarget);
-    const diagnosisId = getStringFormValue(formData, "diagnosisId");
-
-    if (!diagnosisId) {
-      setCreateError("진단 결과 ID가 필요합니다.");
-      return;
-    }
-
-    setIsCreating(true);
-    setCreateError(null);
-
+    setState({ status: "submitting" });
     try {
-      const roadmap = await createRoadmap({
-        diagnosisId,
-        githubAnalysisId: getOptionalStringFormValue(formData, "githubAnalysisId"),
-        targetDate: getOptionalStringFormValue(formData, "targetDate"),
-        weeklyStudyHours: getOptionalNumberFormValue(formData, "weeklyStudyHours")
+      const result = await apiClient.post<{ roadmapId: string }>("/api/roadmaps", {
+        diagnosisId: Number(diagnosisId),
+        weeklyStudyHours: hours,
+        targetDate,
       });
-
-      router.push(`/roadmaps/${roadmap.roadmapId}`);
-    } catch (error) {
-      setCreateError(getCreateErrorMessage(error));
-    } finally {
-      setIsCreating(false);
+      router.push(`/roadmaps/${result.roadmapId}`);
+    } catch (err) {
+      setState({ status: "error", message: getErrorMessage(err) });
     }
   }
 
-  if (state.status === "loading") {
-    return (
-      <StatePanel
-        className="roadmap-state-panel"
-        message="로드맵 생성에 필요한 최신 결과를 불러오는 중입니다."
-      />
-    );
-  }
-
-  if (state.status === "error") {
-    return (
-      <StatePanel
-        className="roadmap-state-panel"
-        message={state.message}
-        tone="danger"
-      />
-    );
-  }
-
-  const { dashboard } = state;
+  const isSubmitting = state.status === "submitting";
 
   return (
-    <section className="roadmap-create-page" aria-labelledby="roadmap-create-title">
-      <div className="screen-hero">
-        <p className="eyebrow">v1 필수</p>
-        <div className="screen-heading">
-          <h1 id="roadmap-create-title">학습 로드맵 생성</h1>
-          <p>최신 진단 결과를 기준으로 학습 로드맵을 생성합니다.</p>
-        </div>
-        <div className="action-row" aria-label="로드맵 생성 관련 화면 이동">
-          {dashboard.diagnosis ? (
-            <Link
-              className="action-link"
-              href={`/diagnoses/${dashboard.diagnosis.diagnosisId}`}
-            >
-              진단 결과 보기
-            </Link>
-          ) : (
-            <Link className="action-link primary" href="/github/analysis">
-              분석 보정으로 이동
-            </Link>
-          )}
-          {dashboard.roadmap ? (
-            <Link
-              className="action-link"
-              href={`/roadmaps/${dashboard.roadmap.roadmapId}`}
-            >
-              최근 로드맵 보기
-            </Link>
-          ) : null}
-        </div>
-      </div>
+    <div>
+      <h1>로드맵 생성</h1>
+      <p>진단 결과를 기반으로 맞춤 학습 로드맵을 생성합니다.</p>
 
-      {dashboard.diagnosis ? (
-        <form className="panel roadmap-create-form" onSubmit={handleSubmit}>
-          <div className="roadmap-create-heading">
-            <h2>생성 기준</h2>
-            <p>{dashboard.diagnosis.summary}</p>
-          </div>
-
-          <div className="roadmap-create-fields">
-            <label>
-              <span>진단 결과 ID</span>
-              <input
-                defaultValue={dashboard.diagnosis.diagnosisId}
-                name="diagnosisId"
-                required
-              />
-            </label>
-            <label>
-              <span>GitHub 분석 ID</span>
-              <input
-                defaultValue={dashboard.githubAnalysis?.githubAnalysisId ?? ""}
-                name="githubAnalysisId"
-              />
-            </label>
-            <label>
-              <span>주당 학습 시간</span>
-              <input
-                defaultValue={dashboard.profile?.weeklyStudyHours ?? ""}
-                max={40}
-                min={1}
-                name="weeklyStudyHours"
-                type="number"
-              />
-            </label>
-            <label>
-              <span>목표 날짜</span>
-              <input
-                defaultValue={dashboard.profile?.targetDate ?? ""}
-                name="targetDate"
-                type="date"
-              />
-            </label>
-          </div>
-
-          <div className="roadmap-create-actions">
-            <div>
-              {createError ? (
-                <p className="roadmap-create-error">{createError}</p>
-              ) : null}
-            </div>
-            <button disabled={isCreating} type="submit">
-              {isCreating ? "로드맵 생성 중" : "로드맵 생성"}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <StatePanel
-          className="roadmap-state-panel"
-          message="저장된 진단 결과가 없습니다. GitHub 분석 보정 후 진단을 먼저 생성해 주세요."
-        />
+      {state.status === "error" && (
+        <StatePanel message={state.message} tone="danger" />
       )}
-    </section>
+
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="diagnosisId">진단 ID</label>
+          <input
+            id="diagnosisId"
+            type="text"
+            value={diagnosisId}
+            onChange={(e) => setDiagnosisId(e.target.value)}
+            placeholder="진단 결과 ID를 입력하세요"
+            disabled={isSubmitting}
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="weeklyStudyHours">주당 학습 시간 (1~40)</label>
+          <input
+            id="weeklyStudyHours"
+            type="number"
+            min={1}
+            max={40}
+            value={weeklyStudyHours}
+            onChange={(e) => setWeeklyStudyHours(e.target.value)}
+            placeholder="예: 10"
+            disabled={isSubmitting}
+            required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="targetDate">목표 날짜</label>
+          <input
+            id="targetDate"
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            min={minDate}
+            disabled={isSubmitting}
+            required
+          />
+        </div>
+
+        <button type="submit" className="btn-primary" disabled={isSubmitting}>
+          {isSubmitting ? "생성 중..." : "로드맵 생성"}
+        </button>
+      </form>
+    </div>
   );
-}
-
-function getStringFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function getOptionalStringFormValue(formData: FormData, key: string) {
-  const value = getStringFormValue(formData, key);
-
-  return value.length > 0 ? value : undefined;
-}
-
-function getOptionalNumberFormValue(formData: FormData, key: string) {
-  const value = getStringFormValue(formData, key);
-
-  return value.length > 0 ? Number(value) : undefined;
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  return "로드맵 생성 기준을 불러오지 못했습니다.";
-}
-
-function getCreateErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    return error.message;
-  }
-
-  return "로드맵을 생성하지 못했습니다.";
 }

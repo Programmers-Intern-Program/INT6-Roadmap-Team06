@@ -30,6 +30,13 @@ export function githubLoginUrl(redirectUrl?: string): string {
   return `${API_BASE}/oauth2/authorization/github${qs}`;
 }
 
+export function githubConnectionOAuthUrl(): string {
+  const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID ?? "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const redirectUri = encodeURIComponent(`${origin}/github/callback`);
+  return `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=repo,read:user&redirect_uri=${redirectUri}`;
+}
+
 export {
   ApiError,
   apiClient,

@@ -1,22 +1,22 @@
-export type GithubConnectionRequest = {
-  authorizationCode: string;
-};
-
-export type GithubConnectionResponse = {
-  connectedAt: string;
+export type GithubConnection = {
   githubConnectionId: string;
   githubLogin: string;
+  connectedAt: string;
 };
 
-export type GithubRepository = {
-  defaultBranch?: string | null;
-  primaryLanguage?: string | null;
+export type Repository = {
+  repositoryId: string;
   repoFullName: string;
   repoUrl: string;
-  repositoryId: string;
+  primaryLanguage: string | null;
+  defaultBranch: string;
 };
 
-export type GithubRepositoryListResponse = {
+export type GithubRepositoryList = {
   githubConnectionId: string;
-  repositories: GithubRepository[];
+  repositories: Repository[];
+};
+
+export type GithubAnalysisResult = {
+  githubAnalysisId: string;
 };

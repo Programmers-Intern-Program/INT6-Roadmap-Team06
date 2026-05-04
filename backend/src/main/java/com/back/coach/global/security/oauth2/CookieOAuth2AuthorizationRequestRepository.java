@@ -54,13 +54,13 @@ public class CookieOAuth2AuthorizationRequestRepository
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
         String value = cookieManager.readValue(request, COOKIE_NAME);
         if (value == null) {
-            log.debug("oauth2_auth_request cookie not found");
+            log.debug("oauth2_auth_request cookie not found in request");
             return null;
         }
         log.debug("oauth2_auth_request cookie found, size={} chars", value.length());
         OAuth2AuthorizationRequest result = tryDeserialize(value);
         if (result == null) {
-            log.warn("oauth2_auth_request cookie deserialization failed (HMAC mismatch or invalid format)");
+            log.warn("oauth2_auth_request cookie deserialization failed (HMAC mismatch, truncation, or format error)");
         }
         return result;
     }

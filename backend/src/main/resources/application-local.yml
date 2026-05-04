@@ -19,3 +19,5 @@ logging:
   level:
     com.back.coach: DEBUG
     org.hibernate.SQL: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.security.web.authentication: DEBUG
