@@ -1,5 +1,12 @@
 import { apiClient } from "@/lib/api";
-import type { Diagnosis } from "@/features/diagnosis/types";
+import type {
+  Diagnosis,
+  DiagnosisRequest
+} from "@/features/diagnosis/types";
+
+export function createDiagnosis(payload: DiagnosisRequest) {
+  return apiClient.post<Diagnosis>("/api/diagnoses", payload);
+}
 
 export function getDiagnosis(diagnosisId: string) {
   return apiClient.get<Diagnosis>(`/api/diagnoses/${diagnosisId}`);

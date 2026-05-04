@@ -140,12 +140,18 @@ a {
   color: var(--foreground);
   font-size: 14px;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .action-link.primary {
   border-color: var(--accent);
   background: var(--accent);
   color: #ffffff;
+}
+
+.action-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .content-grid {
@@ -1122,6 +1128,13 @@ a {
 
 .github-analysis-state-panel[data-tone="danger"] p {
   color: #a32020;
+}
+
+.github-analysis-action-error {
+  margin: 0;
+  color: #a32020;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .github-correction-form {

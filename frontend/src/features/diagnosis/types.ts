@@ -27,3 +27,8 @@ export type Diagnosis = {
   targetRole: string;
   version: number;
 };
+
+export type DiagnosisRequest = {
+  githubAnalysisId: string;
+  profileId: string;
+};
