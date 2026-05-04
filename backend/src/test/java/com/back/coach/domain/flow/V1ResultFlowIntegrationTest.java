@@ -227,7 +227,8 @@ class V1ResultFlowIntegrationTest {
                         "1",
                         "user/backend",
                         "Spring Boot API 구현 경험",
-                        List.of("REST API", "JPA")
+                        List.of(new GithubAnalysisPayload.Highlight("REST API", com.back.coach.global.code.HighlightStatus.ADOPTED),
+                                new GithubAnalysisPayload.Highlight("JPA", com.back.coach.global.code.HighlightStatus.ADOPTED))
                 )),
                 List.of(),
                 List.of(),

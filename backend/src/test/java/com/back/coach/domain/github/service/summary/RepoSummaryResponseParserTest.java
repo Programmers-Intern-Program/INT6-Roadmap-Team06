@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service.summary;
 
+import com.back.coach.global.code.HighlightStatus;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
@@ -21,7 +22,10 @@ class RepoSummaryResponseParserTest {
                   "repoId": "1",
                   "repoName": "user/cool-app",
                   "summary": "Spring Boot 백엔드 + OAuth 도입",
-                  "highlights": ["OAuth2 핸들러", "JPA 마이그레이션"]
+                  "highlights": [
+                    {"text": "OAuth2 핸들러", "status": "ADOPTED"},
+                    {"text": "JPA 마이그레이션", "status": "EVOLVED"}
+                  ]
                 }
                 """;
 
@@ -30,6 +34,29 @@ class RepoSummaryResponseParserTest {
         assertThat(summary.repoId()).isEqualTo("1");
         assertThat(summary.repoName()).isEqualTo("user/cool-app");
         assertThat(summary.highlights()).hasSize(2);
+        assertThat(summary.highlights().get(0).text()).isEqualTo("OAuth2 핸들러");
+        assertThat(summary.highlights().get(0).status()).isEqualTo(HighlightStatus.ADOPTED);
+        assertThat(summary.highlights().get(1).status()).isEqualTo(HighlightStatus.EVOLVED);
+    }
+
+    @Test
+    @DisplayName("REVERSED 상태의 highlight도 정상 파싱한다")
+    void parse_reversedHighlight() {
+        String json = """
+                {
+                  "repoId": "2",
+                  "repoName": "user/repo",
+                  "summary": "실험적 기능 도입 후 롤백",
+                  "highlights": [
+                    {"text": "GraphQL 도입 시도", "status": "REVERSED"}
+                  ]
+                }
+                """;
+
+        GithubAnalysisPayload.RepoSummary summary = parser.parse(json);
+
+        assertThat(summary.highlights()).hasSize(1);
+        assertThat(summary.highlights().get(0).status()).isEqualTo(HighlightStatus.REVERSED);
     }
 
     @Test
@@ -39,7 +66,7 @@ class RepoSummaryResponseParserTest {
                 {
                   "repoId": "1",
                   "repoName": "user/x",
-                  "highlights": ["a"]
+                  "highlights": [{"text": "a", "status": "ADOPTED"}]
                 }
                 """;
 
@@ -66,14 +93,31 @@ class RepoSummaryResponseParserTest {
     }
 
     @Test
-    @DisplayName("타입 불일치(highlights가 string)이면 LLM_INVALID_RESPONSE")
+    @DisplayName("highlight status가 허용되지 않은 값이면 LLM_INVALID_RESPONSE")
+    void parse_invalidStatus_throws() {
+        String json = """
+                {
+                  "repoId": "1",
+                  "repoName": "user/x",
+                  "summary": "s",
+                  "highlights": [{"text": "a", "status": "UNKNOWN"}]
+                }
+                """;
+
+        assertThatThrownBy(() -> parser.parse(json))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
+    }
+
+    @Test
+    @DisplayName("highlights가 string 배열이면 LLM_INVALID_RESPONSE (schema 위반)")
     void parse_wrongType_throws() {
         String json = """
                 {
                   "repoId": "1",
                   "repoName": "user/x",
                   "summary": "s",
-                  "highlights": "not an array"
+                  "highlights": ["not an object"]
                 }
                 """;
 

@@ -2,6 +2,7 @@ package com.back.coach.domain.github.service.synthesis;
 
 import com.back.coach.global.code.GithubDepthLevel;
 import com.back.coach.global.code.GithubEvidenceType;
+import com.back.coach.global.code.HighlightStatus;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,10 +51,13 @@ public class SynthesisPromptBuilder {
             sb.append("\n### ").append(s.repoName()).append(" (id=").append(s.repoId()).append(")\n");
             sb.append(s.summary()).append("\n");
             sb.append("highlights:\n");
-            List<String> hl = compress && s.highlights().size() > COMPRESSED_HIGHLIGHTS_PER_SUMMARY
+            List<GithubAnalysisPayload.Highlight> hl = compress && s.highlights().size() > COMPRESSED_HIGHLIGHTS_PER_SUMMARY
                     ? s.highlights().subList(0, COMPRESSED_HIGHLIGHTS_PER_SUMMARY)
                     : s.highlights();
-            hl.forEach(h -> sb.append("  - ").append(h).append("\n"));
+            hl.forEach(h -> {
+                String prefix = h.status() == HighlightStatus.REVERSED ? "[REVERSED] " : "";
+                sb.append("  - ").append(prefix).append(h.text()).append("\n");
+            });
         }
 
         sb.append("\n## Output\n");

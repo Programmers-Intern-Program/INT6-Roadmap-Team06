@@ -69,20 +69,20 @@ class GithubAnalysisFlowIntegrationTest {
     void fullFlow_persistsAnalysisRow() {
         wireMock.resetAll();
         // Triage: 프롬프트에 "Candidates" 포함 → champion 1개 반환
-        wireMock.stubFor(post("/v1/completions")
-                .withRequestBody(matchingJsonPath("$.prompt", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*Candidates.*")))
+        wireMock.stubFor(post("/v1/chat/completions")
+                .withRequestBody(matchingJsonPath("$.messages[0].content", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*Candidates.*")))
                 .willReturn(aResponse().withHeader("Content-Type", "application/json")
-                        .withBody("{\"text\":\"{\\\"champions\\\":[{\\\"kind\\\":\\\"COMMIT\\\",\\\"ref\\\":\\\"abc\\\",\\\"reason\\\":\\\"OAuth\\\"}]}\"}")));
-        // Per-repo summary: 프롬프트에 "Repository" + "repoId" 포함
-        wireMock.stubFor(post("/v1/completions")
-                .withRequestBody(matchingJsonPath("$.prompt", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*repoId:.*")))
+                        .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"champions\\\":[{\\\"kind\\\":\\\"COMMIT\\\",\\\"ref\\\":\\\"abc\\\",\\\"reason\\\":\\\"OAuth\\\"}]}\"}}]}")));
+        // Per-repo summary: 프롬프트에 "repoId" 포함
+        wireMock.stubFor(post("/v1/chat/completions")
+                .withRequestBody(matchingJsonPath("$.messages[0].content", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*repoId:.*")))
                 .willReturn(aResponse().withHeader("Content-Type", "application/json")
-                        .withBody("{\"text\":\"{\\\"repoId\\\":\\\"PROJECT_ID\\\",\\\"repoName\\\":\\\"user/cool\\\",\\\"summary\\\":\\\"Spring Boot\\\",\\\"highlights\\\":[\\\"OAuth\\\"]}\"}")));
+                        .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"repoId\\\":\\\"PROJECT_ID\\\",\\\"repoName\\\":\\\"user/cool\\\",\\\"summary\\\":\\\"Spring Boot\\\",\\\"highlights\\\":[{\\\"text\\\":\\\"OAuth\\\",\\\"status\\\":\\\"ADOPTED\\\"}]}\"}}]}")));
         // Synthesis: 프롬프트에 "Static Signals" 포함
-        wireMock.stubFor(post("/v1/completions")
-                .withRequestBody(matchingJsonPath("$.prompt", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*Static Signals.*")))
+        wireMock.stubFor(post("/v1/chat/completions")
+                .withRequestBody(matchingJsonPath("$.messages[0].content", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*Static Signals.*")))
                 .willReturn(aResponse().withHeader("Content-Type", "application/json")
-                        .withBody("{\"text\":\"{\\\"techTags\\\":[{\\\"skillName\\\":\\\"Spring Boot\\\",\\\"tagReason\\\":\\\"백엔드\\\"}],\\\"depthEstimates\\\":[{\\\"skillName\\\":\\\"Spring Boot\\\",\\\"level\\\":\\\"PRACTICAL\\\",\\\"reason\\\":\\\"r\\\"}],\\\"evidences\\\":[{\\\"repoName\\\":\\\"user/cool\\\",\\\"type\\\":\\\"COMMIT\\\",\\\"source\\\":\\\"abc\\\",\\\"summary\\\":\\\"x\\\"}],\\\"finalTechProfile\\\":{\\\"confirmedSkills\\\":[\\\"Spring Boot\\\"],\\\"focusAreas\\\":[]}}\"}")));
+                        .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"techTags\\\":[{\\\"skillName\\\":\\\"Spring Boot\\\",\\\"tagReason\\\":\\\"백엔드\\\"}],\\\"depthEstimates\\\":[{\\\"skillName\\\":\\\"Spring Boot\\\",\\\"level\\\":\\\"PRACTICAL\\\",\\\"reason\\\":\\\"r\\\"}],\\\"evidences\\\":[{\\\"repoName\\\":\\\"user/cool\\\",\\\"type\\\":\\\"COMMIT\\\",\\\"source\\\":\\\"abc\\\",\\\"summary\\\":\\\"x\\\"}],\\\"finalTechProfile\\\":{\\\"confirmedSkills\\\":[\\\"Spring Boot\\\"],\\\"focusAreas\\\":[]}}\"}}]}")));
 
         User user = userRepository.save(User.signupFromOAuth(AuthProvider.GITHUB, "gh-int-1", "int1@example.com"));
         GithubConnection connection = connectionRepository.save(GithubConnection.connect(

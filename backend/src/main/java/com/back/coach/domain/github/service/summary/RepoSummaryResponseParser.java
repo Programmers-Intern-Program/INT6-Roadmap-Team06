@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service.summary;
 
+import com.back.coach.global.code.HighlightStatus;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
@@ -44,8 +45,11 @@ public class RepoSummaryResponseParser {
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
         }
 
-        List<String> highlights = new ArrayList<>();
-        root.get("highlights").forEach(n -> highlights.add(n.asText()));
+        List<GithubAnalysisPayload.Highlight> highlights = new ArrayList<>();
+        root.get("highlights").forEach(n -> highlights.add(new GithubAnalysisPayload.Highlight(
+                n.get("text").asText(),
+                HighlightStatus.valueOf(n.get("status").asText())
+        )));
 
         return new GithubAnalysisPayload.RepoSummary(
                 root.get("repoId").asText(),
