@@ -40,7 +40,7 @@ export function DiagnosisCreateView({ githubAnalysisId }: Props) {
     if (state.status !== "ready") return;
     setState({ status: "submitting" });
     try {
-      const diagnosis = await createDiagnosis(state.profileId, githubAnalysisId);
+      const diagnosis = await createDiagnosis({ profileId: state.profileId, githubAnalysisId });
       router.push(`/diagnoses/${diagnosis.diagnosisId}`);
     } catch (err) {
       setState({ status: "error", message: getErrorMessage(err) });

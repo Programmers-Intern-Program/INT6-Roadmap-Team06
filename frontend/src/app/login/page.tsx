@@ -1,16 +1,12 @@
 "use client";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { githubLoginUrl } from "@/lib/api";
 
 function LoginInner() {
   const params = useSearchParams();
   const error = params.get("error");
-  const [loginUrl, setLoginUrl] = useState(githubLoginUrl(""));
-
-  useEffect(() => {
-    setLoginUrl(githubLoginUrl());
-  }, []);
+  const [loginUrl] = useState(() => githubLoginUrl());
 
   return (
     <>

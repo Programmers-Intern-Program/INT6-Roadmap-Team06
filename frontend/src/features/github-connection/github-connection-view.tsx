@@ -25,10 +25,9 @@ export function GithubConnectionView() {
   const router = useRouter();
   const [state, setState] = useState<ViewState>({ status: "loading-repos" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [connectUrl, setConnectUrl] = useState("");
+  const [connectUrl] = useState(() => githubConnectionOAuthUrl());
 
   useEffect(() => {
-    setConnectUrl(githubConnectionOAuthUrl());
     const connectionId = localStorage.getItem(CONNECTION_ID_KEY);
     if (!connectionId) {
       setState({ status: "disconnected" });
@@ -54,7 +53,7 @@ export function GithubConnectionView() {
   function toggleRepo(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) { next.delete(id); } else { next.add(id); }
       return next;
     });
   }

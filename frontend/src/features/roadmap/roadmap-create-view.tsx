@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api";
 import { getMyProfile } from "@/features/profile/api";
@@ -28,6 +28,10 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
   const [weeklyStudyHours, setWeeklyStudyHours] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const loadedProfile = useRef(false);
+  const minDate = useMemo(
+    () => new Date(Date.now() + 86400000).toISOString().split("T")[0],
+    []
+  );
 
   useEffect(() => {
     if (loadedProfile.current) return;
@@ -124,7 +128,7 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
             type="date"
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
-            min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+            min={minDate}
             disabled={isSubmitting}
             required
           />
