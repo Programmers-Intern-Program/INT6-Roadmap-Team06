@@ -140,12 +140,18 @@ a {
   color: var(--foreground);
   font-size: 14px;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .action-link.primary {
   border-color: var(--accent);
   background: var(--accent);
   color: #ffffff;
+}
+
+.action-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .content-grid {
@@ -451,6 +457,86 @@ a {
 
 .roadmap-state-panel[data-tone="danger"] p {
   color: #a32020;
+}
+
+.roadmap-create-page,
+.roadmap-create-form {
+  display: grid;
+  gap: 24px;
+}
+
+.roadmap-create-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.roadmap-create-heading h2 {
+  margin: 0;
+}
+
+.roadmap-create-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.roadmap-create-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.roadmap-create-fields label {
+  display: grid;
+  gap: 6px;
+}
+
+.roadmap-create-fields label span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.roadmap-create-fields input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--foreground);
+  padding: 0 10px;
+}
+
+.roadmap-create-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.roadmap-create-error {
+  margin: 0;
+  color: #a32020;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.roadmap-create-actions button {
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.roadmap-create-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
 }
 
 .dashboard-summary-grid {
@@ -1124,6 +1210,13 @@ a {
   color: #a32020;
 }
 
+.github-analysis-action-error {
+  margin: 0;
+  color: #a32020;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .github-correction-form {
   display: grid;
   gap: 16px;
@@ -1230,6 +1323,11 @@ a {
   }
 
   .roadmap-progress-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .roadmap-create-actions {
     align-items: stretch;
     flex-direction: column;
   }

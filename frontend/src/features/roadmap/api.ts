@@ -1,9 +1,14 @@
 import { apiClient } from "@/lib/api";
 import type {
   Roadmap,
+  RoadmapRequest,
   RoadmapProgressRequest,
   RoadmapProgressResponse
 } from "@/features/roadmap/types";
+
+export function createRoadmap(payload: RoadmapRequest) {
+  return apiClient.post<Roadmap>("/api/roadmaps", payload);
+}
 
 export function getRoadmap(roadmapId: string) {
   return apiClient.get<Roadmap>(`/api/roadmaps/${roadmapId}`);
