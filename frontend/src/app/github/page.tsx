@@ -1,6 +1,5 @@
-import { ScreenShell } from "@/components/screen-shell";
-import { screens } from "@/config/routes";
+import { GithubConnectionView } from "@/features/github-connection/github-connection-view";
 
 export default function GithubConnectionPage() {
-  return <ScreenShell screen={screens.githubConnection} />;
+  return <GithubConnectionView />;
 }
