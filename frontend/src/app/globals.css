@@ -191,6 +191,37 @@ a {
   font-weight: 700;
 }
 
+.tag-list {
+  display: grid;
+  gap: 8px;
+}
+
+.tag-list p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tag-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-pill {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 9px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .item-list {
   display: grid;
   gap: 10px;
@@ -607,36 +638,6 @@ a {
   margin: 0;
   color: var(--foreground);
   font-size: 14px;
-  font-weight: 700;
-}
-
-.dashboard-tag-group {
-  display: grid;
-  gap: 8px;
-}
-
-.dashboard-tag-group p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.dashboard-tag-group div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.dashboard-tag-group span {
-  min-height: 28px;
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0 9px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 12px;
   font-weight: 700;
 }
 
@@ -1066,25 +1067,6 @@ a {
   margin: 0;
 }
 
-.github-tag-group {
-  display: grid;
-  gap: 8px;
-}
-
-.github-tag-group p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.github-tag-group div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.github-tag-group span,
 .github-depth-badge,
 .github-evidence-list span {
   min-height: 28px;

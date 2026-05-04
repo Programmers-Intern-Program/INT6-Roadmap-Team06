@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
+import { TagList } from "@/components/tag-list";
 import { getDashboard } from "@/features/dashboard/api";
 import { createDiagnosis } from "@/features/diagnosis/api";
 import {
@@ -347,6 +348,7 @@ function StaticSignalsPanel({ analysis }: { analysis: GithubAnalysis }) {
         </div>
       </dl>
       <TagList
+        emptyLabel="없음"
         items={staticSignals.primaryLanguages.map(
           (language) => `${language.lang} ${formatRatio(language.ratio)}`
         )}
@@ -361,10 +363,15 @@ function FinalTechProfilePanel({ analysis }: { analysis: GithubAnalysis }) {
     <section className="panel github-analysis-section">
       <h2>최종 기술 프로필</h2>
       <TagList
+        emptyLabel="없음"
         items={analysis.finalTechProfile.confirmedSkills}
         label="확정 기술"
       />
-      <TagList items={analysis.finalTechProfile.focusAreas} label="집중 영역" />
+      <TagList
+        emptyLabel="없음"
+        items={analysis.finalTechProfile.focusAreas}
+        label="집중 영역"
+      />
     </section>
   );
 }
@@ -518,28 +525,6 @@ function DepthBadge({ estimate }: { estimate: DepthEstimate }) {
     >
       {githubDepthLevelLabels[estimate.level]}
     </span>
-  );
-}
-
-function TagList({ items, label }: { items: string[]; label: string }) {
-  if (items.length === 0) {
-    return (
-      <div className="github-tag-group">
-        <p>{label}</p>
-        <span>없음</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="github-tag-group">
-      <p>{label}</p>
-      <div>
-        {items.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-      </div>
-    </div>
   );
 }
 
