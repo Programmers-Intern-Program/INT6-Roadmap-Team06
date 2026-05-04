@@ -89,4 +89,97 @@ class DiffPreprocessorTest {
         assertThat(preprocessor.clean("")).isEmpty();
         assertThat(preprocessor.clean(null)).isEmpty();
     }
+
+    // ── Hunk-level cleanup (Slice 4a) ──
+
+    @Test
+    @DisplayName("import-only hunk는 drop되고 실질 변경 hunk는 유지된다")
+    void clean_dropsImportOnlyHunk() {
+        String diff = """
+                diff --git a/src/Foo.java b/src/Foo.java
+                @@ -1,3 +1,4 @@
+                +import java.util.List;
+                +import java.util.Map;
+                 class Foo {}
+                @@ -10,3 +11,4 @@
+                -    int old = 1;
+                +    int newVal = 2;
+                """;
+
+        String cleaned = preprocessor.clean(diff);
+
+        assertThat(cleaned).doesNotContain("import java.util");
+        assertThat(cleaned).contains("newVal");
+    }
+
+    @Test
+    @DisplayName("whitespace-only hunk는 drop되고 실질 변경 hunk는 유지된다")
+    void clean_dropsWhitespaceOnlyHunk() {
+        String diff = """
+                diff --git a/src/Bar.java b/src/Bar.java
+                @@ -5,3 +5,4 @@
+                +
+                +\t
+                 context
+                @@ -20,2 +21,3 @@
+                -    return old;
+                +    return newVal;
+                """;
+
+        String cleaned = preprocessor.clean(diff);
+
+        assertThat(cleaned).doesNotContain("@@ -5,");
+        assertThat(cleaned).contains("newVal");
+    }
+
+    @Test
+    @DisplayName("@Generated hunk는 drop되고 실질 변경 hunk는 유지된다")
+    void clean_dropsGeneratedAnnotationHunk() {
+        String diff = """
+                diff --git a/src/Gen.java b/src/Gen.java
+                @@ -1,2 +1,3 @@
+                +@Generated("com.example.generator")
+                 public class Gen {}
+                @@ -10,2 +11,3 @@
+                +    String realField = "value";
+                """;
+
+        String cleaned = preprocessor.clean(diff);
+
+        assertThat(cleaned).doesNotContain("@Generated");
+        assertThat(cleaned).contains("realField");
+    }
+
+    @Test
+    @DisplayName("import + 실질 변경이 섞인 hunk는 통째로 유지된다")
+    void clean_keepsMixedHunk() {
+        String diff = """
+                diff --git a/src/Baz.java b/src/Baz.java
+                @@ -1,3 +1,5 @@
+                +import java.util.List;
+                +    int x = 42;
+                 class Baz {}
+                """;
+
+        String cleaned = preprocessor.clean(diff);
+
+        assertThat(cleaned).contains("import java.util.List");
+        assertThat(cleaned).contains("x = 42");
+    }
+
+    @Test
+    @DisplayName("context-only hunk(변경 줄 없음)는 그대로 유지된다")
+    void clean_keepsContextOnlyHunk() {
+        String diff = """
+                diff --git a/src/Ctx.java b/src/Ctx.java
+                @@ -1,3 +1,3 @@
+                 line1
+                 line2
+                 line3
+                """;
+
+        String cleaned = preprocessor.clean(diff);
+
+        assertThat(cleaned).contains("line1");
+    }
 }
