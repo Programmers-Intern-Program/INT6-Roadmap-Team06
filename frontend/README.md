@@ -21,6 +21,16 @@ npm run dev
 `GITHUB_CLIENT_SECRET` 환경변수와 함께 띄워야 한다 (둘 다 미설정이면 OAuth2 빈이 등록되지
 않아 `/oauth2/authorization/github` 가 404).
 
+## PR 전 검증
+
+CI와 같은 순서로 의존성을 설치하고 lint/build를 확인한다.
+
+```bash
+npm ci
+npm run lint
+npm run build
+```
+
 ## 화면
 
 | 경로 | 용도 |

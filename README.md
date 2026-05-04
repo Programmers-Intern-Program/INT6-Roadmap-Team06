@@ -56,6 +56,7 @@ Set-Content .env.local "NEXT_PUBLIC_API_BASE_URL=http://localhost:8080"
 
 ```powershell
 cd frontend
+npm ci
 npm run lint
 npm run build
 ```
