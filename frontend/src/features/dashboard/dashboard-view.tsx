@@ -11,7 +11,7 @@ import type {
   Dashboard,
   DashboardProgressSummary
 } from "@/features/dashboard/types";
-import { ApiError } from "@/lib/api";
+import { ApiError, githubLoginUrl } from "@/lib/api";
 
 type DashboardState =
   | { status: "loading" }
@@ -34,12 +34,15 @@ export function DashboardView() {
           setState({ dashboard, status: "success" });
         }
       } catch (error) {
-        if (!ignore) {
-          setState({
-            message: getErrorMessage(error),
-            status: "error"
-          });
+        if (ignore) return;
+        if (error instanceof ApiError && error.status === 401) {
+          window.location.href = githubLoginUrl("/");
+          return;
         }
+        setState({
+          message: getErrorMessage(error),
+          status: "error"
+        });
       }
     }
 
