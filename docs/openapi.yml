@@ -81,7 +81,7 @@ paths:
         - GitHub Connections
       summary: Register GitHub OAuth connection
       operationId: createGithubConnection
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:
@@ -106,7 +106,7 @@ paths:
         - GitHub Connections
       summary: Get connected GitHub repositories
       operationId: getGithubRepositories
-      x-implementation-status: planned
+      x-implementation-status: implemented
       parameters:
         - name: githubConnectionId
           in: query
@@ -134,7 +134,7 @@ paths:
         - GitHub Analyses
       summary: Run GitHub analysis
       operationId: createGithubAnalysis
-      x-implementation-status: planned
+      x-implementation-status: implemented
       requestBody:
         required: true
         content:
