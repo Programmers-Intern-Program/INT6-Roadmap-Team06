@@ -76,6 +76,29 @@ class DiagnosisResponseParserTest {
                 .isEqualTo(ErrorCode.LLM_INVALID_RESPONSE);
     }
 
+    @Test
+    void parse_whenMissingSkillUsesSkillAlias_throwsLlmInvalidResponse() {
+        String json = """
+                {
+                  "summary": "Redis 보완 필요",
+                  "missingSkills": [
+                    {
+                      "skill": "Redis",
+                      "severity": "HIGH",
+                      "priorityOrder": 1
+                    }
+                  ],
+                  "strengths": ["Spring Boot"],
+                  "recommendations": ["Redis 캐시와 TTL 기반 설계를 먼저 학습"]
+                }
+                """;
+
+        assertThatThrownBy(() -> parser.parse(json))
+                .isInstanceOf(ServiceException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.LLM_INVALID_RESPONSE);
+    }
+
     private String validJson() {
         return """
                 {
