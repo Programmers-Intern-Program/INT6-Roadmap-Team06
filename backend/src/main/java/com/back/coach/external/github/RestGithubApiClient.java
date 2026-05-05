@@ -49,8 +49,8 @@ public class RestGithubApiClient implements GithubApiClient {
     @Override
     public String exchangeCode(String code) {
         try {
-            String body = "client_id=" + properties.clientId()
-                    + "&client_secret=" + properties.clientSecret()
+            String body = "client_id=" + properties.connectionClientId()
+                    + "&client_secret=" + properties.connectionClientSecret()
                     + "&code=" + code;
 
             String response = oauthClient.post()

@@ -7,7 +7,9 @@ public record GithubApiProperties(
         String baseUrl,
         String oauthBaseUrl,
         String clientId,
-        String clientSecret
+        String clientSecret,
+        String connectionClientId,
+        String connectionClientSecret
 ) {
     public GithubApiProperties {
         if (baseUrl == null || baseUrl.isBlank()) {
@@ -18,5 +20,11 @@ public record GithubApiProperties(
         }
         clientId = clientId == null ? "" : clientId;
         clientSecret = clientSecret == null ? "" : clientSecret;
+        connectionClientId = isBlank(connectionClientId) ? clientId : connectionClientId;
+        connectionClientSecret = isBlank(connectionClientSecret) ? clientSecret : connectionClientSecret;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

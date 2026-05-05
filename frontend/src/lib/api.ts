@@ -31,10 +31,23 @@ export function githubLoginUrl(redirectUrl?: string): string {
 }
 
 export function githubConnectionOAuthUrl(): string {
-  const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID ?? "";
+  const clientId =
+    process.env.NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID ??
+    process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID ??
+    "";
+  if (!clientId) return "";
+
   const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-  const redirectUri = encodeURIComponent(`${origin}/github/callback`);
-  return `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=repo,read:user&redirect_uri=${redirectUri}`;
+  const redirectUri =
+    process.env.NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI ??
+    `${origin}/github/callback`;
+  const params = new URLSearchParams({
+    client_id: clientId,
+    scope: "repo read:user",
+    redirect_uri: redirectUri,
+  });
+
+  return `https://github.com/login/oauth/authorize?${params.toString()}`;
 }
 
 export {
