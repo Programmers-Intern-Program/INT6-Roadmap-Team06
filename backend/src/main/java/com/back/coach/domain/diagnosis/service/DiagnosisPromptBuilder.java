@@ -61,8 +61,28 @@ public class DiagnosisPromptBuilder {
                 .append("\n"));
 
         prompt.append("\n## Output Rules\n");
+        prompt.append("Return exactly this JSON shape; use these field names only:\n");
+        prompt.append("""
+                {
+                  "summary": "short diagnosis summary",
+                  "missingSkills": [
+                    {
+                      "skillName": "skill name",
+                      "severity": "HIGH",
+                      "reason": "why this skill is missing based on user input, GitHub final profile, or job requirements",
+                      "priorityOrder": 1
+                    }
+                  ],
+                  "strengths": ["skill or strength supported by user input or GitHub confirmed skills"],
+                  "recommendations": ["concrete next learning priority"]
+                }
+                """);
+        prompt.append("Do not add any fields other than summary, missingSkills, strengths, recommendations.\n");
+        prompt.append("missingSkills[] must contain only skillName, severity, reason, priorityOrder.\n");
+        prompt.append("Do not use alias field names like skill, name, description, priority, rationale.\n");
         prompt.append("missingSkills[].severity must be one of: ").append(SEVERITY_VALUES).append("\n");
         prompt.append("missingSkills[].priorityOrder starts at 1 and must be sorted by learning priority.\n");
+        prompt.append("missingSkills[].reason must be a non-empty explanation tied to the input evidence.\n");
         prompt.append("strengths should include skills supported by user input or GitHub confirmed skills.\n");
         prompt.append("recommendations should be concrete next learning priorities.\n");
         prompt.append("Do not wrap JSON in Markdown code fences.\n");
