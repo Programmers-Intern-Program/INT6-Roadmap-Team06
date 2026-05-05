@@ -34,7 +34,8 @@ class RestGithubApiClientTest {
         wireMock.start();
         String base = "http://127.0.0.1:" + wireMock.port();
         client = new RestGithubApiClient(
-                new GithubApiProperties(base, base, "client-id", "client-secret")
+                new GithubApiProperties(base, base, "client-id", "client-secret",
+                        "connection-client-id", "connection-client-secret")
         );
     }
 
@@ -56,6 +57,37 @@ class RestGithubApiClientTest {
         String token = client.exchangeCode("code-abc");
 
         assertThat(token).isEqualTo("ghp_test123");
+        wireMock.verify(postRequestedFor(urlEqualTo("/login/oauth/access_token"))
+                .withRequestBody(containing("client_id=connection-client-id"))
+                .withRequestBody(containing("client_secret=connection-client-secret"))
+                .withRequestBody(containing("code=code-abc")));
+    }
+
+    @Test
+    @DisplayName("exchangeCode — connection 전용 설정이 없으면 기본 OAuth 설정으로 fallback")
+    void exchangeCode_fallsBackToDefaultOAuthCredentials() {
+        RestGithubApiClient fallbackClient = new RestGithubApiClient(
+                new GithubApiProperties(
+                        "http://127.0.0.1:" + wireMock.port(),
+                        "http://127.0.0.1:" + wireMock.port(),
+                        "client-id",
+                        "client-secret",
+                        "",
+                        null
+                )
+        );
+        wireMock.stubFor(post("/login/oauth/access_token")
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/x-www-form-urlencoded")
+                        .withBody("access_token=ghp_fallback&token_type=bearer&scope=repo")));
+
+        String token = fallbackClient.exchangeCode("fallback-code");
+
+        assertThat(token).isEqualTo("ghp_fallback");
+        wireMock.verify(postRequestedFor(urlEqualTo("/login/oauth/access_token"))
+                .withRequestBody(containing("client_id=client-id"))
+                .withRequestBody(containing("client_secret=client-secret"))
+                .withRequestBody(containing("code=fallback-code")));
     }
 
     @Test

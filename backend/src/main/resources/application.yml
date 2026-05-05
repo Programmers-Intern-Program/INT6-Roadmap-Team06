@@ -73,6 +73,8 @@ github:
     oauth-base-url: ${GITHUB_OAUTH_BASE_URL:https://github.com}
     client-id: ${GITHUB_CLIENT_ID:}
     client-secret: ${GITHUB_CLIENT_SECRET:}
+    connection-client-id: ${GITHUB_CONNECTION_CLIENT_ID:${GITHUB_CLIENT_ID:}}
+    connection-client-secret: ${GITHUB_CONNECTION_CLIENT_SECRET:${GITHUB_CLIENT_SECRET:}}
 
 springdoc:
   swagger-ui:
