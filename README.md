@@ -30,11 +30,18 @@ cd backend
 .\gradlew.bat bootRun
 ```
 
-기본 profile은 `local`입니다. GitHub OAuth까지 확인하려면 `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`을 `.env`에 채우고 `local,oauth` profile로 실행합니다.
+기본 profile은 `local`입니다. GitHub 로그인 OAuth까지 확인하려면 `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`을 `.env`에 채우고 `local,oauth` profile로 실행합니다.
 
 ```powershell
 .\gradlew.bat bootRun --args="--spring.profiles.active=local,oauth"
 ```
+
+GitHub OAuth App은 목적별로 분리합니다.
+
+- 로그인 OAuth App callback URL: `http://localhost:8080/login/oauth2/code/github`
+- 저장소 연결 OAuth App callback URL: `http://localhost:3000/github/callback`
+
+저장소 연결 OAuth App을 따로 만들었다면 `.env`에 `GITHUB_CONNECTION_CLIENT_ID`, `GITHUB_CONNECTION_CLIENT_SECRET`도 채웁니다. 값이 없으면 기존 `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`을 fallback으로 사용합니다.
 
 ## 프론트엔드 실행
 
@@ -50,6 +57,13 @@ npm run dev
 
 ```powershell
 Set-Content .env.local "NEXT_PUBLIC_API_BASE_URL=http://localhost:8080"
+```
+
+`/github`에서 저장소 연결을 확인하려면 `frontend/.env.local`에 저장소 연결 OAuth App client id와 callback URL을 추가합니다.
+
+```powershell
+Add-Content .env.local "NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID=your-github-connection-oauth-client-id"
+Add-Content .env.local "NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI=http://localhost:3000/github/callback"
 ```
 
 프론트 변경 검증은 다음 명령으로 확인합니다.
