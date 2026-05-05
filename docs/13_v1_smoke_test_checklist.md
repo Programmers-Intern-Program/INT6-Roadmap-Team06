@@ -11,6 +11,9 @@ v1 전체 사용자 흐름을 같은 기준으로 수동 검증하기 위한 체
 - [ ] backend를 local profile로 실행한다.
 - [ ] frontend를 실행하고 `NEXT_PUBLIC_API_BASE_URL`이 backend 주소를 가리키는지 확인한다.
 - [ ] GitHub OAuth, GitHub API, AI Gateway 관련 환경변수가 실제 검증 가능한 값인지 확인한다.
+- [ ] GitHub 저장소 연결 OAuth App 값은 로그인 OAuth App 값과 분리해 확인한다.
+  - backend: `GITHUB_CONNECTION_CLIENT_ID`, `GITHUB_CONNECTION_CLIENT_SECRET`
+  - frontend: `NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID`, `NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI=http://localhost:3000/github/callback`
 - [ ] #134, #139, #143은 팀원 담당 의존성으로만 본다. 이 문서는 해당 이슈 해결을 포함하지 않는다.
 
 ## 완료 기준
