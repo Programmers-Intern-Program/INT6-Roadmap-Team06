@@ -1,6 +1,7 @@
 package com.back.coach.domain.diagnosis.service;
 
 import com.back.coach.domain.diagnosis.dto.DiagnosisPayload;
+import com.back.coach.external.llm.LlmJsonResponseExtractor;
 import com.back.coach.global.code.DiagnosisSeverity;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
@@ -33,7 +34,7 @@ public class DiagnosisResponseParser {
     public DiagnosisResult parse(String llmJson) {
         JsonNode root;
         try {
-            root = mapper.readTree(llmJson);
+            root = mapper.readTree(LlmJsonResponseExtractor.extractJson(llmJson));
         } catch (IOException ex) {
             log.warn("Diagnosis 응답 JSON 파싱 실패: {}", ex.getMessage());
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);

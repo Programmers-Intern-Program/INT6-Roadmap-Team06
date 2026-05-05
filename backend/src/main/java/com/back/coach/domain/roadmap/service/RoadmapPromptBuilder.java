@@ -27,6 +27,7 @@ public class RoadmapPromptBuilder {
 
                 Rules:
                 - Return JSON only.
+                - Do not wrap JSON in Markdown code fences.
                 - The JSON must match this shape:
                   {
                     "summary": "short roadmap summary",

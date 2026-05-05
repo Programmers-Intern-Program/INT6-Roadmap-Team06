@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service.triage;
 
+import com.back.coach.external.llm.LlmJsonResponseExtractor;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.back.coach.domain.github.service.Champion;
@@ -34,7 +35,7 @@ public class ChampionTriageResponseParser {
     public List<Champion> parse(String llmJson) {
         JsonNode root;
         try {
-            root = mapper.readTree(llmJson);
+            root = mapper.readTree(LlmJsonResponseExtractor.extractJson(llmJson));
         } catch (IOException e) {
             log.warn("Triage 응답 JSON 파싱 실패: {}", e.getMessage());
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);

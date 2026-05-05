@@ -1,6 +1,7 @@
 package com.back.coach.domain.github.service.summary;
 
 import com.back.coach.global.code.HighlightStatus;
+import com.back.coach.external.llm.LlmJsonResponseExtractor;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
@@ -33,7 +34,7 @@ public class RepoSummaryResponseParser {
     public GithubAnalysisPayload.RepoSummary parse(String llmJson) {
         JsonNode root;
         try {
-            root = mapper.readTree(llmJson);
+            root = mapper.readTree(LlmJsonResponseExtractor.extractJson(llmJson));
         } catch (IOException e) {
             log.warn("RepoSummary 응답 JSON 파싱 실패: {}", e.getMessage());
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);

@@ -38,6 +38,25 @@ class ChampionTriageResponseParserTest {
     }
 
     @Test
+    @DisplayName("fenced JSON 응답도 champion 목록으로 파싱한다")
+    void parse_fencedJsonResponse() {
+        String json = """
+                ```json
+                {
+                  "champions": [
+                    {"kind": "COMMIT", "ref": "abc123", "reason": "OAuth 도입"}
+                  ]
+                }
+                ```
+                """;
+
+        List<Champion> champions = parser.parse(json);
+
+        assertThat(champions).hasSize(1);
+        assertThat(champions.get(0).kind()).isEqualTo(Champion.Kind.COMMIT);
+    }
+
+    @Test
     @DisplayName("champion이 0개면 LLM_INVALID_RESPONSE를 던진다 (minItems=1)")
     void parse_emptyChampions_throws() {
         String json = "{\"champions\": []}";

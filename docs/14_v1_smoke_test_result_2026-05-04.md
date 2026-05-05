@@ -161,6 +161,11 @@ backend traceId: 23b831b0-5d4f-4c1f-a071-eb334e476fe3
 후속: LLM 응답 shape 확인과 parser/프롬프트 보정 필요
 ```
 
+후속 재검증 기준:
+- parser 보정 후에도 필드 누락, enum 오류, schema 위반은 계속 `LLM_INVALID_RESPONSE`로 실패해야 한다.
+- Markdown fenced JSON은 code fence를 제거한 뒤 기존 schema 검증을 통과해야 한다.
+- 실제 AI Gateway로 `POST /api/diagnoses`를 재호출해 seed 없이 `diagnosisId`가 생성되는지 재확인해야 한다.
+
 ## 결론
 
 v1 저장/재조회 tail 흐름은 local seed 기준으로 통과했다. 프로필 저장, GitHub 분석 보정 저장, 진단/로드맵 상세 재조회, 진도 저장, 대시보드 최신 snapshot 반영은 확인됐다.
