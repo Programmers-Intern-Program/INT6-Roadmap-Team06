@@ -25,6 +25,22 @@ class DiagnosisResponseParserTest {
     }
 
     @Test
+    void parse_whenResponseIsFencedJson_returnsDiagnosisResult() {
+        DiagnosisResponseParser.DiagnosisResult result = parser.parse(fencedJson(validJson()));
+
+        assertThat(result.summary()).isEqualTo("Redis 보완 필요");
+        assertThat(result.missingSkills()).hasSize(1);
+    }
+
+    @Test
+    void parse_whenResponseHasTextAroundJson_returnsDiagnosisResult() {
+        DiagnosisResponseParser.DiagnosisResult result = parser.parse(textWrappedJson(validJson()));
+
+        assertThat(result.summary()).isEqualTo("Redis 보완 필요");
+        assertThat(result.strengths()).containsExactly("Spring Boot");
+    }
+
+    @Test
     void parse_whenSeverityIsInvalid_throwsLlmInvalidResponse() {
         String json = validJson().replace("\"HIGH\"", "\"CRITICAL\"");
 
@@ -76,5 +92,13 @@ class DiagnosisResponseParserTest {
                   "recommendations": ["Redis 캐시와 TTL 기반 설계를 먼저 학습"]
                 }
                 """;
+    }
+
+    private String fencedJson(String json) {
+        return "```json\n" + json + "\n```";
+    }
+
+    private String textWrappedJson(String json) {
+        return "분석 결과입니다.\n" + json + "\n검토해주세요.";
     }
 }

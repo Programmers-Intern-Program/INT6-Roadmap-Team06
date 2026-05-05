@@ -40,6 +40,28 @@ class RepoSummaryResponseParserTest {
     }
 
     @Test
+    @DisplayName("fenced JSON 응답도 RepoSummary로 파싱한다")
+    void parse_fencedJsonResponse() {
+        String json = """
+                ```json
+                {
+                  "repoId": "1",
+                  "repoName": "user/cool-app",
+                  "summary": "Spring Boot 백엔드 + OAuth 도입",
+                  "highlights": [
+                    {"text": "OAuth2 핸들러", "status": "ADOPTED"}
+                  ]
+                }
+                ```
+                """;
+
+        GithubAnalysisPayload.RepoSummary summary = parser.parse(json);
+
+        assertThat(summary.repoName()).isEqualTo("user/cool-app");
+        assertThat(summary.highlights().get(0).status()).isEqualTo(HighlightStatus.ADOPTED);
+    }
+
+    @Test
     @DisplayName("REVERSED 상태의 highlight도 정상 파싱한다")
     void parse_reversedHighlight() {
         String json = """

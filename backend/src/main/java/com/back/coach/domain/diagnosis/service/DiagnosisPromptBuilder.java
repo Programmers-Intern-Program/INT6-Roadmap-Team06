@@ -65,6 +65,7 @@ public class DiagnosisPromptBuilder {
         prompt.append("missingSkills[].priorityOrder starts at 1 and must be sorted by learning priority.\n");
         prompt.append("strengths should include skills supported by user input or GitHub confirmed skills.\n");
         prompt.append("recommendations should be concrete next learning priorities.\n");
+        prompt.append("Do not wrap JSON in Markdown code fences.\n");
         return prompt.toString();
     }
 

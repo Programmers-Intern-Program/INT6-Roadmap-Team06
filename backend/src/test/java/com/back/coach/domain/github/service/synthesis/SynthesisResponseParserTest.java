@@ -35,6 +35,26 @@ class SynthesisResponseParserTest {
     }
 
     @Test
+    @DisplayName("fenced JSON 응답도 SynthesisResult로 파싱한다")
+    void parse_fencedJsonResponse() {
+        String json = """
+                ```json
+                {
+                  "techTags": [{"skillName": "Spring Boot", "tagReason": "주요 백엔드"}],
+                  "depthEstimates": [{"skillName": "Spring Boot", "level": "PRACTICAL", "reason": "여러 repo"}],
+                  "evidences": [{"repoName": "user/a", "type": "COMMIT", "source": "abc123", "summary": "OAuth 핸들러"}],
+                  "finalTechProfile": {"confirmedSkills": ["Spring Boot"], "focusAreas": ["Kubernetes"]}
+                }
+                ```
+                """;
+
+        SynthesisResponseParser.SynthesisResult result = parser.parse(json);
+
+        assertThat(result.techTags()).hasSize(1);
+        assertThat(result.finalTechProfile().focusAreas()).contains("Kubernetes");
+    }
+
+    @Test
     @DisplayName("DepthEstimate.level이 enum 외 값이면 LLM_INVALID_RESPONSE")
     void parse_invalidLevel_throws() {
         String json = """

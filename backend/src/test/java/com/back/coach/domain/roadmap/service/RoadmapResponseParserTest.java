@@ -25,6 +25,14 @@ class RoadmapResponseParserTest {
     }
 
     @Test
+    void parse_whenResponseIsFencedJson_returnsRoadmapResult() {
+        RoadmapResponseParser.RoadmapResult result = parser.parse(fencedJson(validResponse()));
+
+        assertThat(result.summary()).isEqualTo("Redis 중심 로드맵");
+        assertThat(result.weeks()).hasSize(2);
+    }
+
+    @Test
     void parse_whenTaskTypeIsInvalid_throwsLlmInvalidResponse() {
         String invalidResponse = validResponse().replace("READ_DOCS", "UNKNOWN_TASK");
 
@@ -105,5 +113,9 @@ class RoadmapResponseParserTest {
                   ]
                 }
                 """;
+    }
+
+    private String fencedJson(String json) {
+        return "```json\n" + json + "\n```";
     }
 }

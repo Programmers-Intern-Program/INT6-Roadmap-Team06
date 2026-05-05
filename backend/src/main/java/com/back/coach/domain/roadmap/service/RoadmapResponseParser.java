@@ -1,6 +1,7 @@
 package com.back.coach.domain.roadmap.service;
 
 import com.back.coach.domain.roadmap.dto.RoadmapPayload;
+import com.back.coach.external.llm.LlmJsonResponseExtractor;
 import com.back.coach.global.code.MaterialType;
 import com.back.coach.global.code.RoadmapTaskType;
 import com.back.coach.global.exception.ErrorCode;
@@ -36,7 +37,7 @@ public class RoadmapResponseParser {
     public RoadmapResult parse(String llmJson) {
         JsonNode root;
         try {
-            root = mapper.readTree(llmJson);
+            root = mapper.readTree(LlmJsonResponseExtractor.extractJson(llmJson));
         } catch (IOException ex) {
             log.warn("Roadmap 응답 JSON 파싱 실패: {}", ex.getMessage());
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
