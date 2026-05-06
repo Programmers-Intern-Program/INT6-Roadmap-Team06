@@ -25,6 +25,8 @@ import com.back.coach.global.exception.ServiceException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -84,10 +86,18 @@ class RoadmapCommandServiceTest {
     @Mock
     private LlmClient llmClient;
 
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private RoadmapCommandService roadmapCommandService;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
+        given(transactionTemplate.execute(any())).willAnswer(inv -> {
+            TransactionCallback<?> cb = inv.getArgument(0);
+            return cb.doInTransaction(null);
+        });
         roadmapCommandService = new RoadmapCommandService(
                 capabilityDiagnosisRepository,
                 githubAnalysisRepository,
@@ -99,7 +109,8 @@ class RoadmapCommandServiceTest {
                 new RoadmapPromptBuilder(),
                 new RoadmapResponseParser(),
                 llmClient,
-                objectMapper
+                objectMapper,
+                transactionTemplate
         );
     }
 
