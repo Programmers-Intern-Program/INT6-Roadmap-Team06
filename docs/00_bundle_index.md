@@ -28,3 +28,4 @@
 - 13_v1_smoke_test_checklist.md: v1 전체 화면 흐름 수동검증 체크리스트와 blocker 기록 기준
 - 14_v1_smoke_test_result_2026-05-04.md: 2026-05-04 로컬 v1 smoke 실행 결과와 blocker 기록
 - 16_v2_context_snapshot_contract.md: v2 Context Snapshot payload, 원본 참조, version/active 규칙
+- 17_v2_context_tier_assembly.md: v2 3-Tier Context 조립 기준과 템플릿별 기본 Tier

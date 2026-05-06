@@ -204,6 +204,7 @@ Context Manager는 호출 컴포넌트(Coach, Analyzer, Planner)와 처리 경�
 | 저장소 메타데이터 (README 등) | 6h | `user.portfolio.updated` |
 
 토큰 예산은 기준값이며 운영 중 비용·품질 trade-off를 관찰하며 조정한다. 슬롯 구성은 팀 협의로 추가하거나 변경할 수 있다.
+템플릿별 기본 Tier와 캐시 무게 기준은 `docs/17_v2_context_tier_assembly.md`를 따른다. 이 Tier 기준은 use-case 템플릿을 대체하지 않고, 템플릿이 읽는 정보량을 조절하는 보조 계약이다.
 
 ### 5.2.1 대안 설계 (구현 시 선택 가능)
 
@@ -232,7 +233,9 @@ contextManager.assemble(userId, [SLOT.PROFILE, SLOT.CURRENT_WEEK, SLOT.SIGNALS])
 
 ---
 
-**대안 B: Tier 기반 조립**
+**대안 B: Tier 단독 호출**
+
+현재 공식 기준은 use-case 템플릿을 유지하고 Tier를 정보량 기준으로 함께 적용하는 방식이다. 아래 방식은 템플릿 없이 Tier 번호만으로 호출하는 대체안이다.
 
 컨텍스트를 무게별로 3개 계층으로 나누고 번호로 호출한다.
 
