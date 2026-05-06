@@ -35,7 +35,7 @@ class GithubMetadataFetcherTest {
         given(apiClient.getLanguages(TOKEN, OWNER, REPO)).willReturn(Map.of("Java", 10000L));
         given(apiClient.getFileContent(eq(TOKEN), eq(OWNER), eq(REPO), anyString()))
                 .willReturn(Optional.empty());
-        given(apiClient.listCommits(TOKEN, OWNER, REPO, LOGIN, 20)).willReturn(List.of());
+        given(apiClient.listCommits(TOKEN, OWNER, REPO, LOGIN, GithubMetadataFetcher.COMMIT_LIMIT)).willReturn(List.of());
         given(apiClient.listPullRequests(TOKEN, OWNER, REPO)).willReturn(List.of());
         given(apiClient.listIssues(TOKEN, OWNER, REPO)).willReturn(List.of());
     }
@@ -93,7 +93,7 @@ class GithubMetadataFetcherTest {
     void fetch_commitsSortedOldestFirst() {
         var commitNew = makeCommit("sha-new", "new commit", "2026-01-02T00:00:00Z");
         var commitOld = makeCommit("sha-old", "old commit", "2026-01-01T00:00:00Z");
-        given(apiClient.listCommits(TOKEN, OWNER, REPO, LOGIN, 20)).willReturn(List.of(commitNew, commitOld));
+        given(apiClient.listCommits(TOKEN, OWNER, REPO, LOGIN, GithubMetadataFetcher.COMMIT_LIMIT)).willReturn(List.of(commitNew, commitOld));
         given(apiClient.getCommitDetail(TOKEN, OWNER, REPO, "sha-new")).willReturn(makeDetail("sha-new", "new commit", 10, 2));
         given(apiClient.getCommitDetail(TOKEN, OWNER, REPO, "sha-old")).willReturn(makeDetail("sha-old", "old commit", 5, 1));
 
@@ -109,7 +109,7 @@ class GithubMetadataFetcherTest {
     void fetch_commitSubjectAndBody() {
         String message = "feat: OAuth\n\nThis is the body of the commit.";
         var commit = makeCommit("sha1", message, "2026-01-01T00:00:00Z");
-        given(apiClient.listCommits(TOKEN, OWNER, REPO, LOGIN, 20)).willReturn(List.of(commit));
+        given(apiClient.listCommits(TOKEN, OWNER, REPO, LOGIN, GithubMetadataFetcher.COMMIT_LIMIT)).willReturn(List.of(commit));
         given(apiClient.getCommitDetail(TOKEN, OWNER, REPO, "sha1"))
                 .willReturn(makeDetail("sha1", message, 5, 1));
 

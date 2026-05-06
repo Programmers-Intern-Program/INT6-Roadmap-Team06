@@ -63,7 +63,8 @@ class AiGatewayLlmClientTest {
                 .withRequestBody(equalToJson("""
                         {
                           "model": "test-model",
-                          "messages": [{"role": "user", "content": "hello"}]
+                          "messages": [{"role": "user", "content": "hello"}],
+                          "max_tokens": 16384
                         }
                         """)));
     }
