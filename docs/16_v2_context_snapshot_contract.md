@@ -7,6 +7,7 @@
 Context Snapshot은 Coach, Analyzer, Planner가 같은 사용자 상태를 읽기 위한 조립 결과다. PostgreSQL의 v1 원본 데이터와 결과 이력을 대체하지 않는다.
 
 템플릿별로 어느 정도의 snapshot을 읽을지는 `docs/17_v2_context_tier_assembly.md`의 3-Tier Context 조립 기준을 따른다.
+Coach 세션에서 snapshot version을 고정하고 새 version을 반영하는 정책은 `docs/18_v2_session_version_policy.md`를 따른다.
 
 ## 2. 범위
 
@@ -191,6 +192,7 @@ Context Snapshot은 Coach, Analyzer, Planner가 같은 사용자 상태를 읽�
 규칙
 - `chat_sessions.profile_version`은 `PROFILE` snapshot version을 고정한 값이다.
 - `chat_sessions.roadmap_version`은 `PLAN` snapshot version을 고정한 값으로 해석한다.
+- 세션 중 version 고정과 새 snapshot 반영 정책은 `docs/18_v2_session_version_policy.md`를 따른다.
 - 원본 결과 row version은 `sourceRefs` 안에 별도로 남긴다.
 - 최근 대화는 전체 원문을 무제한 저장하지 않고 요약 중심으로 조립한다.
 - 활성 신호는 Coach 판단 입력일 뿐이며, snapshot 생성 자체가 재분석이나 재계획을 실행하지 않는다.
