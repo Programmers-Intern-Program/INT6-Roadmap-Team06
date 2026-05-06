@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { isNavigationItemActive, navigationItems } from "@/config/routes";
+import { authNavigationItem, isNavigationItemActive, navigationItems } from "@/config/routes";
 
 type AppShellProps = {
   children: ReactNode;
@@ -36,6 +36,16 @@ export function AppShell({ children }: AppShellProps) {
             );
           })}
         </nav>
+        <div className="topbar-actions">
+          <Link
+            aria-current={isNavigationItemActive(authNavigationItem, pathname) ? "page" : undefined}
+            className="nav-link"
+            data-active={isNavigationItemActive(authNavigationItem, pathname)}
+            href={authNavigationItem.href}
+          >
+            {authNavigationItem.label}
+          </Link>
+        </div>
       </header>
       <main className="page">{children}</main>
     </div>

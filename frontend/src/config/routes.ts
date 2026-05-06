@@ -45,6 +45,12 @@ export const navigationItems: NavigationItem[] = [
   }
 ];
 
+export const authNavigationItem: NavigationItem = {
+  href: "/login",
+  label: "로그인",
+  exact: true,
+};
+
 export const screens = {
   dashboard: {
     eyebrow: "v1 확장",
