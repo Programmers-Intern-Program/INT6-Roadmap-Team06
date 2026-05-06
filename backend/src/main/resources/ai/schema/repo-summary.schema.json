@@ -5,7 +5,7 @@
   "required": ["repoId", "repoName", "summary", "highlights"],
   "additionalProperties": false,
   "properties": {
-    "repoId": { "type": "string", "minLength": 1 },
+    "repoId": { "type": ["string", "integer"] },
     "repoName": { "type": "string", "minLength": 1 },
     "summary": { "type": "string", "minLength": 1 },
     "highlights": {
