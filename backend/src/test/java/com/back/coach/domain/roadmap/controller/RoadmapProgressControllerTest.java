@@ -112,6 +112,21 @@ class RoadmapProgressControllerTest {
     }
 
     @Test
+    void appendProgress_whenStatusUnsupported_returnsInvalidInput() throws Exception {
+        mockMvc.perform(post("/api/roadmaps/{roadmapId}/progress", 10L)
+                        .principal(authentication(1L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "roadmapWeekId", 100L,
+                                "status", "BLOCKED"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        verifyNoInteractions(roadmapProgressCommandService);
+    }
+
+    @Test
     void appendProgress_whenNoteIsTooLong_returnsInvalidInput() throws Exception {
         mockMvc.perform(post("/api/roadmaps/{roadmapId}/progress", 10L)
                         .principal(authentication(1L))
