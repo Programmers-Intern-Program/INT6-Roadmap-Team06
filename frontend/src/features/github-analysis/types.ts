@@ -19,8 +19,13 @@ export type StaticSignals = {
   primaryLanguages: PrimaryLanguage[];
 };
 
+export type Highlight = {
+  text: string;
+  status: "ADOPTED" | "EVOLVED" | "REVERSED";
+};
+
 export type RepoSummary = {
-  highlights: string[];
+  highlights: Highlight[];
   repoId: string;
   repoName: string;
   summary: string;
