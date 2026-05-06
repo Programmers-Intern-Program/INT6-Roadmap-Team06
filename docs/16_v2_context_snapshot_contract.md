@@ -6,6 +6,8 @@
 
 Context Snapshot은 Coach, Analyzer, Planner가 같은 사용자 상태를 읽기 위한 조립 결과다. PostgreSQL의 v1 원본 데이터와 결과 이력을 대체하지 않는다.
 
+템플릿별로 어느 정도의 snapshot을 읽을지는 `docs/17_v2_context_tier_assembly.md`의 3-Tier Context 조립 기준을 따른다.
+
 ## 2. 범위
 
 포함 범위
