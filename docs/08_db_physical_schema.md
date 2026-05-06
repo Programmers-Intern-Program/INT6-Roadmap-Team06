@@ -353,7 +353,7 @@
 | pattern_type | VARCHAR(50) | N | 계약 부록 enum |
 | severity | VARCHAR(30) | N | 계약 부록 enum |
 | metadata | JSONB | N | DEFAULT '{}'::jsonb |
-| acknowledged_at | TIMESTAMPTZ | Y |  |
+| processed_at | TIMESTAMPTZ | Y | Coach/Context Manager 처리 완료 시각 |
 | created_at | TIMESTAMPTZ | N | DEFAULT now() |
 
 인덱스

@@ -19,9 +19,8 @@ Coach 세션에서 snapshot version을 고정하고 새 version을 반영하는 
 제외 범위
 - DB migration, Entity, Repository, API 구현
 - 실제 멀티 에이전트, Event System, Context Manager 구현
-- Pattern Detector 저장소 명칭 정리
 
-`user_signals`와 `detected_patterns` 명칭은 문서 간 정렬이 필요하다. 이 문서는 `CONVERSATION.activeSignals`를 "활성 신호 요약"으로만 정의하고, 실제 원본 테이블명은 별도 계약 정리에서 확정한다.
+Pattern Detector 저장 원본과 `CONVERSATION.activeSignals` 요약 관계는 `docs/19_v2_detected_patterns_contract.md`를 따른다.
 
 ## 3. 공통 원칙
 
@@ -180,7 +179,8 @@ Coach 세션에서 snapshot version을 고정하고 새 version을 반영하는 
   },
   "activeSignals": [
     {
-      "signalType": "CONSECUTIVE_INCOMPLETE",
+      "sourcePatternId": 31,
+      "patternType": "CONSECUTIVE_INCOMPLETE",
       "severity": "MEDIUM",
       "summary": "최근 3일 동안 계획 대비 완료율이 낮음",
       "detectedAt": "2026-05-06T00:00:00Z"
