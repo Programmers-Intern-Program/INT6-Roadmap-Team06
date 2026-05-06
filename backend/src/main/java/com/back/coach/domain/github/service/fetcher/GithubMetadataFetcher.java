@@ -14,7 +14,7 @@ public class GithubMetadataFetcher {
     public static final int README_MAX_BYTES = 1024;
     public static final int DEP_FILE_MAX_BYTES = 2048;
     static final int BODY_MAX_CHARS = 500;
-    static final int COMMIT_LIMIT = 20;
+    static final int COMMIT_LIMIT = 5;
 
     private static final List<String> DEP_FILE_PATHS = List.of(
             "pom.xml", "build.gradle", "build.gradle.kts", "package.json",

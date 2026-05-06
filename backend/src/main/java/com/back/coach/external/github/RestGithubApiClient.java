@@ -80,7 +80,6 @@ public class RestGithubApiClient implements GithubApiClient {
     public List<GithubRepoDto> listUserRepos(String accessToken) {
         URI uri = UriComponentsBuilder.fromUriString("/user/repos")
                 .queryParam("affiliation", "owner")
-                .queryParam("type", "all")
                 .queryParam("per_page", 100)
                 .build().toUri();
         return getList(uri, accessToken, new ParameterizedTypeReference<>() {});
@@ -200,8 +199,10 @@ public class RestGithubApiClient implements GithubApiClient {
                             (req, res) -> { throw new ServiceException(ErrorCode.GITHUB_RATE_LIMITED); })
                     .onStatus(s -> s.value() == NOT_FOUND,
                             (req, res) -> { throw new ServiceException(ErrorCode.RESOURCE_NOT_FOUND); })
-                    .onStatus(s -> s.isError(),
-                            (req, res) -> { throw new ServiceException(ErrorCode.GITHUB_API_ERROR); })
+                    .onStatus(s -> s.isError(), (req, res) -> {
+                        log.warn("GitHub API list error: status={} uri={}", res.getStatusCode(), uri);
+                        throw new ServiceException(ErrorCode.GITHUB_API_ERROR);
+                    })
                     .body(type);
             return result == null ? List.of() : result;
         } catch (ServiceException e) {

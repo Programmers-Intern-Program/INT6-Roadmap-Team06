@@ -26,7 +26,7 @@ class AiGatewayLlmClientTest {
         wireMock = new WireMockServer(options().dynamicPort());
         wireMock.start();
         client = new AiGatewayLlmClient(
-                new AiGatewayProperties("dummy-key", "http://127.0.0.1:" + wireMock.port(), "test-model")
+                new AiGatewayProperties("dummy-key", "http://127.0.0.1:" + wireMock.port(), "test-model", null)
         );
     }
 
@@ -63,7 +63,8 @@ class AiGatewayLlmClientTest {
                 .withRequestBody(equalToJson("""
                         {
                           "model": "test-model",
-                          "messages": [{"role": "user", "content": "hello"}]
+                          "messages": [{"role": "user", "content": "hello"}],
+                          "max_tokens": 16384
                         }
                         """)));
     }
@@ -105,7 +106,7 @@ class AiGatewayLlmClientTest {
 
     @Test
     void properties_acceptsBlankApiKeyForLocalSkeleton() {
-        AiGatewayProperties properties = new AiGatewayProperties(null, "http://localhost:0", "test-model");
+        AiGatewayProperties properties = new AiGatewayProperties(null, "http://localhost:0", "test-model", null);
 
         assertThat(properties.apiKey()).isEmpty();
         assertThat(properties.baseUrl()).isEqualTo("http://localhost:0");
@@ -114,11 +115,11 @@ class AiGatewayLlmClientTest {
 
     @Test
     void properties_rejectsBlankBaseUrlOrModel() {
-        assertThatThrownBy(() -> new AiGatewayProperties("key", "", "test-model"))
+        assertThatThrownBy(() -> new AiGatewayProperties("key", "", "test-model", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("ai.gateway.base-url must not be blank");
 
-        assertThatThrownBy(() -> new AiGatewayProperties("key", "http://localhost:0", ""))
+        assertThatThrownBy(() -> new AiGatewayProperties("key", "http://localhost:0", "", null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("ai.gateway.model must not be blank");
     }

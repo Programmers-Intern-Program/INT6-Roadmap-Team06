@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -87,12 +88,17 @@ public class GithubConnectionService {
 
     private GithubProject upsertProject(Long userId, Long connectionId, GithubRepoDto repo) {
         return projectRepo.findByUserIdAndRepoFullName(userId, repo.fullName())
-                .map(existing -> existing)
                 .orElseGet(() -> {
-                    GithubProject p = GithubProject.create(userId, connectionId,
-                            repo.nodeId(), repo.fullName(), repo.htmlUrl(),
-                            repo.language(), repo.defaultBranch());
-                    return projectRepo.save(p);
+                    try {
+                        GithubProject p = GithubProject.create(userId, connectionId,
+                                repo.nodeId(), repo.fullName(), repo.htmlUrl(),
+                                repo.language(), repo.defaultBranch());
+                        return projectRepo.saveAndFlush(p);
+                    } catch (DataIntegrityViolationException e) {
+                        return projectRepo.findByUserIdAndRepoFullName(userId, repo.fullName())
+                                .orElseThrow(() -> new ServiceException(ErrorCode.GITHUB_API_ERROR,
+                                        "repo upsert failed: " + repo.fullName()));
+                    }
                 });
     }
 

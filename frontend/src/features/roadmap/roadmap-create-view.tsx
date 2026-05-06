@@ -17,8 +17,14 @@ function getErrorMessage(error: unknown): string {
   return "오류가 발생했습니다. 다시 시도해주세요.";
 }
 
+const MAX_WEEKS = 8;
+
 function getTomorrowDateValue() {
   return new Date(Date.now() + 86400000).toISOString().split("T")[0];
+}
+
+function getMaxDateValue() {
+  return new Date(Date.now() + MAX_WEEKS * 7 * 86400000).toISOString().split("T")[0];
 }
 
 type Props = {
@@ -67,6 +73,10 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
     }
     if (new Date(targetDate) <= new Date()) {
       setState({ status: "error", message: "목표 날짜는 오늘 이후여야 합니다." });
+      return;
+    }
+    if (new Date(targetDate) > new Date(getMaxDateValue())) {
+      setState({ status: "error", message: `목표 날짜는 최대 ${MAX_WEEKS}주 이내여야 합니다.` });
       return;
     }
 
@@ -124,11 +134,12 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
         </div>
 
         <div>
-          <label htmlFor="targetDate">목표 날짜</label>
+          <label htmlFor="targetDate">목표 날짜 (최대 {MAX_WEEKS}주)</label>
           <input
             id="targetDate"
             type="date"
             ref={targetDateInputRef}
+            max={getMaxDateValue()}
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
             disabled={isSubmitting}

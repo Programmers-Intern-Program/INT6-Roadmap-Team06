@@ -46,6 +46,8 @@ public class RoadmapPromptBuilder {
                 - tasks[].type must be one of READ_DOCS, BUILD_EXAMPLE, WRITE_NOTE, APPLY_PROJECT, REVIEW.
                 - materials[].type must be one of DOCS, ARTICLE, REPOSITORY, VIDEO, TEMPLATE.
                 - Do not include progress status.
+                - Generate at most 8 weeks total.
+                - Your output budget is 8192 tokens. Complete the entire JSON within this limit — do not truncate mid-object.
 
                 User context:
                 - targetRole: %s

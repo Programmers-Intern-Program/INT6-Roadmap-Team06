@@ -28,8 +28,11 @@ public class AiGatewayLlmClient implements LlmClient {
     @Autowired
     public AiGatewayLlmClient(AiGatewayProperties properties, RestClient.Builder restClientBuilder) {
         this.properties = properties;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout((int) properties.timeout().connect().toMillis());
+        factory.setReadTimeout((int) properties.timeout().read().toMillis());
         this.restClient = restClientBuilder
-                .requestFactory(new SimpleClientHttpRequestFactory())
+                .requestFactory(factory)
                 .baseUrl(properties.baseUrl())
                 .build();
     }
@@ -51,7 +54,8 @@ public class AiGatewayLlmClient implements LlmClient {
                     .headers(headers -> setAuthorization(headers, properties.apiKey()))
                     .body(new ChatCompletionRequest(
                             properties.model(),
-                            java.util.List.of(new Message("user", prompt))
+                            java.util.List.of(new Message("user", prompt)),
+                            16384
                     ))
                     .retrieve()
                     .onStatus(status -> status.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
@@ -103,7 +107,8 @@ public class AiGatewayLlmClient implements LlmClient {
 
     private record Message(String role, String content) {}
 
-    private record ChatCompletionRequest(String model, java.util.List<Message> messages) {}
+    private record ChatCompletionRequest(String model, java.util.List<Message> messages,
+                                         @com.fasterxml.jackson.annotation.JsonProperty("max_tokens") int maxTokens) {}
 
     private record ChatCompletionResponse(java.util.List<Choice> choices) {}
 

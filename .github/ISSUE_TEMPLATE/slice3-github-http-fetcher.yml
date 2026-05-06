@@ -1,0 +1,54 @@
+name: "[Slice 3] GitHub HTTP 패처"
+description: GitHub OAuth 연결 + 저장소 메타데이터 수집 작업을 등록합니다.
+title: "[Slice 3] GitHub HTTP 패처 — 연결/저장소 API + metadata_payload 채우기"
+body:
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 목적
+      description: 이 작업이 필요한 이유와 해결하려는 문제를 적어주세요.
+      placeholder: |
+        Slice 2 분석 파이프라인이 github_projects.metadata_payload 가 사전 채워져 있다고 가정하고 fixture로 테스트한다.
+        실제 GitHub REST API를 호출해 이 컬럼을 채우는 HTTP 패처가 없으면 프로덕션에서 분석이 동작하지 않는다.
+      value: |
+        Slice 2 분석 파이프라인은 `github_projects.metadata_payload` 가 사전 채워져 있다고 가정하고 fixture로 테스트한다.
+        실제 GitHub REST API를 호출해 이 컬럼을 채우는 HTTP 패처가 없으면 프로덕션에서 분석이 동작하지 않는다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 작업 내용
+      value: |
+        **External Layer (`external/github/`)**
+        - `GithubApiClient` 인터페이스 — exchangeCode, getUserInfo, listUserRepos, getReadme, getLanguages, getFileContent, listCommits, getCommitDetail, listPullRequests, listIssues
+        - `RestGithubApiClient` — Spring RestClient 구현, 429→GITHUB_RATE_LIMITED / 5xx→GITHUB_API_ERROR
+        - `GithubApiProperties` (`@ConfigurationProperties("github.api")`)
+        - DTO 레코드: GithubUserInfoDto, GithubRepoDto, GithubCommitDto, GithubCommitDetailDto, GithubPrDto, GithubIssueDto
+
+        **Domain Fetcher (`domain/github/service/fetcher/`)**
+        - `GithubMetadataFetcher` — 저장소 1개의 RepoMetadata 조립 (readme 1KB 캡, 의존성 파일 2KB 캡, 커밋 20개 역순 정렬, PR/Issue 50개 사용자 필터)
+
+        **Domain Service + Controller**
+        - `GithubConnectionService.connect()` — OAuth 코드 교환 → GithubConnection upsert → 저장소 동기화 → 메타데이터 채우기
+        - `POST /api/github/connections`, `GET /api/github/repositories`
+
+        **수정 파일**
+        - `GithubProject`: `create()` 팩토리 + `updateMetadataPayload()`
+        - `ErrorCode`: GITHUB_RATE_LIMITED, GITHUB_API_ERROR 추가
+        - `application.yml`: `github.api.*` 설정 추가
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 완료 조건
+      value: |
+        - `./gradlew test` — RestGithubApiClientTest (14), GithubMetadataFetcherTest (9), GithubConnectionServiceTest (3) 통과
+        - `./gradlew integrationTest` — GithubConnectionControllerTest (7) 통과
+        - `POST /api/github/connections` 후 DB에 GithubProject 행 생성, metadataPayload 에 languageBytes 포함
+        - `GET /api/github/repositories` 소유권 검증 후 저장소 목록 반환
+    validations:
+      required: true

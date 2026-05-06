@@ -63,6 +63,7 @@ class GithubConnectionServiceTest {
                 "https://github.com/testuser/repo-a", "Java", "main");
         ReflectionTestUtils.setField(savedProject, "id", 100L);
         given(projectRepo.save(any())).willReturn(savedProject);
+        given(projectRepo.saveAndFlush(any())).willReturn(savedProject);
         given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
                 .willReturn(sampleMetadata());
 
@@ -72,8 +73,9 @@ class GithubConnectionServiceTest {
         assertThat(result.githubLogin()).isEqualTo("testuser");
         verify(connectionRepo).save(any(GithubConnection.class));
         verify(metadataFetcher, times(2)).fetch(eq("ghp_token"), eq("testuser"), anyString(), eq("testuser"));
-        // 2 repos × 2 saves each (create + metadata update)
-        verify(projectRepo, times(4)).save(any(GithubProject.class));
+        // 2 repos: saveAndFlush(create) + save(metadata update) each
+        verify(projectRepo, times(2)).saveAndFlush(any(GithubProject.class));
+        verify(projectRepo, times(2)).save(any(GithubProject.class));
     }
 
     @Test

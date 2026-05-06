@@ -61,9 +61,14 @@ public class SynthesisPromptBuilder {
         }
 
         sb.append("\n## Output\n");
-        sb.append("Output a single JSON object {techTags, depthEstimates, evidences, finalTechProfile}.\n");
-        sb.append("DepthEstimate.level must be one of: ").append(DEPTH_VALUES).append("\n");
-        sb.append("Evidence.type must be one of: ").append(EVIDENCE_VALUES).append("\n");
+        sb.append("Output ONLY a single JSON object with exactly these fields and structures:\n");
+        sb.append("{\n");
+        sb.append("  \"techTags\": [ { \"skillName\": string, \"tagReason\": string } ],\n");
+        sb.append("  \"depthEstimates\": [ { \"skillName\": string, \"level\": \"").append(DEPTH_VALUES).append("\", \"reason\": string } ],\n");
+        sb.append("  \"evidences\": [ { \"repoName\": string, \"type\": \"").append(EVIDENCE_VALUES).append("\", \"source\": string, \"summary\": string } ],\n");
+        sb.append("  \"finalTechProfile\": { \"confirmedSkills\": [ string ], \"focusAreas\": [ string ] }\n");
+        sb.append("}\n");
+        sb.append("Do NOT rename fields. Do NOT add extra fields.\n");
         return sb.toString();
     }
 }

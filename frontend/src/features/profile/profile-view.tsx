@@ -163,17 +163,17 @@ function ProfileForm({
         <div className="profile-section-heading">
           <h2>기본 정보</h2>
           <p>
-            목표 직무는 백엔드 job role code를 입력합니다. 예: BACKEND_ENGINEER
+            목표 직무는 백엔드 job role code를 입력합니다. 예: BACKEND_DEVELOPER
           </p>
         </div>
 
         <label>
           <span>목표 직무</span>
           <input
-            defaultValue={profile?.targetRole ?? "BACKEND_ENGINEER"}
+            defaultValue={profile?.targetRole ?? "BACKEND_DEVELOPER"}
             maxLength={100}
             name="targetRole"
-            placeholder="BACKEND_ENGINEER"
+            placeholder="BACKEND_DEVELOPER"
             required
           />
         </label>

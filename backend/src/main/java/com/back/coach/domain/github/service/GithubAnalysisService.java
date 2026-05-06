@@ -102,8 +102,13 @@ public class GithubAnalysisService {
         List<GithubAnalysisPayload.RepoSummary> repoSummaries = new ArrayList<>();
         for (GithubProject core : coreProjects) {
             RepoMetadata metadata = parseMetadata(core.getMetadataPayload());
-            ChampionTriageService.TriageResult triage =
-                    triageService.triage(core.getRepoFullName(), core.getRepoUrl(), metadata);
+            ChampionTriageService.TriageResult triage;
+            try {
+                triage = triageService.triage(core.getRepoFullName(), core.getRepoUrl(), metadata);
+            } catch (ServiceException e) {
+                log.warn("분석 skip: 기여 커밋 없음 repo={}", core.getRepoFullName());
+                continue;
+            }
 
             List<ResolvedChampion> resolved = resolveChampions(triage.champions(), metadata);
             String summaryPrompt = summaryPromptBuilder.build(

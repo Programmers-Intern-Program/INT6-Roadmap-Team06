@@ -1,0 +1,59 @@
+name: "[Fix] LLM 응답 schema 불일치"
+description: LLM 출력 필드명·타입이 backend schema와 맞지 않는 문제를 등록합니다.
+title: "[Fix] LLM schema — <파서명> <위반 필드>"
+body:
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 증상
+      value: |
+        - 실패 파서: (예: SynthesisResponseParser, RepoSummaryResponseParser, DiagnosisResponseParser)
+        - backend 로그의 schema 위반 메시지:
+
+        ```
+        $.필드명: ...
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: cause
+    attributes:
+      label: 원인
+      value: |
+        LLM이 반환한 필드명/타입과 schema가 기대하는 값의 차이를 기술합니다.
+
+        | 위반 필드 | LLM 반환값 | schema 기대값 |
+        |-----------|-----------|--------------|
+        |           |           |              |
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 수정 범위
+      value: |
+        수정 방향을 선택합니다 (하나 이상 선택).
+
+        **A. 프롬프트 강화** — `*PromptBuilder.java`
+        - 출력 JSON 구조를 명시적으로 지시
+
+        **B. schema 완화** — `ai/schema/*.schema.json`
+        - 타입을 `["string", "integer"]` 등으로 허용 범위 확장
+
+        **C. 파서 보정** — `*ResponseParser.java`
+        - `asText()` 등으로 타입 변환 처리
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 완료 조건
+      value: |
+        - `./gradlew test --tests "*ResponseParser*"` GREEN
+        - `./gradlew test` 전체 GREEN
+        - smoke: 해당 LLM 호출 단계 성공 확인
+    validations:
+      required: true
