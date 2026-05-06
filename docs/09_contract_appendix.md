@@ -311,9 +311,14 @@ shape
 {
   "count": 3,
   "windowDays": 7,
+  "targetType": "roadmap_week",
+  "targetId": 12,
+  "skill": "Redis",
   "lastDetectedAt": "2026-04-24T09:00:00Z"
 }
 ```
+
+`detected_patterns`는 Pattern Detector의 공식 원본 저장소다. Coach 대화용 신호는 Context Manager가 미처리 row(`processed_at IS NULL`)를 `CONVERSATION.activeSignals`로 요약해 전달한다.
 
 ## 5. validation 규칙
 

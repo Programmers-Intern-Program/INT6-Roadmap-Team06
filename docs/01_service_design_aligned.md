@@ -113,7 +113,7 @@ v2는 v1 기능이 안정적으로 동작한 뒤, 그 결과를 재사용해 멀
 v2의 핵심 확장
 - Analyzer, Planner, Coach 역할 분리
 - Context Manager 기반 상태 관리
-- Pattern Detector + user_signals 기반 자율 피드백 루프
+- Pattern Detector + detected_patterns 기반 자율 피드백 루프
 - Pattern Detector 기반 재분석 또는 재계획
 - 일일 코치 대화
 - Function Calling 기반 검증 자료 결합

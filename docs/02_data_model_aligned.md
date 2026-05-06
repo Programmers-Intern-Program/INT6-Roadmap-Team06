@@ -288,11 +288,11 @@
 ### 3.17 DetectedPattern (v2)
 
 목적
-- Pattern Detector가 SQL 배치로 감지한 신호를 저장한다 (user_signals 테이블).
+- Pattern Detector가 SQL 배치로 감지한 패턴 원본을 저장한다 (`detected_patterns` 테이블).
 
 설명
 - Pattern Detector가 @Scheduled 배치에서 SQL 카운팅·임계치 검사 후 row를 insert한다.
-- Coach가 매 turn 진입 시 미처리 row(acknowledgedAt IS NULL)를 조회하고, 사용자 발화와 종합 판단 후 `acknowledgedAt`을 마킹한다.
+- Coach가 매 turn 진입 시 Context Manager가 요약한 미처리 row(processedAt IS NULL)를 읽고, 사용자 발화와 종합 판단 후 `processedAt`을 마킹한다.
 - 이 테이블은 이벤트를 발행하지 않는다. Coach를 직접 트리거하지 않는다.
 
 주요 속성
@@ -301,7 +301,7 @@
 - patternType
 - severity
 - metadata
-- acknowledgedAt
+- processedAt
 - createdAt
 
 ## 4. 정리된 제외 엔티티

@@ -218,8 +218,8 @@ Context Manager → Redis/PostgreSQL (캐시 조회/저장)
 
 신호 및 이벤트 흐름
 
-Pattern Detector (cron 배치) → user_signals 테이블 (row insert, 이벤트 발행 없음)
-Coach (매 turn 진입) → user_signals 미처리 신호 polling → 사용자 발화와 종합 판단
+Pattern Detector (cron 배치) → detected_patterns 테이블 (row insert, 이벤트 발행 없음)
+Coach (매 turn 진입) → detected_patterns 기반 activeSignals polling → 사용자 발화와 종합 판단
 Coach → AgentEvent 테이블 (사용자 명시 요청 시) → Analyzer/Planner 재실행 트리거
 Analyzer/Planner 장기 작업 완료 → analysis.completed / roadmap.updated 이벤트 → Coach가 다음 턴에 반영
 
@@ -707,7 +707,7 @@ Spring Boot API 서버
 - Analyzer, Planner, Coach 구조 확장
 - Planner의 구조 생성 + 검증된 자료 결합 방식 검토
 - AI 코치, 패턴 감지, 개인화 피드백 흐름 고도화
-- Redis, user_signals 기반 신호 처리, Context Manager 확장 등 기술 심화 적용
+- Redis, detected_patterns 기반 신호 처리, Context Manager 확장 등 기술 심화 적용
 
 ### 4주차
 

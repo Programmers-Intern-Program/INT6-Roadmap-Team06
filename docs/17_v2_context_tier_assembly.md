@@ -140,4 +140,6 @@ Tier 축소
 - Context Manager 구현
 - Redis key naming 구현
 - DB migration, Entity, Repository, API 구현
-- Pattern Detector 신호 테이블명 정리
+- Pattern Detector 임계치 정책 상세
+
+Pattern Detector 저장 원본과 `activeSignals` 요약 관계는 `docs/19_v2_detected_patterns_contract.md`를 따른다.

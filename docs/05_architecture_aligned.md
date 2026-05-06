@@ -121,14 +121,14 @@ Analyzer/Planner 재실행 같은 무거운 작업의 비동기 처리는 별도
   - 단순 질문/조언 → `COACH_LIGHTWEIGHT` 템플릿으로 컨텍스트 조립 후 자체 응답
   - 진도 점검 / 캐시 조회 → `COACH_PROGRESS_CHECK` 템플릿으로 조립 후 응답
   - 명시적 재분석/재계획 요청 → `COACH_FULL_CONTEXT` 템플릿 + 사용자 확인 후 Analyzer/Planner 동기 호출
-  - 자율 트리거 → `COACH_FULL_CONTEXT` 템플릿으로 `user_signals` 신호 + 사용자 발화를 종합해 재계획 제안 여부 판단
+  - 자율 트리거 → `COACH_FULL_CONTEXT` 템플릿으로 `activeSignals` + 사용자 발화를 종합해 재계획 제안 여부 판단
 - Coach는 수치 기반 패턴(연속 미달성, 반복 실패 등)을 직접 감지하지 않는다. 이는 Pattern Detector의 책임이며, Coach는 감지된 신호를 사용자 발화와 종합해 언어적으로 해석하는 역할만 담당한다.
 - Coach는 사용자 동의(명시적 요청 또는 Coach 제안에 대한 확인) 없이 Analyzer 또는 Planner를 호출하지 않는다.
 
 #### Pattern Detector
 - 반복 실패, 연속 미달성, 관심사 변화 같은 수치 기반 패턴을 SQL로 감지한다.
-- LLM을 호출하지 않는다. 매일 정기 배치(@Scheduled)로 SQL 기반 카운팅·임계치 검사를 수행하고, 감지된 신호를 `user_signals` 테이블에 row로 insert한다.
-- 신호 insert 후 후속 처리는 없다. 이벤트를 발행하거나 Coach를 직접 트리거하지 않는다.
+- LLM을 호출하지 않는다. 매일 정기 배치(@Scheduled)로 SQL 기반 카운팅·임계치 검사를 수행하고, 감지된 패턴을 `detected_patterns` 테이블에 row로 insert한다.
+- 패턴 row insert 후 후속 처리는 없다. 이벤트를 발행하거나 Coach를 직접 트리거하지 않는다.
 - LLM 비용·지연이 불필요한 수치 패턴은 SQL로, 언어적 해석(왜 힘들어 보이는지, 어떻게 제안할지)은 Coach LLM이 담당한다.
 - 구체 트리거 기준은 별도 정책 문서에서 정의하며, 임계치는 운영 중 조정 가능하도록 설정을 분리한다.
 
@@ -173,7 +173,7 @@ Context Manager는 호출 컴포넌트(Coach, Analyzer, Planner)와 처리 경�
 |--------|----------|-----------|----------------|
 | `COACH_LIGHTWEIGHT` | 단순 질문/조언 | 기본 프로필(목표 직무, 현재 수준) + 현재 주차 태스크 + 최근 진도 상태 | ~500 |
 | `COACH_PROGRESS_CHECK` | 진도 점검 / 캐시 조회 | LIGHTWEIGHT 슬롯 + 전체 로드맵 개요 + 최근 N주 진도 이력 + 역량 진단 요약 | ~1000 |
-| `COACH_FULL_CONTEXT` | 재분석/재계획 요청, 자율 트리거 판단 | PROGRESS_CHECK 슬롯 + 최근 대화 이력 + `user_signals` 미처리 신호 + GitHub 분석 요약 + 상세 진단 결과 | ~2000 |
+| `COACH_FULL_CONTEXT` | 재분석/재계획 요청, 자율 트리거 판단 | PROGRESS_CHECK 슬롯 + 최근 대화 이력 + `detected_patterns` 기반 `activeSignals` + GitHub 분석 요약 + 상세 진단 결과 | ~2000 |
 
 **Analyzer 템플릿**
 
@@ -187,7 +187,7 @@ Context Manager는 호출 컴포넌트(Coach, Analyzer, Planner)와 처리 경�
 | 템플릿 | 처리 경로 | 포함 슬롯 | 권장 토큰 예산 |
 |--------|----------|-----------|----------------|
 | `PLANNER_INITIAL` | 로드맵 최초 생성 | 역량 진단 결과(전체) + 코딩테스트 분석 요약(선택) + 학습 가능 시간 + 목표 날짜 | ~1500 |
-| `PLANNER_REPLAN` | 로드맵 재생성 (v2) | 역량 진단 결과(최신) + 현재 로드맵 + 전체 진도 이력 + `user_signals` 트리거 신호 + 학습 가능 시간 | ~2000 |
+| `PLANNER_REPLAN` | 로드맵 재생성 (v2) | 역량 진단 결과(최신) + 현재 로드맵 + 전체 진도 이력 + `detected_patterns` 기반 trigger summary + 학습 가능 시간 | ~2000 |
 
 슬롯별 캐싱 정책
 
@@ -200,7 +200,7 @@ Context Manager는 호출 컴포넌트(Coach, Analyzer, Planner)와 처리 경�
 | GitHub 정적 분석 결과 | 24h | `analysis.completed` |
 | GitHub LLM 요약 | 24h | `analysis.completed` |
 | 최근 대화 이력 | 1h | 매 턴 갱신 |
-| `user_signals` 미처리 신호 | 캐싱 없음 | 매 턴 DB 직접 조회 |
+| `detected_patterns` 미처리 row | 캐싱 없음 | 매 턴 DB 직접 조회 |
 | 저장소 메타데이터 (README 등) | 6h | `user.portfolio.updated` |
 
 토큰 예산은 기준값이며 운영 중 비용·품질 trade-off를 관찰하며 조정한다. 슬롯 구성은 팀 협의로 추가하거나 변경할 수 있다.
@@ -243,7 +243,7 @@ contextManager.assemble(userId, [SLOT.PROFILE, SLOT.CURRENT_WEEK, SLOT.SIGNALS])
 |------|------|-----------|
 | Tier 1 | 기본 프로필 + 현재 주차 태스크 + 최근 진도 | ~500 |
 | Tier 2 | Tier 1 + 전체 로드맵 + 진단 요약 | ~1000 |
-| Tier 3 | Tier 2 + 대화 이력 + user_signals + GitHub 요약 | ~2000 |
+| Tier 3 | Tier 2 + 대화 이력 + activeSignals + GitHub 요약 | ~2000 |
 
 ```
 contextManager.load(userId, tier=2)
@@ -297,15 +297,15 @@ contextManager.load(userId, tier=2)
 
 ## 7. 신호 및 이벤트 설계
 
-### 7.1 Pattern Detector 신호 (user_signals 테이블)
+### 7.1 Pattern Detector 감지 패턴 (detected_patterns 테이블)
 
-Pattern Detector는 이벤트를 발행하지 않는다. 감지된 신호는 `user_signals` 테이블에 row로 insert되며, Coach가 매 turn 진입 시 `COACH_FULL_CONTEXT` 템플릿을 통해 미처리 신호(processed_at IS NULL)를 조회한다.
+Pattern Detector는 이벤트를 발행하지 않는다. 감지된 패턴은 `detected_patterns` 테이블에 row로 insert되며, Context Manager가 매 turn 진입 시 미처리 row(processed_at IS NULL)를 `activeSignals`로 요약한다. Coach는 `COACH_FULL_CONTEXT` 템플릿을 통해 이 요약을 조회한다.
 
 Coach는 사용자 발화와 누적 신호를 종합해 판단한다:
 - "오늘 사용자가 '힘들다' + 3일 미달성 신호 있음 → 재계획 제안"
 - "오늘 사용자가 '재밌다' + DP 5회 실패 신호 있음 → 도전 욕구로 해석, 신호 dismiss"
 
-Coach가 신호를 처리한 후 `processed_at`을 마킹한다.
+Coach가 신호를 처리한 후 원본 `detected_patterns.processed_at`을 마킹한다.
 
 ### 7.2 명시 요청 이벤트 (AgentEvent 테이블)
 
@@ -324,7 +324,7 @@ Coach가 신호를 처리한 후 `processed_at`을 마킹한다.
 - Planner가 Coach에게 직접 메시지를 보내지 않고, 다음 턴 로딩 시 새 버전을 읽게 한다.
 - 동일 사용자에 대한 재분석, 재계획은 쿨다운과 변경 임계치를 둔다.
 - 큰 변경은 사용자 확인 후 반영한다.
-- `pattern.detected` 이벤트는 사용하지 않는다. Pattern Detector의 자율 감지 신호는 `user_signals` 테이블 row로 처리한다.
+- `pattern.detected` 이벤트는 사용하지 않는다. Pattern Detector의 자율 감지 결과는 `detected_patterns` 테이블 row로 처리한다.
 
 ## 8. 운영 및 관측
 
@@ -342,7 +342,7 @@ Coach가 신호를 처리한 후 `processed_at`을 마킹한다.
 - 캐시 히트율
 - snapshot 조회 성능
 - 재분석 / 재계획 트리거 빈도
-- 사용자당 일일/주간 `user_signals` 누적 수 (Pattern Detector 활성도 지표)
+- 사용자당 일일/주간 `detected_patterns` 누적 수 (Pattern Detector 활성도 지표)
 - Coach의 재계획 제안 → 사용자 거절 비율 (Pattern Detector 정확도 지표)
 - 동일 사용자 재계획 → 즉시 재재계획 발생 빈도 (안정성 지표)
 
@@ -377,7 +377,7 @@ LLM 호출 계층은 Spring AI 기반으로 구현한다. GLM 등 비표준 모�
 
 ### 10.4 채택하지 않는 Spring AI 기능 (근거 명시)
 
-- `AutoMemoryTools`: 단일 사용자 CLI용 설계, multi-user SaaS에 보안 위험. 본 서비스의 JSONB 기반 Context Manager + `user_signals` 구조가 더 적합.
+- `AutoMemoryTools`: 단일 사용자 CLI용 설계, multi-user SaaS에 보안 위험. 본 서비스의 JSONB 기반 Context Manager + `detected_patterns` 구조가 더 적합.
 - `Subagent Orchestration` (spring-ai-agent-utils, org.springaicommunity): v0.4.x community org 라이브러리. GLM 어댑터 호환 미검증. 핵심 경로 도입 전 spike test 필요. 본 서비스의 신호 기반 구조와 패러다임 차이 있음.
 - `Orchestrator-Workers 동기 패턴`: Coach를 동기 Orchestrator로 구성하면 "사용자 개입 없는 자율 피드백 루프"가 불가능해짐. Coach는 동기 Orchestrator가 아니라 turn-time 판단 허브다.
 

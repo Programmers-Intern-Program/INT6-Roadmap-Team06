@@ -79,7 +79,7 @@
 
 - Analyzer, Planner, Coach 역할 분리
 - Context Manager 기반 상태 관리
-- Pattern Detector + user_signals 기반 피드백 루프
+- Pattern Detector + detected_patterns 기반 피드백 루프
 - AI 코치 채팅 (Coach)
 - Pattern Detector 기반 재분석 / 재계획
 - Planner의 Function Calling 기반 검증 자료 결합 (v2 후순위)
@@ -149,8 +149,8 @@
 - 세션 생성 시점의 `profileVersion`, `roadmapVersion`은 고정돼야 한다
 - AI 코치는 최신 진단 결과와 로드맵을 읽어 오늘의 할 일과 진도 점검을 제공해야 한다
 - Coach는 사용자 발화 의도에 따라 경량 응답, 캐시 조회, 동기 재분석, 자율 트리거 4가지 처리 경로를 분기해야 한다
-- Pattern Detector는 LLM을 사용하지 않고 SQL 기반 배치(@Scheduled)로 패턴을 감지하여 `user_signals` 테이블에 저장해야 한다
-- Coach는 수치 기반 패턴을 직접 감지하지 않는다. `user_signals` 미처리 신호를 매 turn 조회하여 사용자 발화와 종합해 판단해야 한다
+- Pattern Detector는 LLM을 사용하지 않고 SQL 기반 배치(@Scheduled)로 패턴을 감지하여 `detected_patterns` 테이블에 저장해야 한다
+- Coach는 수치 기반 패턴을 직접 감지하지 않는다. Context Manager가 `detected_patterns` 미처리 row를 요약한 `activeSignals`를 매 turn 조회하여 사용자 발화와 종합해 판단해야 한다
 - 재계획 결과가 생성되어도 진행 중인 세션은 자동으로 새 버전으로 전환되지 않아야 한다
 - LLM 호출 계층은 Spring AI 기반으로 구현하며, 도구 선택은 아키텍처 적합성을 기준으로 유동적으로 결정한다
 
@@ -236,7 +236,7 @@ v1에서는 아래 기능을 필수 범위에서 제외한다.
 ### 9.2 v2 성공 기준
 
 - AI 코치가 진단 결과와 로드맵을 바탕으로 대화할 수 있다
-- Pattern Detector와 재계획이 이벤트 기반으로 연결된다
+- Pattern Detector 감지 결과와 재계획 판단이 Context Manager pull 기반으로 연결된다
 - 상태 관리와 결과 이력 관리가 분리된 구조로 동작한다
 - 세션이 시작 시점의 버전을 고정해 읽는다
 - Planner가 검증된 자료 결합 원칙에 따라 로드맵을 확장할 수 있다
