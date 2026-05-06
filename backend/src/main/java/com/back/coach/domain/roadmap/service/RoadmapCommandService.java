@@ -25,6 +25,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -43,6 +44,7 @@ public class RoadmapCommandService {
     private final RoadmapResponseParser roadmapResponseParser;
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     public RoadmapCommandService(
             CapabilityDiagnosisRepository capabilityDiagnosisRepository,
@@ -55,7 +57,8 @@ public class RoadmapCommandService {
             RoadmapPromptBuilder roadmapPromptBuilder,
             RoadmapResponseParser roadmapResponseParser,
             LlmClient llmClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate
     ) {
         this.capabilityDiagnosisRepository = capabilityDiagnosisRepository;
         this.githubAnalysisRepository = githubAnalysisRepository;
@@ -68,48 +71,48 @@ public class RoadmapCommandService {
         this.roadmapResponseParser = roadmapResponseParser;
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
     }
 
-    @Transactional
+    // LLM 호출을 트랜잭션 밖에서 수행해 DB 커넥션을 장시간 점유하지 않도록 분리
     public RoadmapDetailResponse createRoadmap(Long userId, RoadmapRequest request) {
-        CapabilityDiagnosis diagnosis = capabilityDiagnosisRepository.findByIdAndUserId(request.diagnosisId(), userId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
-        validateGithubAnalysisOwnership(userId, request.githubAnalysisId());
-        UserProfile profile = userProfileRepository.findByIdAndUserId(diagnosis.getProfileId(), userId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR));
-        JobRole jobRole = jobRoleRepository.findById(diagnosis.getJobRoleId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR));
-        DiagnosisPayload diagnosisPayload = parseDiagnosisPayload(diagnosis);
+        // 1. DB 조회 (짧은 트랜잭션)
+        record Inputs(CapabilityDiagnosis diagnosis, UserProfile profile, JobRole jobRole, DiagnosisPayload payload) {}
+        Inputs inputs = transactionTemplate.execute(status -> {
+            CapabilityDiagnosis diagnosis = capabilityDiagnosisRepository.findByIdAndUserId(request.diagnosisId(), userId)
+                    .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
+            validateGithubAnalysisOwnership(userId, request.githubAnalysisId());
+            UserProfile profile = userProfileRepository.findByIdAndUserId(diagnosis.getProfileId(), userId)
+                    .orElseThrow(() -> new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR));
+            JobRole jobRole = jobRoleRepository.findById(diagnosis.getJobRoleId())
+                    .orElseThrow(() -> new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR));
+            return new Inputs(diagnosis, profile, jobRole, parseDiagnosisPayload(diagnosis));
+        });
 
+        // 2. LLM 호출 (트랜잭션 밖)
         String prompt = roadmapPromptBuilder.build(new RoadmapPromptBuilder.Input(
-                jobRole,
-                profile,
-                diagnosis,
-                diagnosisPayload,
-                request.weeklyStudyHours(),
-                request.targetDate()
+                inputs.jobRole(), inputs.profile(), inputs.diagnosis(), inputs.payload(),
+                request.weeklyStudyHours(), request.targetDate()
         ));
         RoadmapResponseParser.RoadmapResult roadmapResult =
                 roadmapResponseParser.parse(llmClient.complete(prompt));
-        RoadmapPayload roadmapPayload = new RoadmapPayload(roadmapResult.weeks());
 
-        LearningRoadmap savedRoadmap = learningRoadmapRepository.save(LearningRoadmap.create(
-                userId,
-                diagnosis.getId(),
-                resultVersionService.nextLearningRoadmapVersion(userId),
-                roadmapResult.weeks().size(),
-                roadmapResult.summary(),
-                toJson(roadmapPayload)
-        ));
-        List<RoadmapWeek> savedWeeks = roadmapWeekRepository.saveAll(toRoadmapWeeks(
-                savedRoadmap.getId(),
-                roadmapResult.weeks()
-        ));
-
-        return RoadmapDetailResponse.from(
-                toSnapshot(savedRoadmap, savedWeeks),
-                objectMapper
-        );
+        // 3. DB 저장 (새 트랜잭션)
+        return transactionTemplate.execute(status -> {
+            RoadmapPayload roadmapPayload = new RoadmapPayload(roadmapResult.weeks());
+            LearningRoadmap savedRoadmap = learningRoadmapRepository.save(LearningRoadmap.create(
+                    userId,
+                    inputs.diagnosis().getId(),
+                    resultVersionService.nextLearningRoadmapVersion(userId),
+                    roadmapResult.weeks().size(),
+                    roadmapResult.summary(),
+                    toJson(roadmapPayload)
+            ));
+            List<RoadmapWeek> savedWeeks = roadmapWeekRepository.saveAll(toRoadmapWeeks(
+                    savedRoadmap.getId(), roadmapResult.weeks()
+            ));
+            return RoadmapDetailResponse.from(toSnapshot(savedRoadmap, savedWeeks), objectMapper);
+        });
     }
 
     private void validateGithubAnalysisOwnership(Long userId, Long githubAnalysisId) {
