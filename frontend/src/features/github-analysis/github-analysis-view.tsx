@@ -248,8 +248,8 @@ export function GithubAnalysisView({
                 <p>{repo.repoName}</p>
                 <h3>{repo.summary}</h3>
                 <ul>
-                  {repo.highlights.map((highlight) => (
-                    <li key={highlight}>{highlight}</li>
+                  {repo.highlights.map((highlight, i) => (
+                    <li key={i}>{highlight.text}</li>
                   ))}
                 </ul>
               </article>

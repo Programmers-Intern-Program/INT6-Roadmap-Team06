@@ -28,6 +28,15 @@ type DiagnosisState =
 export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
   const [state, setState] = useState<DiagnosisState>({ status: "loading" });
 
+  if (diagnosisId === "demo") {
+    return (
+      <StatePanel
+        tone="neutral"
+        message="이 페이지는 아직 구현 중입니다. 분석 결과 페이지(/github/analysis)의 '진단 생성' 버튼을 이용해 주세요."
+      />
+    );
+  }
+
   useEffect(() => {
     let ignore = false;
 
