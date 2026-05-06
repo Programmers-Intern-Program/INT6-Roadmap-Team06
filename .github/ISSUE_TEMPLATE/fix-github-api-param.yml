@@ -1,0 +1,46 @@
+name: "[Fix] GitHub API 파라미터 오류"
+description: GitHub REST API 호출 시 파라미터 조합 오류(4xx)를 등록합니다.
+title: "[Fix] GitHub API — <엔드포인트> <증상>"
+body:
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 증상
+      value: |
+        - 호출 엔드포인트:
+        - 응답 상태 코드:
+        - backend 로그 (WARN 이상):
+    validations:
+      required: true
+
+  - type: textarea
+    id: cause
+    attributes:
+      label: 원인
+      value: |
+        GitHub API 문서 기준으로 잘못된 파라미터 조합 또는 누락된 파라미터를 기술합니다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 수정 범위
+      value: |
+        **수정 파일**
+        - `RestGithubApiClient.java` — 해당 메서드명
+
+        **변경 내용**
+        - 제거/추가할 파라미터:
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 완료 조건
+      value: |
+        - `./gradlew test --tests "*.RestGithubApiClientTest"` GREEN
+        - 해당 API 엔드포인트 실제 호출 성공 (smoke 확인)
+    validations:
+      required: true

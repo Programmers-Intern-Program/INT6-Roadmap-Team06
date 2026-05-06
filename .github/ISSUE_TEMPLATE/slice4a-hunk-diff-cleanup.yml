@@ -1,0 +1,49 @@
+name: "[Slice 4a] Hunk 단위 Diff 전처리"
+description: DiffPreprocessor 에 hunk 단위 노이즈 제거 작업을 등록합니다.
+title: "[Slice 4a] Hunk 단위 Diff 전처리 — import-only / whitespace-only / @Generated hunk drop"
+body:
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 목적
+      value: |
+        Slice 2의 `DiffPreprocessor`는 lockfile/바이너리/vendored 파일 블록 전체를 drop한다.
+        그러나 일반 소스 파일 내에도 Stage 2 LLM에 불필요한 hunk가 섞인다.
+        - import 재정렬 — 개발자 결정과 무관한 import 추가/제거
+        - 공백 정리 — 포맷터가 자동 생성한 빈 줄/들여쓰기 변경
+        - @Generated 어노테이션 — 빌드 도구가 주입한 코드
+
+        이 hunk들을 drop하면 Stage 2 토큰 사용량이 줄고 per-repo summary 품질이 높아진다.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 작업 내용
+      value: |
+        **수정 파일: `DiffPreprocessor.java`**
+        - `HUNK_HEADER` 패턴 (`^@@ ... @@`) 추가
+        - `filterHunks(String fileBlock)` — hunk 단위로 분리 후 drop 여부 판정
+        - `shouldDropHunk(String hunk)` — 변경 줄이 모두 import-only / whitespace-only / @Generated-only 이면 drop
+        - 지원 언어: Java/Kotlin(`import`), Python(`from X import`), JS/TS(`import`), Rust(`use`), Go(`import`)
+
+        **수정 파일: `DiffPreprocessorTest.java`**
+        - import-only hunk drop, whitespace-only hunk drop, @Generated hunk drop
+        - 혼합 hunk(import + 실질 변경) 유지, context-only hunk 유지
+
+        **변경 없는 파일**
+        - `GithubAnalysisService` — `diffPreprocessor.clean()` 호출 시그니처 동일
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 완료 조건
+      value: |
+        - `./gradlew test --tests "*.DiffPreprocessorTest"` — 9개 전체 통과 (기존 4 + 신규 5)
+        - `./gradlew test` — 전체 suite GREEN
+        - `GithubAnalysisFlowIntegrationTest` 영향 없음
+    validations:
+      required: true
