@@ -9,6 +9,7 @@ import { StatePanel } from "@/components/state-panel";
 
 const CONNECTION_ID_KEY = "githubConnectionId";
 const CONNECTION_ID_CHANGE_EVENT = "githubConnectionIdChange";
+const SELECTED_REPOS_KEY = "githubSelectedRepos";
 
 type ViewState =
   | { status: "disconnected" }
@@ -41,6 +42,7 @@ function subscribeToConnectionId(onChange: () => void) {
 
 function clearConnectionId() {
   localStorage.removeItem(CONNECTION_ID_KEY);
+  localStorage.removeItem(SELECTED_REPOS_KEY);
   window.dispatchEvent(new Event(CONNECTION_ID_CHANGE_EVENT));
 }
 
@@ -52,7 +54,13 @@ export function GithubConnectionView() {
     () => null
   );
   const [state, setState] = useState<ViewState>({ status: "loading-repos" });
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const saved = localStorage.getItem(SELECTED_REPOS_KEY);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
   const [connectUrl] = useState(() => githubConnectionOAuthUrl());
 
   useEffect(() => {
@@ -78,6 +86,7 @@ export function GithubConnectionView() {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); } else { next.add(id); }
+      localStorage.setItem(SELECTED_REPOS_KEY, JSON.stringify(Array.from(next)));
       return next;
     });
   }

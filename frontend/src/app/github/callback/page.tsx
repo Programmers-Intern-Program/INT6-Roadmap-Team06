@@ -35,12 +35,12 @@ function CallbackInner() {
       });
   }, [params, router]);
 
-  return <StatePanel message="GitHub 연결 중입니다..." />;
+  return <StatePanel message="GitHub 연결 중입니다... 저장소 수가 많으면 1~3분 소요될 수 있습니다." />;
 }
 
 export default function GithubCallbackPage() {
   return (
-    <Suspense fallback={<StatePanel message="GitHub 연결 중입니다..." />}>
+    <Suspense fallback={<StatePanel message="GitHub 연결 중입니다... 저장소 수가 많으면 1~3분 소요될 수 있습니다." />}>
       <CallbackInner />
     </Suspense>
   );
