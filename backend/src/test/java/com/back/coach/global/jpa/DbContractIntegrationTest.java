@@ -32,6 +32,15 @@ class DbContractIntegrationTest {
             "progress_logs"
     );
 
+    private static final List<String> V5_TABLES = List.of(
+            "user_context_snapshots",
+            "chat_sessions",
+            "coach_conversations",
+            "replan_proposals",
+            "detected_patterns",
+            "agent_events"
+    );
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -39,6 +48,16 @@ class DbContractIntegrationTest {
     @DisplayName("Flyway v1 migration이 핵심 테이블을 생성한다")
     void flywayCreatesV1Tables() {
         for (String table : V1_TABLES) {
+            assertThat(tableExists(table))
+                    .as("table %s should exist", table)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("Flyway v5 migration이 v2 Coach/Context 테이블을 생성한다")
+    void flywayCreatesV5Tables() {
+        for (String table : V5_TABLES) {
             assertThat(tableExists(table))
                     .as("table %s should exist", table)
                     .isTrue();
