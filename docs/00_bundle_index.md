@@ -27,3 +27,6 @@
 - 10_b_role_v1_handoff.md: B 역할 v1 저장/상태/재조회/대시보드 범위 마감 체크와 후속 의존성 정리
 - 13_v1_smoke_test_checklist.md: v1 전체 화면 흐름 수동검증 체크리스트와 blocker 기록 기준
 - 14_v1_smoke_test_result_2026-05-04.md: 2026-05-04 로컬 v1 smoke 실행 결과와 blocker 기록
+- 15_v1_smoke_test_result_2026-05-05.md: 2026-05-05 OAuth/LLM 파서 수정 후 재검증 결과
+- 16_v1_smoke_debug_2026-05-06.md: 2026-05-06 smoke 디버그 세션 — 버그 5종 수정 기록
+- 22_v1_smoke_test_result_2026-05-06.md: 2026-05-06 v1 full smoke 최종 결과 — 핵심 흐름 PASS
