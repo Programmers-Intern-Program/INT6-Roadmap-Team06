@@ -147,4 +147,39 @@ class RepoSummaryResponseParserTest {
                 .isInstanceOf(ServiceException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
     }
+
+    @Test
+    @DisplayName("repoId가 정수로 반환돼도 파싱에 성공한다 (smoke 회귀: LLM이 정수 반환)")
+    void parse_repoIdAsInteger_succeeds() {
+        String json = """
+                {
+                  "repoId": 12345,
+                  "repoName": "user/repo",
+                  "summary": "정수형 repoId 반환 케이스",
+                  "highlights": [{"text": "기능 추가", "status": "ADOPTED"}]
+                }
+                """;
+
+        GithubAnalysisPayload.RepoSummary summary = parser.parse(json);
+
+        assertThat(summary.repoName()).isEqualTo("user/repo");
+        assertThat(summary.highlights()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("highlight 객체에 status 필드가 없으면 LLM_INVALID_RESPONSE")
+    void parse_highlightMissingStatus_throws() {
+        String json = """
+                {
+                  "repoId": "1",
+                  "repoName": "user/x",
+                  "summary": "s",
+                  "highlights": [{"text": "status 없음"}]
+                }
+                """;
+
+        assertThatThrownBy(() -> parser.parse(json))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
+    }
 }
