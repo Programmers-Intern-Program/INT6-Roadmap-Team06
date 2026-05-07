@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +32,18 @@ public class DetectedPatternStorageService {
             PatternSeverity severity,
             String metadata
     ) {
-        validateCreateRequest(userId, patternType, severity, metadata);
+        DuplicateKey duplicateKey = validateCreateRequest(userId, patternType, severity, metadata);
 
+        Optional<DetectedPattern> duplicate = detectedPatternRepository.findDuplicateCandidate(
+                userId,
+                patternType.code(),
+                duplicateKey.targetType(),
+                duplicateKey.targetId(),
+                duplicateKey.windowDays()
+        );
+        if (duplicate.isPresent()) {
+            return duplicate.get();
+        }
         DetectedPattern pattern = DetectedPattern.create(userId, patternType, severity, metadata);
         return detectedPatternRepository.save(pattern);
     }
@@ -55,7 +66,7 @@ public class DetectedPatternStorageService {
         return pattern;
     }
 
-    private void validateCreateRequest(
+    private DuplicateKey validateCreateRequest(
             Long userId,
             PatternType patternType,
             PatternSeverity severity,
@@ -71,7 +82,7 @@ public class DetectedPatternStorageService {
         if (metadata == null || metadata.isBlank()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "metadata는 필수입니다.");
         }
-        validateMetadata(metadata);
+        return validateMetadata(metadata);
     }
 
     private void validateUserId(Long userId) {
@@ -80,11 +91,29 @@ public class DetectedPatternStorageService {
         }
     }
 
-    private void validateMetadata(String metadata) {
+    private DuplicateKey validateMetadata(String metadata) {
         JsonNode root = readMetadata(metadata);
         if (!root.isObject()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "metadata는 JSON object여야 합니다.");
         }
+        return new DuplicateKey(
+                requiredMetadataValue(root, "targetType"),
+                requiredMetadataValue(root, "targetId"),
+                requiredMetadataValue(root, "windowDays")
+        );
+    }
+
+    private String requiredMetadataValue(JsonNode root, String fieldName) {
+        JsonNode value = root.get(fieldName);
+        if (value == null || value.isNull() || !value.isValueNode()) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT, "metadata." + fieldName + "는 필수 값입니다.");
+        }
+
+        String text = value.asText();
+        if (text == null || text.isBlank()) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT, "metadata." + fieldName + "는 필수 값입니다.");
+        }
+        return text;
     }
 
     private JsonNode readMetadata(String metadata) {
@@ -93,5 +122,8 @@ public class DetectedPatternStorageService {
         } catch (JsonProcessingException e) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "metadata는 유효한 JSON이어야 합니다.");
         }
+    }
+
+    private record DuplicateKey(String targetType, String targetId, String windowDays) {
     }
 }
