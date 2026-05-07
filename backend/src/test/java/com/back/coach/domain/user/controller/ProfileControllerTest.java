@@ -161,6 +161,51 @@ class ProfileControllerTest {
     }
 
     @Test
+    void saveProfile_whenCurrentLevelUnsupported_returnsInvalidInput() throws Exception {
+        mockMvc.perform(post("/api/profiles")
+                        .principal(authentication(1L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "targetRole": "BACKEND_ENGINEER",
+                                  "currentLevel": "SENIOR",
+                                  "skills": [
+                                    {
+                                      "skillName": "Spring Boot"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        verifyNoInteractions(profileService);
+    }
+
+    @Test
+    void saveProfile_whenSkillProficiencyUnsupported_returnsInvalidInput() throws Exception {
+        mockMvc.perform(post("/api/profiles")
+                        .principal(authentication(1L))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "targetRole": "BACKEND_ENGINEER",
+                                  "currentLevel": "JUNIOR",
+                                  "skills": [
+                                    {
+                                      "skillName": "Spring Boot",
+                                      "proficiencyLevel": "EXPERT"
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        verifyNoInteractions(profileService);
+    }
+
+    @Test
     void saveProfile_whenSkillsEmpty_returnsInvalidInput() throws Exception {
         mockMvc.perform(post("/api/profiles")
                         .principal(authentication(1L))
