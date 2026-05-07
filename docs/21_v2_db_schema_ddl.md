@@ -259,7 +259,7 @@ v1 결과 테이블(`github_analyses`, `capability_diagnoses`, `learning_roadmap
 | --- | --- |
 | `user_context_snapshots.context_type` | `PROFILE`, `PLAN`, `CONVERSATION` |
 | `chat_sessions.status` | `ACTIVE`, `CLOSED` |
-| `coach_conversations.role` | `USER`, `COACH` |
+| `coach_conversations.role` | `USER`, `COACH`, `SUMMARY` |
 | `coach_conversations.route` | `SIMPLE_GUIDE`, `REPLAN_SUGGEST`, `REPLAN_EXECUTE`, `DISMISS` |
 | `replan_proposals.status` | `PENDING`, `CONFIRMED`, `DISMISSED`, `EXPIRED` |
 | `detected_patterns.pattern_type` | `REPEATED_INCOMPLETE`, `CONSECUTIVE_DELAY`, `SKILL_REPEATED_FAILURE`, `GOAL_DRIFT_CANDIDATE` |
