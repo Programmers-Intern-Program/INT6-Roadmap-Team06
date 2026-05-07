@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +33,30 @@ class DbContractIntegrationTest {
             "progress_logs"
     );
 
+    private static final List<String> V5_TABLES = List.of(
+            "user_context_snapshots",
+            "chat_sessions",
+            "coach_conversations",
+            "replan_proposals",
+            "detected_patterns",
+            "agent_events"
+    );
+
+    private static final Map<String, Set<String>> V5_REQUIRED_COLUMNS = Map.of(
+            "user_context_snapshots",
+            Set.of("user_id", "context_type", "version", "payload", "valid_from", "valid_to", "created_at"),
+            "chat_sessions",
+            Set.of("user_id", "profile_version", "roadmap_version", "status", "started_at", "ended_at"),
+            "coach_conversations",
+            Set.of("session_id", "user_id", "role", "message_text", "route", "detected_intent", "created_at"),
+            "replan_proposals",
+            Set.of("session_id", "user_id", "message_id", "reason", "status", "expires_at", "resolved_at", "created_at"),
+            "detected_patterns",
+            Set.of("user_id", "pattern_type", "severity", "metadata", "processed_at", "created_at"),
+            "agent_events",
+            Set.of("user_id", "session_id", "source_agent", "target_agent", "event_type", "event_data", "processed_at", "created_at")
+    );
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -42,6 +67,26 @@ class DbContractIntegrationTest {
             assertThat(tableExists(table))
                     .as("table %s should exist", table)
                     .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("Flyway v5 migration이 v2 Coach/Context 테이블을 생성한다")
+    void flywayCreatesV5Tables() {
+        for (String table : V5_TABLES) {
+            assertThat(tableExists(table))
+                    .as("table %s should exist", table)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("Flyway v5 migration이 v2 저장 테이블의 핵심 컬럼을 생성한다")
+    void flywayCreatesV5TableColumns() {
+        for (Map.Entry<String, Set<String>> entry : V5_REQUIRED_COLUMNS.entrySet()) {
+            assertThat(columns(entry.getKey()))
+                    .as("table %s should contain required columns", entry.getKey())
+                    .containsAll(entry.getValue());
         }
     }
 
