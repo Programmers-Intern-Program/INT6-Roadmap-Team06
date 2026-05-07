@@ -32,5 +32,5 @@
 - 17_v2_context_tier_assembly.md: v2 3-Tier Context 조립 기준과 템플릿별 기본 Tier
 - 18_v2_session_version_policy.md: v2 Coach 세션의 snapshot version 고정과 새 version 반영 정책
 - 19_v2_detected_patterns_contract.md: v2 Pattern Detector 감지 원본과 activeSignals 요약 계약
-- 23_v1_smoke_debug_2026-05-06.md: 2026-05-06 smoke 디버그 세션 — 버그 5종 수정 기록
 - 22_v1_smoke_test_result_2026-05-06.md: 2026-05-06 v1 full smoke 최종 결과 — 핵심 흐름 PASS
+- 23_v1_smoke_debug_2026-05-06.md: 2026-05-06 smoke 디버그 세션 — 버그 5종 수정 기록

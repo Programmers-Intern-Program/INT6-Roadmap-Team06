@@ -15,14 +15,10 @@ spring:
       hibernate:
         format_sql: true
 
-security:
-  jwt:
-    access-ttl-seconds: 86400  # smoke 전용 24시간 — 프로덕션 복원 필요 (기본값 900)
-
 ai:
   gateway:
     timeout:
-      read: 300s  # smoke 전용 5분 — 프로덕션 복원 필요 (기본값 120s)
+      read: 300s  # 로컬 LLM 응답 지연 대비 길게 유지
 
 logging:
   level:

@@ -279,13 +279,23 @@ shape
 ## 4.6 v2 JSONB 최소 shape
 
 ### user_context_snapshots.payload
+상세 계약은 `docs/16_v2_context_snapshot_contract.md`를 따른다.
+`context_type`에 따라 `PROFILE`, `PLAN`, `CONVERSATION` payload shape를 분리한다.
+
 ```json
 {
-  "profile": {},
-  "plan": {},
-  "conversation": {}
+  "contextType": "PROFILE",
+  "generatedAt": "2026-05-06T09:00:00Z",
+  "sourceRefs": {},
+  "profile": {}
 }
 ```
+
+규칙
+- payload는 v2 읽기용 조립 결과이며 v1 원본 데이터를 대체하지 않는다.
+- 원본 result id/version은 `sourceRefs`에 남긴다.
+- 같은 사용자와 `context_type` 기준으로 새 snapshot을 만들 때 version을 증가시키고, 이전 active row의 `valid_to`를 닫는다.
+- `chat_sessions.profile_version`, `roadmap_version`은 세션 시작 시 고정한 context snapshot version으로 해석한다.
 
 ### agent_events.event_data
 ```json
@@ -301,9 +311,14 @@ shape
 {
   "count": 3,
   "windowDays": 7,
+  "targetType": "roadmap_week",
+  "targetId": 12,
+  "skill": "Redis",
   "lastDetectedAt": "2026-04-24T09:00:00Z"
 }
 ```
+
+`detected_patterns`는 Pattern Detector의 공식 원본 저장소다. Coach 대화용 신호는 Context Manager가 미처리 row(`processed_at IS NULL`)를 `CONVERSATION.activeSignals`로 요약해 전달한다.
 
 ## 5. validation 규칙
 
