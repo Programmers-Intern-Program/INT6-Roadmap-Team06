@@ -46,6 +46,10 @@ class CodeEnumsTest {
         assertCodes(MaterialType.class, "DOCS", "ARTICLE", "REPOSITORY", "VIDEO", "TEMPLATE");
         assertCodes(JobStatus.class, "REQUESTED", "RUNNING", "SUCCEEDED", "FAILED");
         assertCodes(HighlightStatus.class, "ADOPTED", "EVOLVED", "REVERSED");
+        assertCodes(ContextType.class, "PROFILE", "PLAN", "CONVERSATION");
+        assertCodes(PatternType.class, "REPEATED_INCOMPLETE", "CONSECUTIVE_DELAY",
+                "SKILL_REPEATED_FAILURE", "GOAL_DRIFT_CANDIDATE");
+        assertCodes(PatternSeverity.class, "LOW", "MEDIUM", "HIGH");
     }
 
     @SafeVarargs
