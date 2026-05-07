@@ -95,6 +95,88 @@ class DetectedPatternStorageServiceIntegrationTest {
         assertThat(detectedPatternStorageService.findUnprocessedPatterns(userId)).isEmpty();
     }
 
+    @Test
+    @DisplayName("같은 사용자/패턴/대상/windowDays 재실행은 중복 insert하지 않는다")
+    void createPatternWhenDuplicateKeyMatchesReturnsExistingPattern() {
+        Long userId = createUser();
+        DetectedPattern first = detectedPatternStorageService.createPattern(
+                userId,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.MEDIUM,
+                metadata(12)
+        );
+
+        DetectedPattern second = detectedPatternStorageService.createPattern(
+                userId,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.HIGH,
+                """
+                        {
+                          "count": 5,
+                          "windowDays": 7,
+                          "targetType": "roadmap_week",
+                          "targetId": 12,
+                          "lastDetectedAt": "2026-05-07T00:00:00Z"
+                        }
+                        """
+        );
+
+        assertThat(second.getId()).isEqualTo(first.getId());
+        assertThat(countPatterns(userId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("처리 완료된 패턴도 같은 중복 키면 재삽입하지 않는다")
+    void createPatternWhenProcessedDuplicateExistsReturnsExistingPattern() {
+        Long userId = createUser();
+        DetectedPattern first = detectedPatternStorageService.createPattern(
+                userId,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.MEDIUM,
+                metadata(12)
+        );
+        detectedPatternStorageService.markProcessed(userId, first.getId());
+
+        DetectedPattern second = detectedPatternStorageService.createPattern(
+                userId,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.MEDIUM,
+                metadata(12)
+        );
+
+        assertThat(second.getId()).isEqualTo(first.getId());
+        assertThat(second.getProcessedAt()).isNotNull();
+        assertThat(countPatterns(userId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("다른 대상 또는 다른 pattern_type은 별도 row로 저장한다")
+    void createPatternWhenTargetOrPatternTypeDiffersPersistsSeparateRows() {
+        Long userId = createUser();
+        DetectedPattern first = detectedPatternStorageService.createPattern(
+                userId,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.MEDIUM,
+                metadata(12)
+        );
+        DetectedPattern differentTarget = detectedPatternStorageService.createPattern(
+                userId,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.MEDIUM,
+                metadata(13)
+        );
+        DetectedPattern differentPatternType = detectedPatternStorageService.createPattern(
+                userId,
+                PatternType.CONSECUTIVE_DELAY,
+                PatternSeverity.MEDIUM,
+                metadata(12)
+        );
+
+        assertThat(differentTarget.getId()).isNotEqualTo(first.getId());
+        assertThat(differentPatternType.getId()).isNotEqualTo(first.getId());
+        assertThat(countPatterns(userId)).isEqualTo(3);
+    }
+
     private Long createUser() {
         String key = UUID.randomUUID().toString();
         User user = userRepository.save(
@@ -111,6 +193,14 @@ class DetectedPatternStorageServiceIntegrationTest {
                 VALUES (?, 'REPEATED_INCOMPLETE', 'MEDIUM', ?::jsonb, ?::timestamptz, ?::timestamptz)
                 RETURNING id
                 """, Long.class, userId, metadata(targetId), processedAt, createdAt);
+    }
+
+    private Long countPatterns(Long userId) {
+        return jdbcTemplate.queryForObject("""
+                SELECT count(*)
+                FROM detected_patterns
+                WHERE user_id = ?
+                """, Long.class, userId);
     }
 
     private String metadata(int targetId) {

@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class DetectedPatternStorageServiceTest {
@@ -40,6 +41,13 @@ class DetectedPatternStorageServiceTest {
 
     @Test
     void createPattern_persistsPatternFieldsAndMetadata() {
+        given(detectedPatternRepository.findDuplicateCandidate(
+                1L,
+                PatternType.REPEATED_INCOMPLETE.code(),
+                "roadmap_week",
+                "12",
+                "7"
+        )).willReturn(Optional.empty());
         given(detectedPatternRepository.save(any(DetectedPattern.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
 
@@ -58,12 +66,60 @@ class DetectedPatternStorageServiceTest {
     }
 
     @Test
+    void createPattern_whenDuplicateExists_returnsExistingPatternWithoutSaving() {
+        DetectedPattern existing = DetectedPattern.create(
+                1L,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.MEDIUM,
+                metadata()
+        );
+        given(detectedPatternRepository.findDuplicateCandidate(
+                1L,
+                PatternType.REPEATED_INCOMPLETE.code(),
+                "roadmap_week",
+                "12",
+                "7"
+        )).willReturn(Optional.of(existing));
+
+        DetectedPattern pattern = detectedPatternStorageService.createPattern(
+                1L,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.HIGH,
+                metadata()
+        );
+
+        assertThat(pattern).isSameAs(existing);
+        then(detectedPatternRepository).should(never()).save(any(DetectedPattern.class));
+    }
+
+    @Test
     void createPattern_whenMetadataIsNotJsonObject_throwsInvalidInput() {
         assertThatThrownBy(() -> detectedPatternStorageService.createPattern(
                 1L,
                 PatternType.REPEATED_INCOMPLETE,
                 PatternSeverity.MEDIUM,
                 "[]"
+        )).isInstanceOfSatisfying(ServiceException.class,
+                exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+
+        then(detectedPatternRepository).shouldHaveNoInteractions();
+    }
+
+    @Test
+    void createPattern_whenDuplicateKeyFieldMissing_throwsInvalidInput() {
+        String metadata = """
+                {
+                  "count": 3,
+                  "targetType": "roadmap_week",
+                  "targetId": 12
+                }
+                """;
+
+        assertThatThrownBy(() -> detectedPatternStorageService.createPattern(
+                1L,
+                PatternType.REPEATED_INCOMPLETE,
+                PatternSeverity.MEDIUM,
+                metadata
         )).isInstanceOfSatisfying(ServiceException.class,
                 exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
 
