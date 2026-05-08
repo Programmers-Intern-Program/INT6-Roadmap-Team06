@@ -1479,6 +1479,137 @@ a {
   opacity: 0.65;
 }
 
+.login-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  display: grid;
+  gap: 32px;
+}
+
+.login-header {
+  display: grid;
+  gap: 8px;
+  text-align: center;
+}
+
+.login-header h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.login-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.login-providers {
+  display: grid;
+  gap: 10px;
+}
+
+.login-provider-btn {
+  min-height: 46px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.login-provider-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #b0b8c4;
+}
+
+.login-provider-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.login-provider-btn.github {
+  background: #24292e;
+  border-color: #24292e;
+  color: #ffffff;
+}
+
+.login-provider-btn.github:hover:not(:disabled) {
+  background: #1a1f24;
+  border-color: #1a1f24;
+}
+
+.login-provider-btn.google {
+  color: #3c4043;
+}
+
+.login-provider-btn.kakao {
+  background: #fee500;
+  border-color: #fee500;
+  color: #000000cc;
+}
+
+.login-provider-btn.kakao:hover:not(:disabled) {
+  background: #f0d900;
+  border-color: #f0d900;
+}
+
+.login-coming-soon {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.login-error {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #f3b4b4;
+  border-radius: 8px;
+  background: #fff5f5;
+  padding: 12px 14px;
+}
+
+.login-error p {
+  margin: 0;
+  color: #a32020;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.login-error strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #a32020;
+}
+
+.login-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 @media (max-width: 640px) {
   .topbar {
     align-items: flex-start;

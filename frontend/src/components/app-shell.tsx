@@ -12,6 +12,11 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const isLoginPage = pathname === "/login";
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="app-shell">
