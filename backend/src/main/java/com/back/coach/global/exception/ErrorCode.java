@@ -38,7 +38,12 @@ public enum ErrorCode {
     GITHUB_API_ERROR(HttpStatus.BAD_GATEWAY, "GitHub API 오류가 발생했습니다."),
 
     // Pattern Detector
-    PATTERN_DETECTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "패턴 감지 중 오류가 발생했습니다.");
+    PATTERN_DETECTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "패턴 감지 중 오류가 발생했습니다."),
+
+    // Coach
+    SNAPSHOT_NOT_FOUND(HttpStatus.NOT_FOUND, "활성화된 컨텍스트 스냅샷이 없습니다. 프로필과 로드맵을 먼저 생성해주세요."),
+    SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "세션을 찾을 수 없습니다."),
+    SESSION_CLOSED(HttpStatus.CONFLICT, "이미 종료된 세션입니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;
