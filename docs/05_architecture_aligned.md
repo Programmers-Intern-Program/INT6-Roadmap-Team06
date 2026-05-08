@@ -79,6 +79,9 @@ v1 저장 원본 기준은 다음과 같다.
 - v1 기본 구현은 단순 API 파이프라인 기반이다.
 - GitHub 분석, 핵심 repo 요약, 장시간 자료 탐색은 이후 비동기 확장 가능하다.
 - 비동기 확장 시에도 저장 원본과 결과 version 규칙은 유지한다.
+- 장시간 작업 실행 기반은 Spring async executor를 사용한다.
+- `analysisTaskExecutor` 기본값은 core 2, max 4, queue 100이며 사용자 단위 분석 job 실행에 사용한다.
+- `parallelAnalysisExecutor` 기본값은 core 2, max 2, queue 20이며 repo 단위 병렬 작업처럼 fan-out 폭을 제한해야 하는 작업에 사용한다.
 
 ## 4. v2 아키텍처
 

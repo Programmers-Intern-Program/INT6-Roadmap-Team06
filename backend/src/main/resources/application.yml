@@ -67,6 +67,19 @@ ai:
     max-concurrent-calls: 4
     queue-timeout-seconds: 180
 
+coach:
+  async:
+    analysis:
+      core-pool-size: 2
+      max-pool-size: 4
+      queue-capacity: 100
+      thread-name-prefix: analysis-task-
+    parallel-analysis:
+      core-pool-size: 2
+      max-pool-size: 2
+      queue-capacity: 20
+      thread-name-prefix: parallel-analysis-
+
 github:
   api:
     base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
