@@ -82,7 +82,7 @@ class GithubAnalysisE2eTest extends ApiTestBase {
         given(githubApiClient.getUserInfo("ghp_fake_token"))
                 .willReturn(new GithubUserInfoDto(99L, "testuser"));
         given(githubApiClient.listUserRepos("ghp_fake_token")).willReturn(List.of(
-                new GithubRepoDto("node-1", "testuser/backend", "https://github.com/testuser/backend", "Java", "main", false)
+                new GithubRepoDto("node-1", "testuser/backend", "https://github.com/testuser/backend", "Java", "main", false, new GithubRepoDto.OwnerDto("testuser"))
         ));
         given(githubApiClient.getReadme(anyString(), anyString(), anyString())).willReturn(Optional.empty());
         given(githubApiClient.getLanguages(anyString(), anyString(), anyString())).willReturn(Map.of("Java", 10000L));
@@ -153,7 +153,7 @@ class GithubAnalysisE2eTest extends ApiTestBase {
         given(githubApiClient.getUserInfo("ghp_rev_token"))
                 .willReturn(new GithubUserInfoDto(88L, "revuser"));
         given(githubApiClient.listUserRepos("ghp_rev_token")).willReturn(List.of(
-                new GithubRepoDto("node-2", "revuser/api", "https://github.com/revuser/api", "Java", "main", false)
+                new GithubRepoDto("node-2", "revuser/api", "https://github.com/revuser/api", "Java", "main", false, new GithubRepoDto.OwnerDto("revuser"))
         ));
         given(githubApiClient.getReadme(anyString(), anyString(), anyString())).willReturn(Optional.empty());
         given(githubApiClient.getLanguages(anyString(), anyString(), anyString())).willReturn(Map.of());

@@ -49,6 +49,9 @@ public class GithubProject extends BaseEntity {
     @Column(name = "is_core_repo", nullable = false)
     private Boolean coreRepo;
 
+    @Column(name = "owner_type", length = 50)
+    private String ownerType;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata_payload", nullable = false, columnDefinition = "jsonb")
     private String metadataPayload;
@@ -59,7 +62,7 @@ public class GithubProject extends BaseEntity {
 
     public static GithubProject create(Long userId, Long githubConnectionId,
                                        String repoNodeId, String repoFullName, String repoUrl,
-                                       String primaryLanguage, String defaultBranch) {
+                                       String primaryLanguage, String defaultBranch, String ownerType) {
         GithubProject p = new GithubProject();
         p.userId = userId;
         p.githubConnectionId = githubConnectionId;
@@ -68,6 +71,7 @@ public class GithubProject extends BaseEntity {
         p.repoUrl = repoUrl;
         p.primaryLanguage = primaryLanguage;
         p.defaultBranch = defaultBranch;
+        p.ownerType = ownerType;
         p.selected = false;
         p.coreRepo = false;
         p.metadataPayload = "{}";

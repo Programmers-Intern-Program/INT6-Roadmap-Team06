@@ -54,13 +54,13 @@ class GithubConnectionServiceTest {
         given(connectionRepo.save(any())).willReturn(savedConnection);
 
         List<GithubRepoDto> repos = List.of(
-                new GithubRepoDto("N1", "testuser/repo-a", "https://github.com/testuser/repo-a", "Java", "main", false),
-                new GithubRepoDto("N2", "testuser/repo-b", "https://github.com/testuser/repo-b", "Python", "main", false)
+                new GithubRepoDto("N1", "testuser/repo-a", "https://github.com/testuser/repo-a", "Java", "main", false, new GithubRepoDto.OwnerDto("testuser")),
+                new GithubRepoDto("N2", "testuser/repo-b", "https://github.com/testuser/repo-b", "Python", "main", false, new GithubRepoDto.OwnerDto("testuser"))
         );
         given(apiClient.listUserRepos("ghp_token")).willReturn(repos);
         given(projectRepo.findByUserIdAndRepoFullName(eq(USER_ID), anyString())).willReturn(Optional.empty());
         GithubProject savedProject = GithubProject.create(USER_ID, 10L, "N1", "testuser/repo-a",
-                "https://github.com/testuser/repo-a", "Java", "main");
+                "https://github.com/testuser/repo-a", "Java", "main", "owner");
         ReflectionTestUtils.setField(savedProject, "id", 100L);
         given(projectRepo.save(any())).willReturn(savedProject);
         given(projectRepo.saveAndFlush(any())).willReturn(savedProject);
@@ -101,7 +101,7 @@ class GithubConnectionServiceTest {
     void listRepositories_ownershipCheck() {
         GithubConnection conn = savedConnection(10L, USER_ID, "42", "testuser", "token");
         given(connectionRepo.findByIdAndUserId(10L, USER_ID)).willReturn(Optional.of(conn));
-        GithubProject p = GithubProject.create(USER_ID, 10L, "N1", "testuser/repo", "https://...", "Java", "main");
+        GithubProject p = GithubProject.create(USER_ID, 10L, "N1", "testuser/repo", "https://...", "Java", "main", "owner");
         ReflectionTestUtils.setField(p, "id", 200L);
         given(projectRepo.findByGithubConnectionIdAndUserId(10L, USER_ID)).willReturn(List.of(p));
 

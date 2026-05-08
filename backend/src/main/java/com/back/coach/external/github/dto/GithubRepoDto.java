@@ -10,5 +10,11 @@ public record GithubRepoDto(
         @JsonProperty("html_url") String htmlUrl,
         @JsonProperty("language") String language,
         @JsonProperty("default_branch") String defaultBranch,
-        @JsonProperty("fork") boolean fork
-) {}
+        @JsonProperty("fork") boolean fork,
+        @JsonProperty("owner") OwnerDto owner
+) {
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record OwnerDto(
+            @JsonProperty("login") String login
+    ) {}
+}

@@ -13,7 +13,8 @@ public record GithubRepositoryListResponse(
             String repoFullName,
             String repoUrl,
             String primaryLanguage,
-            String defaultBranch
+            String defaultBranch,
+            String ownerType
     ) {}
 
     public static GithubRepositoryListResponse from(Long connectionId, List<GithubProject> projects) {
@@ -23,7 +24,8 @@ public record GithubRepositoryListResponse(
                         p.getRepoFullName(),
                         p.getRepoUrl(),
                         p.getPrimaryLanguage(),
-                        p.getDefaultBranch()))
+                        p.getDefaultBranch(),
+                        p.getOwnerType()))
                 .toList();
         return new GithubRepositoryListResponse(String.valueOf(connectionId), items);
     }

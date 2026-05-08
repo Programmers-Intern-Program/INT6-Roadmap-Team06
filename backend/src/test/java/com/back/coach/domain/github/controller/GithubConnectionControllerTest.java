@@ -175,7 +175,7 @@ class GithubConnectionControllerTest extends ApiTestBase {
         GithubConnection conn = connectionRepository.save(
                 GithubConnection.connect(user.getId(), "gh-uid-100", "testuser2", GithubAccessType.OAUTH, "ghp_tok"));
         GithubProject project = GithubProject.create(user.getId(), conn.getId(),
-                "N10", "testuser2/my-repo", "https://github.com/testuser2/my-repo", "Java", "main");
+                "N10", "testuser2/my-repo", "https://github.com/testuser2/my-repo", "Java", "main", "owner");
         projectRepository.save(project);
 
         mockMvc.perform(get("/api/github/repositories")
