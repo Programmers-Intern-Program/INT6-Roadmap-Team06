@@ -31,6 +31,8 @@ tags:
     description: Learning roadmap and progress APIs
   - name: Dashboard
     description: Current user dashboard summary APIs
+  - name: Jobs
+    description: Long-running job status APIs
   - name: Coach
     description: v2 Coach session, message, and replan APIs
 
@@ -369,6 +371,27 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/jobs/{jobId}/status:
+    get:
+      tags:
+        - Jobs
+      summary: Get long-running job status
+      operationId: getJobStatus
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job status for the authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
   /api/coach/sessions:
     post:
       tags:
@@ -540,6 +563,13 @@ components:
       schema:
         type: string
       example: '10001'
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: job-20260508-001
 
   responses:
     InvalidInput:
@@ -656,6 +686,39 @@ components:
         - RUNNING
         - SUCCEEDED
         - FAILED
+
+    JobStatusResponseData:
+      type: object
+      required:
+        - jobId
+        - status
+        - currentStep
+        - error
+      properties:
+        jobId:
+          type: string
+          example: job-20260508-001
+        status:
+          $ref: '#/components/schemas/JobStatus'
+        currentStep:
+          type: string
+          nullable: true
+          example: FETCH_REPOSITORIES
+        error:
+          type: string
+          nullable: true
+          example: LLM timeout
+
+    JobStatusApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/JobStatusResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
 
     CoachRoute:
       type: string

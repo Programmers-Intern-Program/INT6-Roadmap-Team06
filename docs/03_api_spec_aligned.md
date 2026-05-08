@@ -635,6 +635,32 @@ v1 처리 기준
 - 로드맵 진행률은 `progress_logs` 최신 row 기준으로 계산한다
 - 대시보드는 화면 편의용 snapshot이며, 각 결과의 원본 상세 조회를 대체하지 않는다
 
+## 3.7 JobStatus 조회 API
+
+### 3.7.1 장시간 작업 상태 조회
+
+- Method: `GET`
+- Path: `/api/jobs/{jobId}/status`
+
+응답 body
+```json
+{
+  "data": {
+    "jobId": "job-20260508-001",
+    "status": "RUNNING",
+    "currentStep": "FETCH_REPOSITORIES",
+    "error": null
+  },
+  "meta": {}
+}
+```
+
+조회 규칙
+- 현재 로그인 사용자 기준으로 `job:status:{userId}:{jobId}` Redis 값을 조회한다
+- 없는 `jobId`와 다른 사용자 job은 모두 `RESOURCE_NOT_FOUND`로 응답한다
+- 응답의 `status`는 `job_status` 공식 enum만 사용한다
+- GitHub 분석 submit 202 전환과 bulk 조회는 후속 API에서 다룬다
+
 ---
 
 ## 4. v2 확장 API

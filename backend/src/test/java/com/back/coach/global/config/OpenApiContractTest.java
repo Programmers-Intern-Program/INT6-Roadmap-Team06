@@ -42,6 +42,8 @@ class OpenApiContractTest {
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/dashboard", "get")
                 .get("x-implementation-status")).isEqualTo("implemented");
+        assertThat(operation(paths, "/api/jobs/{jobId}/status", "get")
+                .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/diagnoses/{diagnosisId}", "get")
                 .get("x-implementation-status")).isEqualTo("implemented");
         assertThat(operation(paths, "/api/diagnoses", "post")
@@ -59,9 +61,12 @@ class OpenApiContractTest {
         Map<String, Object> components = mapValue(loadOpenApiDocument(), "components");
         Map<String, Object> schemas = mapValue(components, "schemas");
 
-        assertThat(schemas).containsKeys("ErrorResponse", "ProgressStatus", "CurrentLevel", "DashboardApiResponse");
+        assertThat(schemas).containsKeys("ErrorResponse", "ProgressStatus", "CurrentLevel", "DashboardApiResponse",
+                "JobStatus", "JobStatusApiResponse");
         assertThat(mapValue(schemas, "ProgressStatus").get("enum"))
                 .isEqualTo(List.of("TODO", "IN_PROGRESS", "DONE", "SKIPPED"));
+        assertThat(mapValue(schemas, "JobStatus").get("enum"))
+                .isEqualTo(List.of("REQUESTED", "RUNNING", "SUCCEEDED", "FAILED"));
         Map<String, Object> errorResponseProperties = mapValue(mapValue(schemas, "ErrorResponse"), "properties");
         assertThat(errorResponseProperties).containsKeys("code", "message", "details");
 
