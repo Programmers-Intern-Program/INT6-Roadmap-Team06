@@ -2,7 +2,6 @@ package com.back.coach.domain.coach.controller;
 
 import com.back.coach.domain.coach.dto.CoachMessageRequest;
 import com.back.coach.domain.coach.dto.CoachMessageResponse;
-import com.back.coach.domain.coach.entity.CoachConversation;
 import com.back.coach.domain.coach.service.CoachMessageService;
 import com.back.coach.global.response.ApiResponse;
 import com.back.coach.global.security.AuthenticatedUser;
@@ -36,9 +35,9 @@ public class CoachMessageController {
             Authentication authentication
     ) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        CoachConversation coachMessage = coachMessageService.sendMessage(
+        CoachMessageService.MessageResult result = coachMessageService.sendMessage(
                 user.userId(), sessionId, request.message()
         );
-        return ApiResponse.success(CoachMessageResponse.from(coachMessage));
+        return ApiResponse.success(CoachMessageResponse.from(result));
     }
 }

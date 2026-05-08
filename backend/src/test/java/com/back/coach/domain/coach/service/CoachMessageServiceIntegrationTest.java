@@ -95,9 +95,11 @@ class CoachMessageServiceIntegrationTest {
     @Test
     @DisplayName("USER 메시지 전송 시 USER/COACH 두 행이 저장되고 COACH는 SIMPLE_GUIDE 라우트")
     void sendMessageStoresUserAndCoachRows() {
-        given(llmClient.complete(anyString())).willReturn("이번 주는 Redis 캐시부터 학습하세요.");
+        given(llmClient.complete(anyString())).willReturn(
+                "{\"route\":\"SIMPLE_GUIDE\",\"responseText\":\"이번 주는 Redis 캐시부터 학습하세요.\"}"
+        );
 
-        CoachConversation coachMessage = coachMessageService.sendMessage(userId, sessionId, "오늘 뭐 공부할까?");
+        CoachConversation coachMessage = coachMessageService.sendMessage(userId, sessionId, "오늘 뭐 공부할까?").coachMessage();
 
         assertThat(coachMessage.getRole()).isEqualTo(CoachMessageRole.COACH);
         assertThat(coachMessage.getRoute()).isEqualTo(CoachRoute.SIMPLE_GUIDE);
