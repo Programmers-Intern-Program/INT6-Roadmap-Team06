@@ -648,6 +648,15 @@ components:
           example:
             field: currentLevel
 
+    JobStatus:
+      type: string
+      description: Long-running job status exposed by async job APIs.
+      enum:
+        - REQUESTED
+        - RUNNING
+        - SUCCEEDED
+        - FAILED
+
     CoachRoute:
       type: string
       enum:

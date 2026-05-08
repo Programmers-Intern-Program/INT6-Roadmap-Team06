@@ -794,11 +794,14 @@ data: {"messageId":"9001","route":"SIMPLE_GUIDE","replanProposal":null}
 현재 v1 외부 계약
 - 기본은 동기 처리
 
-확장 시 내부 기준
-- `REQUESTED`
-- `RUNNING`
-- `SUCCEEDED`
-- `FAILED`
+확장 시 API/내부 기준
+- `REQUESTED`: 요청 접수됨. #215의 `PENDING` 표현에 대응한다
+- `RUNNING`: 작업 실행 중. #215의 `IN_PROGRESS` 표현에 대응한다
+- `SUCCEEDED`: 작업 성공 종료. #215의 `COMPLETED` 표현에 대응한다
+- `FAILED`: 작업 실패 종료
+
+비동기 조회 API가 추가되면 응답의 `status`는 위 공식 enum만 노출한다.
+`PENDING`, `IN_PROGRESS`, `COMPLETED`는 API 응답값으로 사용하지 않는다.
 
 ---
 
