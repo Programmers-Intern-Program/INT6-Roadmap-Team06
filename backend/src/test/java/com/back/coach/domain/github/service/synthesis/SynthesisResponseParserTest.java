@@ -103,4 +103,55 @@ class SynthesisResponseParserTest {
                 .isInstanceOf(ServiceException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
     }
+
+    @Test
+    @DisplayName("techTags에 skillName 대신 tech 필드를 쓰면 LLM_INVALID_RESPONSE (smoke 회귀)")
+    void parse_techTagsWithTechFieldInsteadOfSkillName_throws() {
+        String json = """
+                {
+                  "techTags": [{"tech": "Java", "tagReason": "주요 언어"}],
+                  "depthEstimates": [],
+                  "evidences": [],
+                  "finalTechProfile": {"confirmedSkills": [], "focusAreas": []}
+                }
+                """;
+
+        assertThatThrownBy(() -> parser.parse(json))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
+    }
+
+    @Test
+    @DisplayName("evidences에 summary 대신 description 필드를 쓰면 LLM_INVALID_RESPONSE (smoke 회귀)")
+    void parse_evidencesWithDescriptionInsteadOfSummary_throws() {
+        String json = """
+                {
+                  "techTags": [],
+                  "depthEstimates": [],
+                  "evidences": [{"repoName": "r", "type": "CODE", "source": "s", "description": "d"}],
+                  "finalTechProfile": {"confirmedSkills": [], "focusAreas": []}
+                }
+                """;
+
+        assertThatThrownBy(() -> parser.parse(json))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
+    }
+
+    @Test
+    @DisplayName("depthEstimates에 skillName 대신 skill 필드를 쓰면 LLM_INVALID_RESPONSE (smoke 회귀)")
+    void parse_depthEstimatesWithSkillFieldInsteadOfSkillName_throws() {
+        String json = """
+                {
+                  "techTags": [],
+                  "depthEstimates": [{"skill": "Java", "level": "PRACTICAL", "reason": "r"}],
+                  "evidences": [],
+                  "finalTechProfile": {"confirmedSkills": [], "focusAreas": []}
+                }
+                """;
+
+        assertThatThrownBy(() -> parser.parse(json))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
+    }
 }
