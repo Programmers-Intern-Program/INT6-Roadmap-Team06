@@ -106,6 +106,13 @@ Coach 응답 문장이나 LLM 해석 결과를 원본 metadata에 저장하지 �
 - `processed_at IS NULL`인 row만 active signal 후보가 된다.
 - active signal로 요약됐다는 이유만으로 원본 row를 수정하지 않는다.
 
+조회 우선순위:
+
+1. Context Manager는 active `CONVERSATION` snapshot의 `payload.activeSignals`를 먼저 읽는다.
+2. `CONVERSATION` snapshot이 없거나 `activeSignals`가 비어 있으면 전환기 fallback으로 미처리 `detected_patterns` row를 직접 조회해 대화용 activeSignals 형태로 요약한다.
+3. Coach는 Context Manager가 조립한 activeSignals만 읽고, SQL로 `detected_patterns`를 직접 조회하지 않는다.
+4. fallback은 snapshot 조립 파이프라인이 완성되기 전까지의 호환 경로이며 공식 대화용 payload 기준은 `CONVERSATION.activeSignals`다.
+
 ## 6. Event System 관계
 
 Pattern Detector는 `pattern.detected` 이벤트를 발행하지 않는다.

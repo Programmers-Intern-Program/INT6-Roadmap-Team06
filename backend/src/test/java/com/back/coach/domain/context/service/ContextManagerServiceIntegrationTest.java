@@ -111,6 +111,108 @@ class ContextManagerServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("CONVERSATION activeSignals가 있으면 detected_patterns fallback보다 우선")
+    void conversationActiveSignalsTakePrecedenceOverDetectedPatternsFallback() {
+        seedSnapshot(ContextType.PROFILE, 1, "{}");
+        seedSnapshot(ContextType.PLAN, 1, "{}");
+        seedConversationSnapshot("""
+                {
+                  "contextType": "CONVERSATION",
+                  "sourceRefs": {
+                    "sessionId": "10",
+                    "profileSnapshotVersion": 1,
+                    "planSnapshotVersion": 1
+                  },
+                  "activeSignals": [
+                    {
+                      "sourcePatternId": 31,
+                      "patternType": "REPEATED_INCOMPLETE",
+                      "severity": "MEDIUM",
+                      "summary": "Redis 2주차 과제가 최근 3회 미완료 상태로 남아 있음",
+                      "detectedAt": "2026-05-06T00:00:00Z"
+                    }
+                  ]
+                }
+                """);
+        seedDetectedPattern(PatternType.SKILL_REPEATED_FAILURE, PatternSeverity.HIGH,
+                "{\"skill\":\"Spring Security\"}");
+        ChatSession session = startSession(1, 1);
+
+        AssembledContext ctx = contextManagerService.assembleAuto(session, "재계획 필요해?");
+
+        assertThat(ctx.template()).isEqualTo(CoachTemplate.COACH_FULL_CONTEXT);
+        assertThat(ctx.activeSignalCount()).isEqualTo(1);
+        assertThat(ctx.systemPrompt()).contains("# 활성 신호 (activeSignals)");
+        assertThat(ctx.systemPrompt()).contains("sourcePatternId=31");
+        assertThat(ctx.systemPrompt()).contains("Redis 2주차 과제가 최근 3회 미완료 상태로 남아 있음");
+        assertThat(ctx.systemPrompt()).doesNotContain("Spring Security");
+        assertThat(ctx.systemPrompt()).doesNotContain("Pattern Detector 미처리");
+    }
+
+    @Test
+    @DisplayName("CONVERSATION activeSignals만 있어도 자동 선택은 Tier 3")
+    void assembleAutoChoosesTier3WhenConversationActiveSignalsExist() {
+        seedSnapshot(ContextType.PROFILE, 1, "{}");
+        seedSnapshot(ContextType.PLAN, 1, "{}");
+        seedConversationSnapshot("""
+                {
+                  "contextType": "CONVERSATION",
+                  "sourceRefs": {
+                    "sessionId": "10",
+                    "profileSnapshotVersion": 1,
+                    "planSnapshotVersion": 1
+                  },
+                  "activeSignals": [
+                    {
+                      "sourcePatternId": 41,
+                      "patternType": "GOAL_DRIFT_CANDIDATE",
+                      "severity": "LOW",
+                      "summary": "목표 직무와 다른 학습 주제가 반복됨",
+                      "detectedAt": "2026-05-06T01:00:00Z"
+                    }
+                  ]
+                }
+                """);
+        ChatSession session = startSession(1, 1);
+
+        AssembledContext ctx = contextManagerService.assembleAuto(session, "요즘 방향이 맞아?");
+
+        assertThat(ctx.template()).isEqualTo(CoachTemplate.COACH_FULL_CONTEXT);
+        assertThat(ctx.activeSignalCount()).isEqualTo(1);
+        assertThat(ctx.systemPrompt()).contains("목표 직무와 다른 학습 주제가 반복됨");
+    }
+
+    @Test
+    @DisplayName("CONVERSATION activeSignals가 비어 있으면 detected_patterns fallback 사용")
+    void emptyConversationActiveSignalsFallBackToDetectedPatterns() {
+        seedSnapshot(ContextType.PROFILE, 1, "{}");
+        seedSnapshot(ContextType.PLAN, 1, "{}");
+        seedConversationSnapshot("""
+                {
+                  "contextType": "CONVERSATION",
+                  "sourceRefs": {
+                    "sessionId": "10",
+                    "profileSnapshotVersion": 1,
+                    "planSnapshotVersion": 1
+                  },
+                  "activeSignals": []
+                }
+                """);
+        seedDetectedPattern(PatternType.CONSECUTIVE_DELAY, PatternSeverity.MEDIUM,
+                "{\"targetType\":\"roadmap_week\",\"targetId\":12}");
+        ChatSession session = startSession(1, 1);
+
+        AssembledContext ctx = contextManagerService.assembleAuto(session, "밀린 것 같아");
+
+        assertThat(ctx.template()).isEqualTo(CoachTemplate.COACH_FULL_CONTEXT);
+        assertThat(ctx.activeSignalCount()).isEqualTo(1);
+        assertThat(ctx.systemPrompt()).contains("CONSECUTIVE_DELAY");
+        assertThat(ctx.systemPrompt()).contains("targetType");
+        assertThat(ctx.systemPrompt()).contains("roadmap_week");
+        assertThat(ctx.systemPrompt()).contains("targetId");
+    }
+
+    @Test
     @DisplayName("자동 선택: 활성 신호 없으면 Tier 1")
     void assembleAutoChoosesTier1WhenNoActiveSignal() {
         seedSnapshot(ContextType.PROFILE, 1, "{}");
@@ -179,6 +281,12 @@ class ContextManagerServiceIntegrationTest {
                 INSERT INTO detected_patterns (user_id, pattern_type, severity, metadata, idempotency_key)
                 VALUES (?, ?, ?, ?::jsonb, ?)
                 """, userId, type.name(), severity.name(), metadata, "test-" + System.nanoTime());
+    }
+
+    private void seedConversationSnapshot(String payload) {
+        contextSnapshotRepository.save(UserContextSnapshot.create(
+                userId, ContextType.CONVERSATION, 1, payload, Instant.now()
+        ));
     }
 
     private ChatSession startSession(int profileVersion, int planVersion) {
