@@ -9,9 +9,13 @@ import com.back.coach.global.code.CoachTemplate;
 import com.back.coach.global.code.ContextType;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,8 +29,8 @@ import java.util.Optional;
  * </ul>
  *
  * <p>세션의 고정 version 기준으로 PROFILE/PLAN snapshot을 로드한다.
- * 활성 신호는 detected_patterns 미처리 row에서 직접 추출한다 (CONVERSATION snapshot
- * 조립 파이프라인이 완성되기 전 임시 폴백).
+ * 활성 신호는 CONVERSATION snapshot의 activeSignals를 우선 사용하고,
+ * snapshot이 비어 있는 전환기에는 미처리 detected_patterns를 fallback으로 요약한다.
  */
 @Service
 @Transactional(readOnly = true)
@@ -34,21 +38,23 @@ public class ContextManagerService {
 
     private final UserContextSnapshotRepository contextSnapshotRepository;
     private final DetectedPatternRepository detectedPatternRepository;
+    private final ObjectMapper objectMapper;
 
     public ContextManagerService(
             UserContextSnapshotRepository contextSnapshotRepository,
-            DetectedPatternRepository detectedPatternRepository
+            DetectedPatternRepository detectedPatternRepository,
+            ObjectMapper objectMapper
     ) {
         this.contextSnapshotRepository = contextSnapshotRepository;
         this.detectedPatternRepository = detectedPatternRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
      * 자동 템플릿 선택: 활성 신호가 있으면 Tier 3, 없으면 Tier 1.
      */
     public AssembledContext assembleAuto(ChatSession session, String userMessage) {
-        List<DetectedPattern> activeSignals = detectedPatternRepository
-                .findByUserIdAndProcessedAtIsNullOrderByCreatedAtDesc(session.getUserId());
+        List<ActiveSignal> activeSignals = loadActiveSignals(session.getUserId());
         CoachTemplate template = activeSignals.isEmpty()
                 ? CoachTemplate.COACH_LIGHTWEIGHT
                 : CoachTemplate.COACH_FULL_CONTEXT;
@@ -59,8 +65,8 @@ public class ContextManagerService {
      * 명시 템플릿으로 조립.
      */
     public AssembledContext assemble(ChatSession session, CoachTemplate template, String userMessage) {
-        List<DetectedPattern> activeSignals = template == CoachTemplate.COACH_FULL_CONTEXT
-                ? detectedPatternRepository.findByUserIdAndProcessedAtIsNullOrderByCreatedAtDesc(session.getUserId())
+        List<ActiveSignal> activeSignals = template == CoachTemplate.COACH_FULL_CONTEXT
+                ? loadActiveSignals(session.getUserId())
                 : List.of();
         return assemble(session, template, userMessage, activeSignals);
     }
@@ -69,7 +75,7 @@ public class ContextManagerService {
             ChatSession session,
             CoachTemplate template,
             String userMessage,
-            List<DetectedPattern> activeSignals
+            List<ActiveSignal> activeSignals
     ) {
         UserContextSnapshot profile = loadPinned(session.getUserId(), ContextType.PROFILE, session.getProfileVersion());
         UserContextSnapshot plan = loadPinned(session.getUserId(), ContextType.PLAN, session.getRoadmapVersion());
@@ -84,15 +90,19 @@ public class ContextManagerService {
         sb.append(plan.getPayload()).append("\n\n");
 
         if (template == CoachTemplate.COACH_FULL_CONTEXT) {
-            sb.append("# 활성 신호 (Pattern Detector 미처리)\n");
+            sb.append("# 활성 신호 (activeSignals)\n");
             if (activeSignals.isEmpty()) {
                 sb.append("없음\n\n");
             } else {
-                for (DetectedPattern signal : activeSignals) {
-                    sb.append("- type=").append(signal.getPatternType())
-                            .append(", severity=").append(signal.getSeverity())
-                            .append(", metadata=").append(signal.getMetadata())
-                            .append("\n");
+                for (ActiveSignal signal : activeSignals) {
+                    sb.append("- sourcePatternId=").append(signal.sourcePatternId())
+                            .append(", patternType=").append(signal.patternType())
+                            .append(", severity=").append(signal.severity())
+                            .append(", summary=").append(signal.summary());
+                    if (signal.detectedAt() != null && !signal.detectedAt().isBlank()) {
+                        sb.append(", detectedAt=").append(signal.detectedAt());
+                    }
+                    sb.append("\n");
                 }
                 sb.append("\n");
             }
@@ -111,11 +121,79 @@ public class ContextManagerService {
         return new AssembledContext(sb.toString(), template, activeSignals.size());
     }
 
+    private List<ActiveSignal> loadActiveSignals(Long userId) {
+        List<ActiveSignal> snapshotSignals = loadConversationActiveSignals(userId);
+        if (!snapshotSignals.isEmpty()) {
+            return snapshotSignals;
+        }
+        return loadFallbackDetectedPatterns(userId);
+    }
+
+    private List<ActiveSignal> loadConversationActiveSignals(Long userId) {
+        return contextSnapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.CONVERSATION)
+                .map(UserContextSnapshot::getPayload)
+                .map(this::parseActiveSignals)
+                .orElse(List.of());
+    }
+
+    private List<ActiveSignal> parseActiveSignals(String payload) {
+        try {
+            JsonNode activeSignalsNode = objectMapper.readTree(payload).path("activeSignals");
+            if (!activeSignalsNode.isArray() || activeSignalsNode.isEmpty()) {
+                return List.of();
+            }
+
+            List<ActiveSignal> activeSignals = new ArrayList<>();
+            for (JsonNode node : activeSignalsNode) {
+                activeSignals.add(new ActiveSignal(
+                        text(node, "sourcePatternId"),
+                        text(node, "patternType"),
+                        text(node, "severity"),
+                        text(node, "summary"),
+                        text(node, "detectedAt")
+                ));
+            }
+            return activeSignals;
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
+    private List<ActiveSignal> loadFallbackDetectedPatterns(Long userId) {
+        return detectedPatternRepository.findByUserIdAndProcessedAtIsNullOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(pattern -> new ActiveSignal(
+                        String.valueOf(pattern.getId()),
+                        pattern.getPatternType().name(),
+                        pattern.getSeverity().name(),
+                        "metadata=" + pattern.getMetadata(),
+                        pattern.getCreatedAt() == null ? null : pattern.getCreatedAt().toString()
+                ))
+                .toList();
+    }
+
+    private String text(JsonNode node, String fieldName) {
+        JsonNode value = node.path(fieldName);
+        if (value.isMissingNode() || value.isNull()) {
+            return "";
+        }
+        return value.asText();
+    }
+
     private UserContextSnapshot loadPinned(Long userId, ContextType type, Integer version) {
         return contextSnapshotRepository.findByUserIdAndContextTypeAndVersion(userId, type, version)
                 .orElseThrow(() -> new ServiceException(
                         ErrorCode.SNAPSHOT_NOT_FOUND,
                         "세션에 고정된 " + type + " snapshot version=" + version + " 을(를) 찾을 수 없습니다."
                 ));
+    }
+
+    private record ActiveSignal(
+            String sourcePatternId,
+            String patternType,
+            String severity,
+            String summary,
+            String detectedAt
+    ) {
     }
 }

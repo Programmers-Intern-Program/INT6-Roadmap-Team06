@@ -7,7 +7,7 @@ import com.back.coach.global.code.CoachTemplate;
  *
  * @param systemPrompt LLM에 전달할 system instruction
  * @param template     사용된 템플릿 (Tier 결정의 근거)
- * @param activeSignalCount 미처리 detected_patterns 수 (자동 승격 판단용)
+ * @param activeSignalCount Context Manager가 조립한 activeSignals 수 (자동 승격 판단용)
  */
 public record AssembledContext(
         String systemPrompt,
