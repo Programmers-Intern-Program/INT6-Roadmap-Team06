@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -180,7 +181,9 @@ class GithubAnalysisControllerTest extends ApiTestBase {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.githubAnalysisId").value(String.valueOf(saved.getId())))
                 .andExpect(jsonPath("$.data.savedAt").isNotEmpty())
-                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[0]").value("Spring Boot"));
+                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[0]").value("Spring Boot"))
+                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[1]").value("JPA"))
+                .andExpect(jsonPath("$.data.finalTechProfile.focusAreas[0]").value("Backend"));
 
         // DB에서 corrections이 실제로 저장됐는지 검증
         GithubAnalysis updated = analysisRepository.findByIdAndUserId(saved.getId(), user.getId()).orElseThrow();
@@ -189,11 +192,69 @@ class GithubAnalysisControllerTest extends ApiTestBase {
                 .extracting(GithubAnalysisPayload.GithubUserCorrection::skillName)
                 .containsExactly("Spring Boot");
         assertThat(updatedPayload.finalTechProfile().confirmedSkills()).containsExactly("Spring Boot", "JPA");
+
+        mockMvc.perform(get("/api/github-analyses/" + saved.getId())
+                        .cookie(new Cookie("accessToken", accessToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userCorrections[0].skillName").value("Spring Boot"))
+                .andExpect(jsonPath("$.data.userCorrections[0].correction").value("백엔드에서만 사용"))
+                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[0]").value("Spring Boot"))
+                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[1]").value("JPA"))
+                .andExpect(jsonPath("$.data.finalTechProfile.focusAreas[0]").value("Backend"));
+    }
+
+    @Test
+    @DisplayName("GET /api/github-analyses/{id} — 다른 사용자의 분석은 404")
+    void get_otherUserAnalysis_notFound() throws Exception {
+        User owner = userRepository.save(User.signupFromOAuth(AuthProvider.GITHUB, "gh-an-owner-get", "owner-get@example.com"));
+        User other = userRepository.save(User.signupFromOAuth(AuthProvider.GITHUB, "gh-an-other-get", "other-get@example.com"));
+        String otherAccessToken = jwtTokenProvider.createAccessToken(other.getId());
+        GithubConnection conn = saveConnection(owner.getId());
+        GithubAnalysis saved = analysisRepository.save(GithubAnalysis.create(
+                owner.getId(),
+                conn.getId(),
+                1,
+                "summary",
+                payloadJson.toJson(samplePayload())
+        ));
+
+        mockMvc.perform(get("/api/github-analyses/" + saved.getId())
+                        .cookie(new Cookie("accessToken", otherAccessToken)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("PATCH /corrections — 다른 사용자의 분석은 수정할 수 없다")
+    void patch_otherUserAnalysis_notFound() throws Exception {
+        User owner = userRepository.save(User.signupFromOAuth(AuthProvider.GITHUB, "gh-an-owner-patch", "owner-patch@example.com"));
+        User other = userRepository.save(User.signupFromOAuth(AuthProvider.GITHUB, "gh-an-other-patch", "other-patch@example.com"));
+        String otherAccessToken = jwtTokenProvider.createAccessToken(other.getId());
+        GithubConnection conn = saveConnection(owner.getId());
+        GithubAnalysis saved = analysisRepository.save(GithubAnalysis.create(
+                owner.getId(),
+                conn.getId(),
+                1,
+                "summary",
+                payloadJson.toJson(samplePayload())
+        ));
+
+        mockMvc.perform(patch("/api/github-analyses/" + saved.getId() + "/corrections")
+                        .cookie(new Cookie("accessToken", otherAccessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userCorrections": [{"skillName": "Spring Boot", "correction": "다른 사용자 수정"}],
+                                  "finalTechProfile": {"confirmedSkills": ["Spring Boot"], "focusAreas": ["Backend"]}
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
     }
 
     private GithubConnection saveConnection(Long userId) {
         return connectionRepository.save(
-                GithubConnection.connect(userId, "gh-uid-99", "testuser", GithubAccessType.OAUTH, "ghp_test"));
+                GithubConnection.connect(userId, "gh-uid-" + userId, "testuser-" + userId, GithubAccessType.OAUTH, "ghp_test"));
     }
 
     private static GithubAnalysisPayload samplePayload() {
