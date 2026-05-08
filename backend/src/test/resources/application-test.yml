@@ -21,3 +21,7 @@ security:
 logging:
   level:
     com.back.coach: DEBUG
+
+pattern-detector:
+  schedule:
+    enabled: false

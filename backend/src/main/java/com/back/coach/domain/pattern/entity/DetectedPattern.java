@@ -41,6 +41,9 @@ public class DetectedPattern extends BaseEntity {
     @Column(name = "metadata", nullable = false, columnDefinition = "jsonb")
     private String metadata;
 
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
     @Column(name = "processed_at")
     private Instant processedAt;
 

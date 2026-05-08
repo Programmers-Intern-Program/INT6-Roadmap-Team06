@@ -35,7 +35,10 @@ public enum ErrorCode {
 
     // GitHub API
     GITHUB_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "GitHub API 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요."),
-    GITHUB_API_ERROR(HttpStatus.BAD_GATEWAY, "GitHub API 오류가 발생했습니다.");
+    GITHUB_API_ERROR(HttpStatus.BAD_GATEWAY, "GitHub API 오류가 발생했습니다."),
+
+    // Pattern Detector
+    PATTERN_DETECTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "패턴 감지 중 오류가 발생했습니다.");
 
     private final HttpStatus status;
     private final String defaultMessage;

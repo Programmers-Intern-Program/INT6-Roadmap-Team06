@@ -1,6 +1,7 @@
 package com.back.coach.domain.pattern.repository;
 
 import com.back.coach.domain.pattern.entity.DetectedPattern;
+import com.back.coach.global.code.PatternType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +12,8 @@ import java.util.Optional;
 public interface DetectedPatternRepository extends JpaRepository<DetectedPattern, Long> {
 
     List<DetectedPattern> findByUserIdAndProcessedAtIsNullOrderByCreatedAtDesc(Long userId);
+
+    List<DetectedPattern> findByUserIdAndPatternTypeAndProcessedAtIsNull(Long userId, PatternType patternType);
 
     default List<DetectedPattern> findUnprocessedByUserId(Long userId) {
         return findByUserIdAndProcessedAtIsNullOrderByCreatedAtDesc(userId);
