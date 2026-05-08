@@ -140,54 +140,130 @@ export function GithubConnectionView() {
 
   const { repos } = state;
 
+  const ownedRepos = repos.filter((r) => !r.ownerType || r.ownerType === "owner");
+  const contributedRepos = repos.filter((r) => r.ownerType === "collaborator");
+
+  const renderRepoGrid = (repoList: typeof repos) => (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+        gap: "1rem"
+      }}
+    >
+      {repoList.map((repo) => (
+        <div
+          key={repo.repositoryId}
+          onClick={() => toggleRepo(repo.repositoryId)}
+          style={{
+            padding: "1rem",
+            border: "1px solid #e5e7eb",
+            borderRadius: "0.5rem",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            backgroundColor: selected.has(repo.repositoryId)
+              ? "#f0f9ff"
+              : "#ffffff",
+            borderColor: selected.has(repo.repositoryId)
+              ? "#0ea5e9"
+              : "#e5e7eb",
+            boxShadow: selected.has(repo.repositoryId)
+              ? "0 0 0 2px rgba(14, 165, 233, 0.1)"
+              : "none"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+            <input
+              type="checkbox"
+              checked={selected.has(repo.repositoryId)}
+              onChange={() => toggleRepo(repo.repositoryId)}
+              onClick={(e) => e.stopPropagation()}
+              style={{ marginTop: "0.25rem", cursor: "pointer" }}
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h4
+                style={{
+                  margin: "0 0 0.5rem 0",
+                  fontSize: "0.95rem",
+                  fontWeight: "600",
+                  wordBreak: "break-word"
+                }}
+              >
+                {repo.repoFullName}
+              </h4>
+              {repo.primaryLanguage && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    backgroundColor: "#f3f4f6",
+                    padding: "0.25rem 0.5rem",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.8rem",
+                    color: "#374151"
+                  }}
+                >
+                  {repo.primaryLanguage}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
-    <div>
-      <h1>저장소 선택</h1>
-      <p>분석할 저장소를 선택하세요. ({selected.size}개 선택됨)</p>
+    <div className="screen-shell">
+      <div className="screen-hero">
+        <p className="eyebrow">GitHub 저장소</p>
+        <div className="screen-heading">
+          <h1>저장소 선택</h1>
+          <p>분석할 저장소를 선택하세요. ({selected.size}개 선택됨)</p>
+        </div>
+      </div>
 
       {repos.length === 0 ? (
         <StatePanel message="연결된 저장소가 없습니다." />
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {repos.map((repo) => (
-            <li key={repo.repositoryId} style={{ marginBottom: "0.5rem" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={selected.has(repo.repositoryId)}
-                  onChange={() => toggleRepo(repo.repositoryId)}
-                />
-                <span>{repo.repoFullName}</span>
-                {repo.primaryLanguage && (
-                  <span style={{ fontSize: "0.75rem", color: "#888" }}>
-                    {repo.primaryLanguage}
-                  </span>
-                )}
-              </label>
-            </li>
-          ))}
-        </ul>
+        <>
+          {ownedRepos.length > 0 && (
+            <div className="panel" style={{ marginBottom: "2rem" }}>
+              <h2 style={{ marginTop: 0, marginBottom: "1.5rem", fontSize: "1.1rem", fontWeight: "600" }}>
+                내 저장소 ({ownedRepos.length})
+              </h2>
+              {renderRepoGrid(ownedRepos)}
+            </div>
+          )}
+
+          {contributedRepos.length > 0 && (
+            <div className="panel" style={{ marginBottom: "2rem" }}>
+              <h2 style={{ marginTop: 0, marginBottom: "1.5rem", fontSize: "1.1rem", fontWeight: "600" }}>
+                기여한 저장소 ({contributedRepos.length})
+              </h2>
+              {renderRepoGrid(contributedRepos)}
+            </div>
+          )}
+        </>
       )}
 
-      <button
-        className="btn-primary"
-        disabled={selected.size === 0}
-        onClick={handleAnalyze}
-      >
-        분석 실행
-      </button>
-
-      <p style={{ marginTop: "1rem" }}>
+      <div className="action-row" aria-label="저장소 분석">
         <button
+          className="action-link primary"
+          disabled={selected.size === 0}
+          onClick={handleAnalyze}
+        >
+          분석 실행 ({selected.size}개)
+        </button>
+        <button
+          className="action-link"
           onClick={() => {
             clearConnectionId();
             setSelected(new Set());
           }}
-          style={{ fontSize: "0.875rem", color: "#888" }}
         >
           다른 계정으로 연결
         </button>
-      </p>
+      </div>
     </div>
   );
 }

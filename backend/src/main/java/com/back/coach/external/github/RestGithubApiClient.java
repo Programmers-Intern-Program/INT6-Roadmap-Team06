@@ -79,7 +79,7 @@ public class RestGithubApiClient implements GithubApiClient {
     @Override
     public List<GithubRepoDto> listUserRepos(String accessToken) {
         URI uri = UriComponentsBuilder.fromUriString("/user/repos")
-                .queryParam("affiliation", "owner")
+                .queryParam("affiliation", "owner,collaborator")
                 .queryParam("per_page", 100)
                 .build().toUri();
         return getList(uri, accessToken, new ParameterizedTypeReference<>() {});

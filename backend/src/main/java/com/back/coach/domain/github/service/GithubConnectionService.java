@@ -81,18 +81,21 @@ public class GithubConnectionService {
             String owner = parts[0];
             String repoName = parts.length > 1 ? parts[1] : parts[0];
 
-            GithubProject project = upsertProject(userId, connection.getId(), repo);
+            String ownerType = repo.owner() != null && login.equals(repo.owner().login())
+                    ? "owner"
+                    : "collaborator";
+            GithubProject project = upsertProject(userId, connection.getId(), repo, ownerType);
             fetchAndUpdateMetadata(project, accessToken, owner, repoName, login);
         }
     }
 
-    private GithubProject upsertProject(Long userId, Long connectionId, GithubRepoDto repo) {
+    private GithubProject upsertProject(Long userId, Long connectionId, GithubRepoDto repo, String ownerType) {
         return projectRepo.findByUserIdAndRepoFullName(userId, repo.fullName())
                 .orElseGet(() -> {
                     try {
                         GithubProject p = GithubProject.create(userId, connectionId,
                                 repo.nodeId(), repo.fullName(), repo.htmlUrl(),
-                                repo.language(), repo.defaultBranch());
+                                repo.language(), repo.defaultBranch(), ownerType);
                         return projectRepo.saveAndFlush(p);
                     } catch (DataIntegrityViolationException e) {
                         return projectRepo.findByUserIdAndRepoFullName(userId, repo.fullName())

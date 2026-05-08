@@ -10,6 +10,7 @@ export type Repository = {
   repoUrl: string;
   primaryLanguage: string | null;
   defaultBranch: string;
+  ownerType?: "owner" | "collaborator";
 };
 
 export type GithubRepositoryList = {
