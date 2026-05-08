@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
-import { getMyProfile, saveProfile } from "@/features/profile/api";
+import { getJobRoles, getMyProfile, saveProfile } from "@/features/profile/api";
 import {
   currentLevelLabels,
   currentLevelOptions,
@@ -12,6 +12,7 @@ import {
 } from "@/features/profile/labels";
 import type {
   CurrentLevel,
+  JobRoleOption,
   ProfileDetail,
   ProfileSaveRequest,
   ProfileSaveResponse,
@@ -27,6 +28,7 @@ type ProfileState =
 
 export function ProfileView() {
   const [state, setState] = useState<ProfileState>({ status: "loading" });
+  const [jobRoles, setJobRoles] = useState<JobRoleOption[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveResult, setSaveResult] = useState<ProfileSaveResponse | null>(null);
   const [saving, setSaving] = useState(false);
@@ -34,33 +36,29 @@ export function ProfileView() {
   useEffect(() => {
     let ignore = false;
 
-    async function loadProfile() {
+    async function loadData() {
       setState({ status: "loading" });
 
       try {
-        const profile = await getMyProfile();
+        const [profile, roles] = await Promise.all([
+          getMyProfile().catch((error) => {
+            if (error instanceof ApiError && error.status === 404) return null;
+            throw error;
+          }),
+          getJobRoles()
+        ]);
 
         if (!ignore) {
+          setJobRoles(roles);
           setState({ profile, status: "ready" });
         }
       } catch (error) {
-        if (ignore) {
-          return;
-        }
-
-        if (error instanceof ApiError && error.status === 404) {
-          setState({ profile: null, status: "ready" });
-          return;
-        }
-
-        setState({
-          message: getErrorMessage(error),
-          status: "error"
-        });
+        if (ignore) return;
+        setState({ message: getErrorMessage(error), status: "error" });
       }
     }
 
-    loadProfile();
+    loadData();
 
     return () => {
       ignore = true;
@@ -130,6 +128,7 @@ export function ProfileView() {
       </div>
 
       <ProfileForm
+        jobRoles={jobRoles}
         onSubmit={handleSubmit}
         profile={state.profile}
         saveError={saveError}
@@ -141,12 +140,14 @@ export function ProfileView() {
 }
 
 function ProfileForm({
+  jobRoles,
   onSubmit,
   profile,
   saveError,
   saveResult,
   saving
 }: {
+  jobRoles: JobRoleOption[];
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   profile: ProfileDetail | null;
   saveError: string | null;
@@ -162,20 +163,28 @@ function ProfileForm({
       <section className="panel profile-form-section">
         <div className="profile-section-heading">
           <h2>기본 정보</h2>
-          <p>
-            목표 직무는 백엔드 job role code를 입력합니다. 예: BACKEND_DEVELOPER
-          </p>
+          <p>활성화된 직무 중에서 선택합니다.</p>
         </div>
 
         <label>
           <span>목표 직무</span>
-          <input
-            defaultValue={profile?.targetRole ?? "BACKEND_DEVELOPER"}
-            maxLength={100}
-            name="targetRole"
-            placeholder="BACKEND_DEVELOPER"
-            required
-          />
+          {jobRoles.length > 0 ? (
+            <select
+              defaultValue={profile?.targetRole ?? jobRoles[0]?.roleCode ?? ""}
+              name="targetRole"
+              required
+            >
+              {jobRoles.map((role) => (
+                <option key={role.roleCode} value={role.roleCode}>
+                  {role.roleName}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <select disabled name="targetRole">
+              <option value="">사용 가능한 직무가 없습니다</option>
+            </select>
+          )}
         </label>
 
         <label>

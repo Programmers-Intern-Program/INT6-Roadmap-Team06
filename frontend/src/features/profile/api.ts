@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api";
 import type {
+  JobRoleOption,
   ProfileDetail,
   ProfileSaveRequest,
   ProfileSaveResponse
@@ -11,4 +12,8 @@ export function getMyProfile() {
 
 export function saveProfile(payload: ProfileSaveRequest) {
   return apiClient.post<ProfileSaveResponse>("/api/profiles", payload);
+}
+
+export function getJobRoles() {
+  return apiClient.get<JobRoleOption[]>("/api/job-roles");
 }

@@ -1,3 +1,9 @@
+export type JobRoleOption = {
+  roleCode: string;
+  roleName: string;
+  description: string | null;
+};
+
 export type CurrentLevel =
   | "BEGINNER"
   | "BASIC"
