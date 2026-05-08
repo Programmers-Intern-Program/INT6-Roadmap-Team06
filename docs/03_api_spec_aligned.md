@@ -639,15 +639,16 @@ v1 처리 기준
 
 ## 4. v2 확장 API
 
+Coach API의 상세 계약은 `docs/20_v2_coach_api_contract.md`를 기준으로 한다.
+아래 항목은 외부 연결 시 확인해야 하는 핵심 path와 응답 shape 요약이다.
+
 ## 4.1 코치 세션 생성
 
 - Method: `POST`
 - Path: `/api/coach/sessions`
 
 요청 body
-```json
-{}
-```
+- 없음
 
 응답 body
 ```json
@@ -664,16 +665,16 @@ v1 처리 기준
 규칙
 - 세션 시작 시점의 snapshot version을 고정한다
 - 이후 대화 중 새 결과가 생성되어도 현재 세션의 기준 버전은 바뀌지 않는다
+- active `PROFILE` 또는 `PLAN` snapshot이 없으면 `SNAPSHOT_NOT_FOUND`를 반환한다
 
 ## 4.2 코치 메시지 전송
 
 - Method: `POST`
-- Path: `/api/coach/messages`
+- Path: `/api/coach/sessions/{sessionId}/messages`
 
 요청 body
 ```json
 {
-  "sessionId": "10001",
   "message": "오늘 무엇부터 공부하면 좋을까?"
 }
 ```
@@ -682,17 +683,54 @@ v1 처리 기준
 ```json
 {
   "data": {
+    "messageId": "9001",
     "responseText": "이번 주는 Redis TTL과 캐시 무효화 개념부터 정리하는 것이 좋습니다.",
-    "detectedIntent": "CHECK_TODAY_PLAN",
-    "suggestedTriggers": []
+    "route": "SIMPLE_GUIDE",
+    "replanProposal": null
   }
 }
 ```
 
-## 4.3 코치 스트리밍 연결
+재계획 제안이 필요한 경우 `route`는 `REPLAN_SUGGEST`이고 `replanProposal`에 `proposalId`, `reason`, `expiresAt`을 포함한다.
+
+## 4.3 코치 재계획 확인
+
+- Method: `POST`
+- Path: `/api/coach/sessions/{sessionId}/replan`
+
+요청 body
+```json
+{
+  "proposalId": "7001",
+  "confirmed": true
+}
+```
+
+응답 body (`confirmed: true`)
+```json
+{
+  "data": {
+    "newRoadmapId": "601",
+    "newRoadmapVersion": 3,
+    "message": "새 로드맵이 생성됐습니다. 현재 세션은 기존 버전을 기준으로 유지됩니다."
+  }
+}
+```
+
+응답 body (`confirmed: false`)
+```json
+{
+  "data": {
+    "dismissed": true,
+    "message": "재계획을 보류했습니다."
+  }
+}
+```
+
+## 4.4 코치 스트리밍 연결 (후속/선택)
 
 - Method: `GET`
-- Path: `/api/coach/stream/{sessionId}`
+- Path: `/api/coach/sessions/{sessionId}/stream`
 
 응답
 - `text/event-stream`
@@ -703,8 +741,22 @@ event: token
 data: {"text":"이번 주는 Redis TTL..."}
 
 event: done
-data: {"sessionId":"10001"}
+data: {"messageId":"9001","route":"SIMPLE_GUIDE","replanProposal":null}
 ```
+
+스트리밍은 후속 API이며, 단일 응답 API와 같은 처리 경로와 응답 필드를 사용한다.
+
+## 4.5 코치 세션 종료
+
+- Method: `DELETE`
+- Path: `/api/coach/sessions/{sessionId}`
+
+응답
+- `204 No Content`
+
+규칙
+- 세션 상태를 `CLOSED`로 마킹한다
+- 종료된 세션에 메시지를 보내면 `SESSION_CLOSED`를 반환한다
 
 ---
 

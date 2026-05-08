@@ -8,6 +8,8 @@ info:
     Source documents:
     - docs/03_api_spec_aligned.md
     - docs/09_contract_appendix.md
+    - docs/20_v2_coach_api_contract.md
+    - docs/21_v2_db_schema_ddl.md
 
     The custom extension `x-implementation-status` marks whether an API is
     currently implemented or still planned.
@@ -29,6 +31,8 @@ tags:
     description: Learning roadmap and progress APIs
   - name: Dashboard
     description: Current user dashboard summary APIs
+  - name: Coach
+    description: v2 Coach session, message, and replan APIs
 
 paths:
   /api/profiles:
@@ -365,6 +369,141 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/coach/sessions:
+    post:
+      tags:
+        - Coach
+      summary: Start Coach session
+      operationId: startCoachSession
+      x-implementation-status: implemented
+      responses:
+        '201':
+          description: Coach session created with pinned snapshot versions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachSessionApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/coach/sessions/{sessionId}:
+    delete:
+      tags:
+        - Coach
+      summary: Close Coach session
+      operationId: closeCoachSession
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+      responses:
+        '204':
+          description: Coach session closed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
+  /api/coach/sessions/{sessionId}/messages:
+    post:
+      tags:
+        - Coach
+      summary: Send Coach message
+      operationId: sendCoachMessage
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CoachMessageRequest'
+      responses:
+        '200':
+          description: Coach reply
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachMessageApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+
+  /api/coach/sessions/{sessionId}/replan:
+    post:
+      tags:
+        - Coach
+      summary: Confirm or dismiss Coach replan proposal
+      operationId: handleCoachReplan
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplanRequest'
+      responses:
+        '200':
+          description: Replan confirmation or dismissal result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplanApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+
+  /api/coach/sessions/{sessionId}/stream:
+    get:
+      tags:
+        - Coach
+      summary: Stream Coach message response
+      operationId: streamCoachMessage
+      x-implementation-status: planned
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+      responses:
+        '200':
+          description: Server-sent Coach response tokens and final result
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -394,6 +533,13 @@ components:
       schema:
         type: string
       example: '601'
+    CoachSessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: '10001'
 
   responses:
     InvalidInput:
@@ -422,6 +568,24 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: Request conflicts with the current state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Gone:
+      description: Resource is expired or already resolved
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    BadGateway:
+      description: Upstream LLM or planner call failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    GatewayTimeout:
+      description: Upstream LLM call timed out
       content:
         application/json:
           schema:
@@ -455,6 +619,14 @@ components:
         - CONFLICT
         - ANALYSIS_FAILED
         - ROADMAP_GENERATION_FAILED
+        - SNAPSHOT_NOT_FOUND
+        - SESSION_NOT_FOUND
+        - SESSION_CLOSED
+        - PROPOSAL_NOT_FOUND
+        - PROPOSAL_EXPIRED
+        - LLM_TIMEOUT
+        - LLM_INVALID_RESPONSE
+        - PLANNER_FAILED
         - INTERNAL_SERVER_ERROR
 
     ErrorResponse:
@@ -475,6 +647,174 @@ components:
           additionalProperties: true
           example:
             field: currentLevel
+
+    CoachRoute:
+      type: string
+      enum:
+        - SIMPLE_GUIDE
+        - REPLAN_SUGGEST
+        - REPLAN_EXECUTE
+        - DISMISS
+
+    ChatSessionStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - CLOSED
+
+    CoachMessageRole:
+      type: string
+      enum:
+        - USER
+        - COACH
+        - SUMMARY
+
+    ReplanProposalStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONFIRMED
+        - DISMISSED
+        - EXPIRED
+
+    CoachSessionResponseData:
+      type: object
+      required:
+        - sessionId
+        - profileVersion
+        - roadmapVersion
+        - startedAt
+      properties:
+        sessionId:
+          type: string
+          example: '10001'
+        profileVersion:
+          type: integer
+          example: 3
+        roadmapVersion:
+          type: integer
+          example: 2
+        startedAt:
+          type: string
+          format: date-time
+          example: '2026-05-07T09:00:00Z'
+
+    CoachSessionApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/CoachSessionResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    CoachMessageRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          example: 오늘 무엇부터 공부하면 좋을까?
+
+    ReplanProposalSummary:
+      type: object
+      required:
+        - proposalId
+        - reason
+        - expiresAt
+      properties:
+        proposalId:
+          type: string
+          example: '7001'
+        reason:
+          type: string
+          example: 3일 연속 미달성 감지
+        expiresAt:
+          type: string
+          format: date-time
+          example: '2026-05-08T09:00:00Z'
+
+    CoachMessageResponseData:
+      type: object
+      required:
+        - messageId
+        - responseText
+        - route
+        - replanProposal
+      properties:
+        messageId:
+          type: string
+          example: '9001'
+        responseText:
+          type: string
+          example: 이번 주는 Redis TTL과 캐시 무효화 개념부터 정리하는 것이 좋습니다.
+        route:
+          $ref: '#/components/schemas/CoachRoute'
+        replanProposal:
+          allOf:
+            - $ref: '#/components/schemas/ReplanProposalSummary'
+          nullable: true
+
+    CoachMessageApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/CoachMessageResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    ReplanRequest:
+      type: object
+      required:
+        - proposalId
+        - confirmed
+      properties:
+        proposalId:
+          type: string
+          example: '7001'
+        confirmed:
+          type: boolean
+          example: true
+
+    ReplanResponseData:
+      type: object
+      required:
+        - message
+      properties:
+        newRoadmapId:
+          type: string
+          nullable: true
+          example: '601'
+        newRoadmapVersion:
+          type: integer
+          nullable: true
+          example: 3
+        message:
+          type: string
+          example: 새 로드맵이 생성됐습니다. 현재 세션은 기존 버전을 기준으로 유지됩니다.
+        dismissed:
+          type: boolean
+          nullable: true
+          example: true
+
+    ReplanApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/ReplanResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
 
     CurrentLevel:
       type: string
