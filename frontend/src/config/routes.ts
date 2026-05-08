@@ -33,13 +33,13 @@ export const navigationItems: NavigationItem[] = [
     activePrefix: "/github/analysis"
   },
   {
-    href: "/diagnoses/demo",
+    href: "/diagnoses",
     label: "진단",
     activePrefix: "/diagnoses"
   },
   { href: "/roadmaps/new", label: "로드맵 생성", exact: true },
   {
-    href: "/roadmaps/demo",
+    href: "/roadmaps",
     label: "로드맵",
     activePrefix: "/roadmaps"
   }
@@ -187,7 +187,7 @@ export function isNavigationItemActive(
     return pathname === item.href;
   }
 
-  if (item.href === "/roadmaps/demo") {
+  if (item.href === "/roadmaps") {
     return pathname.startsWith("/roadmaps/") && pathname !== "/roadmaps/new";
   }
 
