@@ -66,6 +66,11 @@
 | --- | --- | --- |
 | job_status | REQUESTED, RUNNING, SUCCEEDED, FAILED | 장시간 분석 작업 상태 |
 
+계약 기준
+- Redis 저장 payload와 API 응답의 `status`는 `job_status` enum만 사용한다
+- #215의 `PENDING`, `IN_PROGRESS`, `COMPLETED`, `FAILED` 표현은 각각 `REQUESTED`, `RUNNING`, `SUCCEEDED`, `FAILED`에 대응한다
+- 후속 비동기 API 문서와 OpenAPI schema도 이 enum을 기준으로 작성한다
+
 ### 3.6 v2 확장
 
 | 코드명 | 허용값 | 설명 |
@@ -395,8 +400,10 @@ shape
 - `RUNNING -> FAILED`
 
 규칙
-- `FAILED`는 종료 상태다
-- 재시도는 기존 row를 되살리지 않고 새 실행으로 시작한다
+- `REQUESTED`는 요청 접수 후 executor 실행 전 상태다
+- `RUNNING`은 장시간 작업이 실제 실행 중인 상태다
+- `SUCCEEDED`와 `FAILED`는 종료 상태다
+- 재시도는 기존 job을 되살리지 않고 새 `jobId` 실행으로 시작한다
 - v1에서 동기 처리하더라도 내부적으로는 이 상태 모델을 기준으로 삼을 수 있다
 
 ## 6.2 주차별 진도 상태
