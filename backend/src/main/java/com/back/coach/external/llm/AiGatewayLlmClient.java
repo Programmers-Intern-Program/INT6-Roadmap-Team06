@@ -46,6 +46,9 @@ public class AiGatewayLlmClient implements LlmClient {
         if (prompt == null || prompt.isBlank()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "prompt is empty");
         }
+        long startNs = System.nanoTime();
+        int promptBytes = prompt.getBytes().length;
+        log.debug("LLM request starting: model={}, promptBytes={}", properties.model(), promptBytes);
         try {
             ChatCompletionResponse response = restClient.post()
                     .uri("/v1/chat/completions")
@@ -79,13 +82,21 @@ public class AiGatewayLlmClient implements LlmClient {
             if (content == null || content.isBlank()) {
                 throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
             }
+            long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+            int responseBytes = content.getBytes().length;
+            log.debug("LLM request completed: model={}, elapsedMs={}, responseBytes={}",
+                    properties.model(), elapsedMs, responseBytes);
             return content;
         } catch (ServiceException e) {
+            long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+            log.warn("LLM request failed: model={}, code={}, elapsedMs={}",
+                    properties.model(), e.getErrorCode(), elapsedMs);
             throw e;
         } catch (RuntimeException e) {
+            long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
             ErrorCode mapped = classify(e);
-            log.warn("AI Gateway call failed (model={}, code={}, type={}, message={})",
-                    properties.model(), mapped, e.getClass().getSimpleName(), e.getMessage());
+            log.warn("AI Gateway call failed: model={}, code={}, type={}, elapsedMs={}, message={}",
+                    properties.model(), mapped, e.getClass().getSimpleName(), elapsedMs, e.getMessage());
             throw new ServiceException(mapped, mapped.getDefaultMessage());
         }
     }

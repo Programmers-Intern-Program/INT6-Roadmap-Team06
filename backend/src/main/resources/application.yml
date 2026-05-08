@@ -79,3 +79,13 @@ github:
 springdoc:
   swagger-ui:
     url: /openapi.yml
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate.resource.jdbc: WARN
+    com.back.coach.domain.github.service: DEBUG
+    com.back.coach.domain.github.service.triage: DEBUG
+    com.back.coach.external.llm: DEBUG
+    com.back.coach.external.github: WARN

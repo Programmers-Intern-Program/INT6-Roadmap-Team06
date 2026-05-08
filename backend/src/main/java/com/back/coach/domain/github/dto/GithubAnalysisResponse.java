@@ -16,15 +16,38 @@ public record GithubAnalysisResponse(
         List<GithubAnalysisPayload.GithubEvidence> evidences,
         List<GithubAnalysisPayload.GithubUserCorrection> userCorrections,
         GithubAnalysisPayload.FinalTechProfile finalTechProfile,
-        Instant createdAt
+        Instant createdAt,
+        AnalysisMetricsResponse metrics
 ) {
     public static GithubAnalysisResponse from(GithubAnalysisService.GithubAnalysisResult result) {
         GithubAnalysisPayload p = result.payload();
+        GithubAnalysisService.AnalysisMetrics m = result.metrics();
+        AnalysisMetricsResponse metricsResponse = m != null ? new AnalysisMetricsResponse(
+                m.totalElapsedMs(),
+                m.repoCount(),
+                m.triagePromptBytes(),
+                m.triageElapsedMs(),
+                m.summaryPromptBytes(),
+                m.summaryElapsedMs(),
+                m.synthesisPromptBytes(),
+                m.synthesisElapsedMs()
+        ) : null;
         return new GithubAnalysisResponse(
                 String.valueOf(result.id()), result.version(),
                 p.staticSignals(), p.repoSummaries(), p.techTags(),
                 p.depthEstimates(), p.evidences(), p.userCorrections(),
-                p.finalTechProfile(), result.createdAt()
+                p.finalTechProfile(), result.createdAt(), metricsResponse
         );
     }
+
+    public record AnalysisMetricsResponse(
+            long totalElapsedMs,
+            int repoCount,
+            int triagePromptBytes,
+            long triageElapsedMs,
+            int summaryPromptBytes,
+            long summaryElapsedMs,
+            int synthesisPromptBytes,
+            long synthesisElapsedMs
+    ) {}
 }

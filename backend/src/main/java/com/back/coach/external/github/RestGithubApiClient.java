@@ -138,7 +138,15 @@ public class RestGithubApiClient implements GithubApiClient {
                 .queryParam("author", author)
                 .queryParam("per_page", perPage)
                 .build().toUri();
-        return getList(uri, accessToken, new ParameterizedTypeReference<>() {});
+        try {
+            return getList(uri, accessToken, new ParameterizedTypeReference<>() {});
+        } catch (ServiceException e) {
+            if (ErrorCode.GITHUB_API_ERROR.equals(e.getErrorCode())) {
+                log.debug("listCommits returned 409 or error for {}/{}, returning empty list", owner, repo);
+                return List.of();
+            }
+            throw e;
+        }
     }
 
     @Override
