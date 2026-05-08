@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError } from "@/lib/api";
+import Link from "next/link";
+
+import { ApiError, apiClient } from "@/lib/api";
 import { getMyProfile } from "@/features/profile/api";
-import { apiClient } from "@/lib/api";
+import { getDashboard } from "@/features/dashboard/api";
 import { StatePanel } from "@/components/state-panel";
 
 type CreateState =
@@ -24,7 +26,9 @@ function getTomorrowDateValue() {
 }
 
 function getMaxDateValue() {
-  return new Date(Date.now() + MAX_WEEKS * 7 * 86400000).toISOString().split("T")[0];
+  return new Date(Date.now() + MAX_WEEKS * 7 * 86400000)
+    .toISOString()
+    .split("T")[0];
 }
 
 type Props = {
@@ -35,26 +39,50 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
   const router = useRouter();
   const [state, setState] = useState<CreateState>({ status: "idle" });
   const [diagnosisId, setDiagnosisId] = useState(initialDiagnosisId ?? "");
+  const [diagnosisSummary, setDiagnosisSummary] = useState<string | null>(null);
   const [weeklyStudyHours, setWeeklyStudyHours] = useState("");
   const [targetDate, setTargetDate] = useState("");
-  const loadedProfile = useRef(false);
+  const loaded = useRef(false);
   const targetDateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (loadedProfile.current) return;
-    loadedProfile.current = true;
+    if (loaded.current) return;
+    loaded.current = true;
     targetDateInputRef.current?.setAttribute("min", getTomorrowDateValue());
+
+    // 프로필에서 학습 시간/목표일 기본값 로드
     getMyProfile()
       .then((profile) => {
-        if (profile.weeklyStudyHours) {
+        if (profile.weeklyStudyHours)
           setWeeklyStudyHours(String(profile.weeklyStudyHours));
-        }
-        if (profile.targetDate) {
-          setTargetDate(profile.targetDate);
-        }
+        if (profile.targetDate) setTargetDate(profile.targetDate);
       })
       .catch(() => {});
-  }, []);
+
+    // initialDiagnosisId가 없으면 대시보드에서 최신 진단 자동 로드
+    if (!initialDiagnosisId) {
+      getDashboard()
+        .then((dashboard) => {
+          if (dashboard.diagnosis) {
+            setDiagnosisId(String(dashboard.diagnosis.diagnosisId));
+            setDiagnosisSummary(dashboard.diagnosis.summary);
+          }
+        })
+        .catch(() => {});
+    } else {
+      // initialDiagnosisId가 있으면 대시보드에서 summary만 가져옴
+      getDashboard()
+        .then((dashboard) => {
+          if (
+            dashboard.diagnosis &&
+            String(dashboard.diagnosis.diagnosisId) === initialDiagnosisId
+          ) {
+            setDiagnosisSummary(dashboard.diagnosis.summary);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialDiagnosisId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,7 +92,10 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
       return;
     }
     if (!hours || hours < 1 || hours > 40) {
-      setState({ status: "error", message: "주당 학습 시간은 1~40 사이로 입력해주세요." });
+      setState({
+        status: "error",
+        message: "주당 학습 시간은 1~40 사이로 입력해주세요."
+      });
       return;
     }
     if (!targetDate) {
@@ -76,7 +107,10 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
       return;
     }
     if (new Date(targetDate) > new Date(getMaxDateValue())) {
-      setState({ status: "error", message: `목표 날짜는 최대 ${MAX_WEEKS}주 이내여야 합니다.` });
+      setState({
+        status: "error",
+        message: `목표 날짜는 최대 ${MAX_WEEKS}주 이내여야 합니다.`
+      });
       return;
     }
 
@@ -85,7 +119,7 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
       const result = await apiClient.post<{ roadmapId: string }>("/api/roadmaps", {
         diagnosisId: Number(diagnosisId),
         weeklyStudyHours: hours,
-        targetDate,
+        targetDate
       });
       router.push(`/roadmaps/${result.roadmapId}`);
     } catch (err) {
@@ -96,32 +130,55 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
   const isSubmitting = state.status === "submitting";
 
   return (
-    <div>
-      <h1>로드맵 생성</h1>
-      <p>진단 결과를 기반으로 맞춤 학습 로드맵을 생성합니다.</p>
+    <section className="screen-shell">
+      <div className="screen-hero">
+        <p className="eyebrow">v1 필수</p>
+        <div className="screen-heading">
+          <h1>학습 로드맵 생성</h1>
+          <p>진단 결과를 기반으로 맞춤 학습 로드맵을 생성합니다.</p>
+        </div>
+      </div>
 
       {state.status === "error" && (
         <StatePanel message={state.message} tone="danger" />
       )}
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="diagnosisId">진단 ID</label>
-          <input
-            id="diagnosisId"
-            type="text"
-            value={diagnosisId}
-            onChange={(e) => setDiagnosisId(e.target.value)}
-            placeholder="진단 결과 ID를 입력하세요"
-            disabled={isSubmitting}
-            required
-          />
+      <form className="panel profile-form-section" onSubmit={handleSubmit}>
+        <div className="profile-section-heading">
+          <h2>진단 결과</h2>
+          {diagnosisId ? (
+            <p className="diagnosis-auto-filled">
+              진단 ID <strong>{diagnosisId}</strong>
+              {diagnosisSummary ? ` — ${diagnosisSummary}` : ""}
+              {" "}
+              <Link href="/diagnoses" style={{ fontSize: "0.875rem" }}>
+                변경
+              </Link>
+            </p>
+          ) : (
+            <p>
+              진단 결과가 없습니다.{" "}
+              <Link href="/diagnoses/new">진단 생성하기</Link>
+            </p>
+          )}
         </div>
 
-        <div>
-          <label htmlFor="weeklyStudyHours">주당 학습 시간 (1~40)</label>
+        {!diagnosisId && (
+          <label>
+            <span>진단 ID (직접 입력)</span>
+            <input
+              type="text"
+              value={diagnosisId}
+              onChange={(e) => setDiagnosisId(e.target.value)}
+              placeholder="진단 결과 ID를 입력하세요"
+              disabled={isSubmitting}
+            />
+          </label>
+        )}
+
+        <label>
+          <span>주당 학습 시간 (1~40)</span>
           <input
-            id="weeklyStudyHours"
             type="number"
             min={1}
             max={40}
@@ -131,12 +188,11 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
             disabled={isSubmitting}
             required
           />
-        </div>
+        </label>
 
-        <div>
-          <label htmlFor="targetDate">목표 날짜 (최대 {MAX_WEEKS}주)</label>
+        <label>
+          <span>목표 날짜 (최대 {MAX_WEEKS}주)</span>
           <input
-            id="targetDate"
             type="date"
             ref={targetDateInputRef}
             max={getMaxDateValue()}
@@ -145,12 +201,18 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
             disabled={isSubmitting}
             required
           />
-        </div>
+        </label>
 
-        <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? "생성 중..." : "로드맵 생성"}
-        </button>
+        <div className="profile-form-actions">
+          <div />
+          <button
+            type="submit"
+            disabled={isSubmitting || !diagnosisId}
+          >
+            {isSubmitting ? "생성 중..." : "로드맵 생성"}
+          </button>
+        </div>
       </form>
-    </div>
+    </section>
   );
 }

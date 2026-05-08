@@ -98,7 +98,10 @@ export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
           <p>{diagnosis.summary}</p>
         </div>
         <div className="action-row" aria-label="진단 관련 화면 이동">
-          <Link className="action-link primary" href="/roadmaps/new">
+          <Link
+            className="action-link primary"
+            href={`/roadmaps/new?diagnosisId=${diagnosis.diagnosisId}`}
+          >
             로드맵 생성
           </Link>
           <Link className="action-link" href="/github/analysis">

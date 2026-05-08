@@ -1,5 +1,10 @@
 import { RoadmapCreateView } from "@/features/roadmap/roadmap-create-view";
 
-export default function RoadmapCreatePage() {
-  return <RoadmapCreateView />;
+type Props = {
+  searchParams: Promise<{ diagnosisId?: string }>;
+};
+
+export default async function RoadmapCreatePage({ searchParams }: Props) {
+  const { diagnosisId } = await searchParams;
+  return <RoadmapCreateView initialDiagnosisId={diagnosisId} />;
 }
