@@ -9,7 +9,12 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.SequencedSet;
 
 @Service
 public class JobStatusService {
@@ -46,6 +51,30 @@ public class JobStatusService {
         return Optional.of(readSnapshot(payload));
     }
 
+    public Map<String, JobStatusSnapshot> findAll(Long userId, List<String> jobIds) {
+        validateUserId(userId);
+        SequencedSet<String> uniqueJobIds = normalizeJobIds(jobIds);
+        if (uniqueJobIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<String> keys = uniqueJobIds.stream()
+                .map(jobId -> key(userId, jobId))
+                .toList();
+        List<String> payloads = redisTemplate.opsForValue().multiGet(keys);
+
+        Map<String, JobStatusSnapshot> result = new LinkedHashMap<>();
+        int index = 0;
+        for (String jobId : uniqueJobIds) {
+            String payload = (payloads == null || index >= payloads.size()) ? null : payloads.get(index);
+            if (payload != null) {
+                result.put(jobId, readSnapshot(payload));
+            }
+            index++;
+        }
+        return result;
+    }
+
     private JobStatusSnapshot saveSnapshot(Long userId, JobStatusSnapshot snapshot) {
         redisTemplate.opsForValue().set(
                 key(userId, snapshot.jobId()),
@@ -73,6 +102,18 @@ public class JobStatusService {
         if (jobId == null || jobId.isBlank()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "jobId는 필수입니다.");
         }
+    }
+
+    private SequencedSet<String> normalizeJobIds(List<String> jobIds) {
+        if (jobIds == null) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT, "jobIds는 필수입니다.");
+        }
+        SequencedSet<String> uniqueJobIds = new LinkedHashSet<>();
+        for (String jobId : jobIds) {
+            validateJobId(jobId);
+            uniqueJobIds.add(jobId);
+        }
+        return uniqueJobIds;
     }
 
     private String writeSnapshot(JobStatusSnapshot snapshot) {
