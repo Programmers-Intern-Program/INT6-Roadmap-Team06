@@ -81,6 +81,7 @@ public class GithubAnalysisService {
     @Transactional
     public GithubAnalysisResult run(Long userId, Long githubConnectionId,
                                     List<Long> selectedRepoIds, List<Long> coreRepoIds) {
+        long analysisStartMs = System.currentTimeMillis();
         validateInputs(selectedRepoIds, coreRepoIds);
         if (!connectionRepo.existsByIdAndUserId(githubConnectionId, userId)) {
             throw new ServiceException(ErrorCode.FORBIDDEN);
@@ -100,11 +101,23 @@ public class GithubAnalysisService {
         GithubAnalysisPayload.StaticSignals signals = signalAggregator.aggregate(signalInputs);
 
         List<GithubAnalysisPayload.RepoSummary> repoSummaries = new ArrayList<>();
+        long triageElapsedMs = 0, summaryElapsedMs = 0;
+        int triagePromptBytes = 0, summaryPromptBytes = 0;
+
         for (GithubProject core : coreProjects) {
+            long repoStartMs = System.currentTimeMillis();
             RepoMetadata metadata = parseMetadata(core.getMetadataPayload());
+            if (isEmptyMetadata(metadata)) {
+                log.warn("분석 skip: 메타데이터 없음 repo={}", core.getRepoFullName());
+                continue;
+            }
             ChampionTriageService.TriageResult triage;
             try {
+                long triageStartMs = System.currentTimeMillis();
                 triage = triageService.triage(core.getRepoFullName(), core.getRepoUrl(), metadata);
+                triageElapsedMs += System.currentTimeMillis() - triageStartMs;
+                log.debug("Triage completed: repo={}, elapsedMs={}, champions={}",
+                        core.getRepoFullName(), triageElapsedMs, triage.champions().size());
             } catch (ServiceException e) {
                 log.warn("분석 skip: 기여 커밋 없음 repo={}", core.getRepoFullName());
                 continue;
@@ -114,13 +127,24 @@ public class GithubAnalysisService {
             String summaryPrompt = summaryPromptBuilder.build(
                     String.valueOf(core.getId()), core.getRepoFullName(),
                     core.getPrimaryLanguage(), resolved);
+            summaryPromptBytes += summaryPrompt.getBytes().length;
+            long summaryStartMs = System.currentTimeMillis();
             String summaryResponse = llmClient.complete(summaryPrompt);
+            summaryElapsedMs += System.currentTimeMillis() - summaryStartMs;
             repoSummaries.add(summaryResponseParser.parse(summaryResponse));
+            long repoElapsedMs = System.currentTimeMillis() - repoStartMs;
+            log.debug("Repo analysis completed: repo={}, totalElapsedMs={}",
+                    core.getRepoFullName(), repoElapsedMs);
         }
 
+        long synthesisStartMs = System.currentTimeMillis();
         String synthesisPrompt = synthesisPromptBuilder.build(signals, repoSummaries);
+        int synthesisPromptBytes = synthesisPrompt.getBytes().length;
+        log.debug("Synthesis prompt built: bytes={}", synthesisPromptBytes);
         String synthesisResponse = llmClient.complete(synthesisPrompt);
         SynthesisResponseParser.SynthesisResult synthesis = synthesisResponseParser.parse(synthesisResponse);
+        long synthesisElapsedMs = System.currentTimeMillis() - synthesisStartMs;
+        log.debug("Synthesis completed: elapsedMs={}", synthesisElapsedMs);
 
         GithubAnalysisPayload payload = new GithubAnalysisPayload(
                 signals, repoSummaries,
@@ -133,8 +157,21 @@ public class GithubAnalysisService {
         GithubAnalysis saved = analysisRepo.save(
                 GithubAnalysis.create(userId, githubConnectionId, version, summary, payloadJson.toJson(payload))
         );
+        long totalElapsedMs = System.currentTimeMillis() - analysisStartMs;
+        AnalysisMetrics metrics = new AnalysisMetrics(
+                totalElapsedMs,
+                repoSummaries.size(),
+                triagePromptBytes,
+                triageElapsedMs,
+                summaryPromptBytes,
+                summaryElapsedMs,
+                synthesisPromptBytes,
+                synthesisElapsedMs
+        );
+        log.debug("Analysis completed: totalElapsedMs={}, repo={}, metrics={}",
+                totalElapsedMs, repoSummaries.size(), metrics);
         return new GithubAnalysisResult(saved.getId(), saved.getVersion(), payload, saved.getSummary(),
-                saved.getCreatedAt() == null ? Instant.now() : saved.getCreatedAt());
+                saved.getCreatedAt() == null ? Instant.now() : saved.getCreatedAt(), metrics);
     }
 
     private void validateInputs(List<Long> selectedRepoIds, List<Long> coreRepoIds) {
@@ -171,6 +208,12 @@ public class GithubAnalysisService {
 
     private static RepoMetadata emptyMetadata() {
         return new RepoMetadata(null, Map.of(), List.of(), List.of(), List.of(), List.of());
+    }
+
+    private boolean isEmptyMetadata(RepoMetadata metadata) {
+        return (metadata.commits() == null || metadata.commits().isEmpty())
+                && (metadata.pullRequests() == null || metadata.pullRequests().isEmpty())
+                && (metadata.issues() == null || metadata.issues().isEmpty());
     }
 
     private List<ResolvedChampion> resolveChampions(List<Champion> champions, RepoMetadata metadata) {
@@ -254,5 +297,16 @@ public class GithubAnalysisService {
     }
 
     public record GithubAnalysisResult(Long id, int version, GithubAnalysisPayload payload,
-                                       String summary, Instant createdAt) {}
+                                       String summary, Instant createdAt, AnalysisMetrics metrics) {}
+
+    public record AnalysisMetrics(
+            long totalElapsedMs,
+            int repoCount,
+            int triagePromptBytes,
+            long triageElapsedMs,
+            int summaryPromptBytes,
+            long summaryElapsedMs,
+            int synthesisPromptBytes,
+            long synthesisElapsedMs
+    ) {}
 }

@@ -56,7 +56,8 @@ class GithubAnalysisControllerTest extends ApiTestBase {
         GithubAnalysisPayload payload = samplePayload();
         given(analysisService.run(eqUser(user.getId()), eqLong(50L), any(), any()))
                 .willReturn(new GithubAnalysisService.GithubAnalysisResult(
-                        77L, 1, payload, "확정 스킬: Spring Boot", Instant.parse("2026-04-28T00:00:00Z")));
+                        77L, 1, payload, "확정 스킬: Spring Boot", Instant.parse("2026-04-28T00:00:00Z"),
+                        new GithubAnalysisService.AnalysisMetrics(5000L, 2, 1000, 2000L, 500, 1500L, 800, 1500L)));
 
         String body = objectMapper.writeValueAsString(Map.of(
                 "githubConnectionId", 50,

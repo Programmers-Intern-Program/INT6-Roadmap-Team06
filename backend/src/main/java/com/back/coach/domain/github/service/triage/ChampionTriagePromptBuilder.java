@@ -31,6 +31,13 @@ public class ChampionTriagePromptBuilder {
         // 입력 순서대로 들어오므로 list 끝이 최신이라고 가정 — 가장 오래된(앞)을 먼저 drop.
         // 호출자(fetcher/orchestrator)가 시간 역순 보장 안 하면 정렬 책임이 그쪽으로.
         String body = assembleUnderCap(header, candidates);
+        int promptBytes = body.getBytes().length;
+        int commits = metadata.commits() == null ? 0 : metadata.commits().size();
+        int prs = metadata.pullRequests() == null ? 0 : metadata.pullRequests().size();
+        int issues = metadata.issues() == null ? 0 : metadata.issues().size();
+        log.debug("Triage prompt built: repo={}, promptBytes={}, candidates(C/P/I)={}/{}/{}, preview={}...",
+                repoName, promptBytes, commits, prs, issues,
+                body.length() > 200 ? body.substring(0, 200).replace("\n", " ") : body);
         return body;
     }
 
