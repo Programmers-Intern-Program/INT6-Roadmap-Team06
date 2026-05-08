@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CoachResponse",
+  "type": "object",
+  "required": ["route", "responseText"],
+  "additionalProperties": false,
+  "properties": {
+    "route": {
+      "type": "string",
+      "enum": ["SIMPLE_GUIDE", "REPLAN_SUGGEST", "DISMISS"]
+    },
+    "responseText": {
+      "type": "string",
+      "minLength": 1
+    },
+    "replanReason": {
+      "type": ["string", "null"]
+    },
+    "detectedIntent": {
+      "type": ["string", "null"]
+    }
+  }
+}

@@ -21,6 +21,10 @@ public interface DetectedPatternRepository extends JpaRepository<DetectedPattern
 
     Optional<DetectedPattern> findByIdAndUserId(Long id, Long userId);
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE DetectedPattern p SET p.processedAt = :processedAt WHERE p.userId = :userId AND p.processedAt IS NULL")
+    int markAllProcessedByUserId(@Param("userId") Long userId, @Param("processedAt") java.time.Instant processedAt);
+
     @Query(value = """
             SELECT *
             FROM detected_patterns

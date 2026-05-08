@@ -20,6 +20,12 @@ public interface UserContextSnapshotRepository extends JpaRepository<UserContext
             ContextType contextType
     );
 
+    Optional<UserContextSnapshot> findByUserIdAndContextTypeAndVersion(
+            Long userId,
+            ContextType contextType,
+            Integer version
+    );
+
     default Optional<UserContextSnapshot> findActiveByUserIdAndContextType(Long userId, ContextType contextType) {
         return findTopByUserIdAndContextTypeAndValidToIsNullOrderByVersionDesc(userId, contextType);
     }
