@@ -4,7 +4,9 @@ import com.back.coach.domain.coach.entity.ChatSession;
 import com.back.coach.domain.coach.entity.CoachConversation;
 import com.back.coach.domain.coach.repository.ChatSessionRepository;
 import com.back.coach.domain.coach.repository.CoachConversationRepository;
+import com.back.coach.domain.context.entity.UserContextSnapshot;
 import com.back.coach.domain.context.repository.UserContextSnapshotRepository;
+import com.back.coach.global.code.ContextType;
 import com.back.coach.domain.user.entity.User;
 import com.back.coach.domain.user.repository.UserRepository;
 import com.back.coach.external.llm.LlmClient;
@@ -59,6 +61,14 @@ class CoachMessageServiceIntegrationTest {
                 User.signupFromOAuth(AuthProvider.GITHUB, "gh-coach-msg-" + System.nanoTime(), "msg@test.com")
         );
         userId = user.getId();
+
+        // Slice 3 ContextManager가 PROFILE/PLAN snapshot을 version 기준으로 로드하므로 시드 필요
+        contextSnapshotRepository.save(UserContextSnapshot.create(
+                userId, ContextType.PROFILE, 1, "{\"goal\":\"test\"}", Instant.now()
+        ));
+        contextSnapshotRepository.save(UserContextSnapshot.create(
+                userId, ContextType.PLAN, 1, "{\"weeks\":[]}", Instant.now()
+        ));
 
         ChatSession session = ChatSession.start(userId, 1, 1);
         sessionId = chatSessionRepository.save(session).getId();
