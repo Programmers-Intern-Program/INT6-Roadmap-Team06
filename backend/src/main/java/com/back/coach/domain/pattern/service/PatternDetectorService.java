@@ -1,7 +1,7 @@
 package com.back.coach.domain.pattern.service;
 
-import com.back.coach.domain.pattern.entity.PatternSeverity;
-import com.back.coach.domain.pattern.entity.PatternType;
+import com.back.coach.global.code.PatternSeverity;
+import com.back.coach.global.code.PatternType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
