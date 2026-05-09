@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -147,33 +148,68 @@ class V1ApiStorageRequeryIntegrationTest extends ApiTestBase {
                 .andExpect(jsonPath("$.data.roadmap.progress.skippedWeeks").value(0));
     }
 
+    @Test
+    @DisplayName("대시보드 API는 결과 없음과 일부 결과 상태를 안정적으로 반환한다")
+    void dashboardApi_returnsStableEmptyAndPartialSnapshots() throws Exception {
+        User emptyUser = saveUser("dashboard-empty");
+
+        mockMvc.perform(get("/api/dashboard")
+                        .cookie(accessTokenCookie(emptyUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(String.valueOf(emptyUser.getId())))
+                .andExpect(jsonPath("$.data.profile").value(nullValue()))
+                .andExpect(jsonPath("$.data.githubAnalysis").value(nullValue()))
+                .andExpect(jsonPath("$.data.diagnosis").value(nullValue()))
+                .andExpect(jsonPath("$.data.roadmap").value(nullValue()));
+
+        User partialUser = saveUser("dashboard-partial");
+        UserProfile profile = saveProfileFixture(partialUser.getId());
+        GithubAnalysis githubAnalysis = saveGithubAnalysisFixture(partialUser.getId());
+
+        mockMvc.perform(get("/api/dashboard")
+                        .cookie(accessTokenCookie(partialUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(String.valueOf(partialUser.getId())))
+                .andExpect(jsonPath("$.data.profile.profileId").value(String.valueOf(profile.getId())))
+                .andExpect(jsonPath("$.data.profile.currentLevel").value("JUNIOR"))
+                .andExpect(jsonPath("$.data.githubAnalysis.githubAnalysisId").value(String.valueOf(githubAnalysis.getId())))
+                .andExpect(jsonPath("$.data.githubAnalysis.version").value(1))
+                .andExpect(jsonPath("$.data.githubAnalysis.finalTechProfile.confirmedSkills[0]").value("Spring Boot"))
+                .andExpect(jsonPath("$.data.diagnosis").value(nullValue()))
+                .andExpect(jsonPath("$.data.roadmap").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("로드맵 상세 조회와 진도 저장 API는 다른 사용자 접근을 차단한다")
+    void roadmapApis_rejectOtherUserAccess() throws Exception {
+        User owner = saveUser("owner");
+        User other = saveUser("other");
+        LearningRoadmap roadmap = saveRoadmapFixture(owner.getId(), 1);
+        RoadmapWeek week = roadmapWeekRepository.findByRoadmapIdOrderByWeekNumberAsc(roadmap.getId())
+                .getFirst();
+
+        mockMvc.perform(get("/api/roadmaps/{roadmapId}", roadmap.getId())
+                        .cookie(accessTokenCookie(other)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+
+        mockMvc.perform(post("/api/roadmaps/{roadmapId}/progress", roadmap.getId())
+                        .cookie(accessTokenCookie(other))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "roadmapWeekId", week.getId(),
+                                "status", "DONE",
+                                "note", "다른 사용자 진도 저장"
+                        ))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RESOURCE_NOT_FOUND"));
+    }
+
     private LearningRoadmap saveRoadmapFixture(Long userId, int totalWeeks) {
+        UserProfile profile = saveProfileFixture(userId);
+        GithubAnalysis githubAnalysis = saveGithubAnalysisFixture(userId);
         JobRole jobRole = jobRoleRepository.findByRoleCodeAndActiveTrue("BACKEND_DEVELOPER")
                 .orElseThrow();
-        UserProfile profile = userProfileRepository.save(UserProfile.create(
-                userId,
-                jobRole.getId(),
-                CurrentLevel.JUNIOR,
-                10,
-                LocalDate.of(2099, 12, 31),
-                "[\"Backend\"]",
-                null,
-                null
-        ));
-        GithubConnection connection = githubConnectionRepository.save(GithubConnection.connect(
-                userId,
-                unique("gh-user"),
-                unique("login"),
-                GithubAccessType.OAUTH,
-                "ghp_test_token"
-        ));
-        GithubAnalysis githubAnalysis = githubAnalysisRepository.save(GithubAnalysis.create(
-                userId,
-                connection.getId(),
-                1,
-                "Spring Boot 중심 GitHub 분석",
-                githubAnalysisPayloadJson.toJson(githubAnalysisPayload())
-        ));
         CapabilityDiagnosis diagnosis = capabilityDiagnosisRepository.save(CapabilityDiagnosis.create(
                 userId,
                 profile.getId(),
@@ -194,6 +230,38 @@ class V1ApiStorageRequeryIntegrationTest extends ApiTestBase {
         ));
         roadmapWeekRepository.saveAll(roadmapWeeks(roadmap.getId(), totalWeeks));
         return roadmap;
+    }
+
+    private UserProfile saveProfileFixture(Long userId) {
+        JobRole jobRole = jobRoleRepository.findByRoleCodeAndActiveTrue("BACKEND_DEVELOPER")
+                .orElseThrow();
+        return userProfileRepository.save(UserProfile.create(
+                userId,
+                jobRole.getId(),
+                CurrentLevel.JUNIOR,
+                10,
+                LocalDate.of(2099, 12, 31),
+                "[\"Backend\"]",
+                null,
+                null
+        ));
+    }
+
+    private GithubAnalysis saveGithubAnalysisFixture(Long userId) {
+        GithubConnection connection = githubConnectionRepository.save(GithubConnection.connect(
+                userId,
+                unique("gh-user"),
+                unique("login"),
+                GithubAccessType.OAUTH,
+                "ghp_test_token"
+        ));
+        return githubAnalysisRepository.save(GithubAnalysis.create(
+                userId,
+                connection.getId(),
+                1,
+                "Spring Boot 중심 GitHub 분석",
+                githubAnalysisPayloadJson.toJson(githubAnalysisPayload())
+        ));
     }
 
     private List<RoadmapWeek> roadmapWeeks(Long roadmapId, int totalWeeks) {
