@@ -13,6 +13,7 @@ import com.back.coach.domain.jobrole.repository.JobRoleRepository;
 import com.back.coach.domain.roadmap.entity.LearningRoadmap;
 import com.back.coach.domain.roadmap.entity.RoadmapWeek;
 import com.back.coach.domain.roadmap.repository.LearningRoadmapRepository;
+import com.back.coach.domain.roadmap.repository.ProgressLogRepository;
 import com.back.coach.domain.roadmap.repository.RoadmapWeekRepository;
 import com.back.coach.domain.user.entity.User;
 import com.back.coach.domain.user.entity.UserProfile;
@@ -27,6 +28,7 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultMatcher;
 
 import java.math.BigDecimal;
@@ -34,7 +36,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,6 +61,9 @@ class V1ApiOwnershipIntegrationTest extends ApiTestBase {
 
     @Autowired
     private LearningRoadmapRepository learningRoadmapRepository;
+
+    @Autowired
+    private ProgressLogRepository progressLogRepository;
 
     @Autowired
     private RoadmapWeekRepository roadmapWeekRepository;
@@ -128,6 +135,51 @@ class V1ApiOwnershipIntegrationTest extends ApiTestBase {
                 .andExpect(status().isNotFound())
                 .andExpect(resourceNotFoundCode())
                 .andExpect(nonEmptyMessage());
+    }
+
+    @Test
+    @DisplayName("진도 저장 API는 다른 사용자 로드맵 접근을 차단하고 로그를 저장하지 않는다")
+    void progressApi_rejectsOtherUserRoadmapAccessWithoutSavingLog() throws Exception {
+        User owner = saveUser("progress-owner");
+        User other = saveUser("progress-other");
+        OwnershipFixture fixture = saveOwnershipFixture(owner.getId(), 1);
+        RoadmapWeek week = fixture.weeks().getFirst();
+        long progressLogCount = progressLogRepository.count();
+
+        mockMvc.perform(post("/api/roadmaps/{roadmapId}/progress", fixture.roadmap().getId())
+                        .cookie(accessTokenCookie(other))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(progressRequestBody(week.getId(), "DONE", "다른 사용자 진도 저장")))
+                .andExpect(status().isNotFound())
+                .andExpect(resourceNotFoundCode())
+                .andExpect(nonEmptyMessage());
+
+        assertThat(progressLogRepository.count()).isEqualTo(progressLogCount);
+        assertThat(progressLogRepository.findByUserIdAndRoadmapWeekIdOrderByCreatedAtDesc(other.getId(), week.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("진도 저장 API는 다른 사용자 주차 접근을 차단하고 로그를 저장하지 않는다")
+    void progressApi_rejectsOtherUserRoadmapWeekWithoutSavingLog() throws Exception {
+        User owner = saveUser("week-owner");
+        User other = saveUser("week-other");
+        OwnershipFixture ownerFixture = saveOwnershipFixture(owner.getId(), 1);
+        OwnershipFixture otherFixture = saveOwnershipFixture(other.getId(), 1);
+        RoadmapWeek otherWeek = otherFixture.weeks().getFirst();
+        long progressLogCount = progressLogRepository.count();
+
+        mockMvc.perform(post("/api/roadmaps/{roadmapId}/progress", ownerFixture.roadmap().getId())
+                        .cookie(accessTokenCookie(owner))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(progressRequestBody(otherWeek.getId(), "DONE", "다른 사용자 주차 진도 저장")))
+                .andExpect(status().isNotFound())
+                .andExpect(resourceNotFoundCode())
+                .andExpect(nonEmptyMessage());
+
+        assertThat(progressLogRepository.count()).isEqualTo(progressLogCount);
+        assertThat(progressLogRepository.findByUserIdAndRoadmapWeekIdOrderByCreatedAtDesc(owner.getId(), otherWeek.getId()))
+                .isEmpty();
     }
 
     private OwnershipFixture saveOwnershipFixture(Long userId, int totalWeeks) {
@@ -233,11 +285,7 @@ class V1ApiOwnershipIntegrationTest extends ApiTestBase {
                     }
                   ],
                   "strengths": ["Spring Boot"],
-                  "recommendations": ["Redis 캐시와 TTL 기반 설계를 먼저 학습"],
-                  "githubInsights": {
-                    "confirmedSkills": ["Spring Boot"],
-                    "newFromGithub": []
-                  }
+                  "recommendations": ["Redis 캐시와 TTL 기반 설계를 먼저 학습"]
                 }
                 """;
     }
@@ -277,6 +325,16 @@ class V1ApiOwnershipIntegrationTest extends ApiTestBase {
 
     private String unique(String prefix) {
         return prefix + "-" + UUID.randomUUID();
+    }
+
+    private String progressRequestBody(Long roadmapWeekId, String status, String note) {
+        return """
+                {
+                  "roadmapWeekId": %d,
+                  "status": "%s",
+                  "note": "%s"
+                }
+                """.formatted(roadmapWeekId, status, note);
     }
 
     private ResultMatcher resourceNotFoundCode() {
