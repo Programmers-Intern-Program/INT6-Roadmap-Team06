@@ -105,6 +105,40 @@ class V1LatestDetailContractIntegrationTest extends ApiTestBase {
                 .andExpect(jsonPath("$.data.roadmap.progress.todoWeeks").value(2));
     }
 
+    @Test
+    @DisplayName("상세 조회 API는 latest 여부와 관계없이 요청한 id 결과를 반환한다")
+    void detailApis_returnRequestedResultIdEvenWhenItIsNotLatest() throws Exception {
+        User user = saveUser("detail-user");
+        VersionedResultFixture fixture = saveVersionedResultFixture(user.getId());
+        Cookie accessToken = accessTokenCookie(user);
+
+        mockMvc.perform(get("/api/github-analyses/{githubAnalysisId}", fixture.oldGithubAnalysis().getId())
+                        .cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.githubAnalysisId")
+                        .value(String.valueOf(fixture.oldGithubAnalysis().getId())))
+                .andExpect(jsonPath("$.data.version").value(1))
+                .andExpect(jsonPath("$.data.finalTechProfile.confirmedSkills[0]").value("Spring Boot v1"));
+
+        mockMvc.perform(get("/api/diagnoses/{diagnosisId}", fixture.oldDiagnosis().getId())
+                        .cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.diagnosisId")
+                        .value(String.valueOf(fixture.oldDiagnosis().getId())))
+                .andExpect(jsonPath("$.data.version").value(1))
+                .andExpect(jsonPath("$.data.summary").value("old diagnosis"));
+
+        mockMvc.perform(get("/api/roadmaps/{roadmapId}", fixture.oldRoadmap().getId())
+                        .cookie(accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roadmapId")
+                        .value(String.valueOf(fixture.oldRoadmap().getId())))
+                .andExpect(jsonPath("$.data.version").value(1))
+                .andExpect(jsonPath("$.data.summary").value("old roadmap"))
+                .andExpect(jsonPath("$.data.totalWeeks").value(1))
+                .andExpect(jsonPath("$.data.weeks[0].topic").value("Redis 1주차"));
+    }
+
     private VersionedResultFixture saveVersionedResultFixture(Long userId) {
         UserProfile profile = saveProfileFixture(userId);
         GithubConnection connection = saveGithubConnectionFixture(userId);
