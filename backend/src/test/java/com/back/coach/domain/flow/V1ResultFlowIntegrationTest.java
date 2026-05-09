@@ -16,8 +16,10 @@ import com.back.coach.domain.github.service.GithubAnalysisPayloadJson;
 import com.back.coach.domain.roadmap.dto.RoadmapDetailResponse;
 import com.back.coach.domain.roadmap.dto.RoadmapRequest;
 import com.back.coach.domain.roadmap.entity.LearningRoadmap;
+import com.back.coach.domain.roadmap.entity.ProgressLog;
 import com.back.coach.domain.roadmap.entity.RoadmapWeek;
 import com.back.coach.domain.roadmap.repository.LearningRoadmapRepository;
+import com.back.coach.domain.roadmap.repository.ProgressLogRepository;
 import com.back.coach.domain.roadmap.repository.RoadmapWeekRepository;
 import com.back.coach.domain.roadmap.service.RoadmapCommandService;
 import com.back.coach.domain.roadmap.service.RoadmapDetailSnapshotService;
@@ -76,6 +78,9 @@ class V1ResultFlowIntegrationTest {
 
     @Autowired
     private RoadmapWeekRepository roadmapWeekRepository;
+
+    @Autowired
+    private ProgressLogRepository progressLogRepository;
 
     @Autowired
     private ProfileService profileService;
@@ -153,21 +158,43 @@ class V1ResultFlowIntegrationTest {
                 .extracting(RoadmapDetailResponse.WeekResponse::progressStatus)
                 .containsExactly(ProgressStatus.TODO, ProgressStatus.TODO);
 
+        Long roadmapId = Long.valueOf(roadmap.roadmapId());
+        Long firstWeekId = Long.valueOf(roadmap.weeks().getFirst().roadmapWeekId());
+
         roadmapProgressCommandService.appendProgress(
                 user.getId(),
-                Long.valueOf(roadmap.roadmapId()),
-                Long.valueOf(roadmap.weeks().get(1).roadmapWeekId()),
+                roadmapId,
+                firstWeekId,
+                ProgressStatus.IN_PROGRESS,
+                "Redis 공식 문서 읽기 시작"
+        );
+        roadmapProgressCommandService.appendProgress(
+                user.getId(),
+                roadmapId,
+                firstWeekId,
                 ProgressStatus.DONE,
-                "Redis 캐시 예제 완료"
+                "Redis 공식 문서 정리 완료"
         );
 
+        List<ProgressLog> firstWeekProgressLogs = progressLogRepository
+                .findByUserIdAndRoadmapWeekIdOrderByCreatedAtDesc(user.getId(), firstWeekId);
+        assertThat(firstWeekProgressLogs).hasSize(2);
+        assertThat(firstWeekProgressLogs)
+                .extracting(ProgressLog::getStatus)
+                .containsExactly(ProgressStatus.DONE, ProgressStatus.IN_PROGRESS);
+        assertThat(firstWeekProgressLogs)
+                .extracting(ProgressLog::getNote)
+                .containsExactly("Redis 공식 문서 정리 완료", "Redis 공식 문서 읽기 시작");
+
         RoadmapDetailResponse updatedRoadmap = RoadmapDetailResponse.from(
-                roadmapDetailSnapshotService.findSnapshot(user.getId(), Long.valueOf(roadmap.roadmapId())),
+                roadmapDetailSnapshotService.findSnapshot(user.getId(), roadmapId),
                 new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
         );
         assertThat(updatedRoadmap.weeks())
                 .extracting(RoadmapDetailResponse.WeekResponse::progressStatus)
-                .containsExactly(ProgressStatus.TODO, ProgressStatus.DONE);
+                .containsExactly(ProgressStatus.DONE, ProgressStatus.TODO);
+        assertThat(updatedRoadmap.weeks().getFirst().progressNote())
+                .isEqualTo("Redis 공식 문서 정리 완료");
 
         DashboardSnapshot dashboard = dashboardSnapshotService.findSnapshot(user.getId());
         assertThat(dashboard.profile().profileId()).isEqualTo(profile.profileId());
