@@ -16,8 +16,10 @@ import com.back.coach.domain.github.service.GithubAnalysisPayloadJson;
 import com.back.coach.domain.roadmap.dto.RoadmapDetailResponse;
 import com.back.coach.domain.roadmap.dto.RoadmapRequest;
 import com.back.coach.domain.roadmap.entity.LearningRoadmap;
+import com.back.coach.domain.roadmap.entity.ProgressLog;
 import com.back.coach.domain.roadmap.entity.RoadmapWeek;
 import com.back.coach.domain.roadmap.repository.LearningRoadmapRepository;
+import com.back.coach.domain.roadmap.repository.ProgressLogRepository;
 import com.back.coach.domain.roadmap.repository.RoadmapWeekRepository;
 import com.back.coach.domain.roadmap.service.RoadmapCommandService;
 import com.back.coach.domain.roadmap.service.RoadmapDetailSnapshotService;
@@ -76,6 +78,9 @@ class V1ResultFlowIntegrationTest {
 
     @Autowired
     private RoadmapWeekRepository roadmapWeekRepository;
+
+    @Autowired
+    private ProgressLogRepository progressLogRepository;
 
     @Autowired
     private ProfileService profileService;
@@ -148,26 +153,78 @@ class V1ResultFlowIntegrationTest {
         assertThat(persistedRoadmap.getVersion()).isEqualTo(1);
         assertThat(persistedRoadmap.getDiagnosisId()).isEqualTo(persistedDiagnosis.getId());
         assertThat(persistedRoadmap.getRoadmapPayload()).doesNotContain("progressStatus");
-        assertThat(persistedWeeks).hasSize(2);
+        assertThat(persistedWeeks).hasSize(4);
         assertThat(roadmap.weeks())
                 .extracting(RoadmapDetailResponse.WeekResponse::progressStatus)
-                .containsExactly(ProgressStatus.TODO, ProgressStatus.TODO);
+                .containsExactly(
+                        ProgressStatus.TODO,
+                        ProgressStatus.TODO,
+                        ProgressStatus.TODO,
+                        ProgressStatus.TODO
+                );
+
+        Long roadmapId = Long.valueOf(roadmap.roadmapId());
+        Long firstWeekId = Long.valueOf(roadmap.weeks().getFirst().roadmapWeekId());
+        Long secondWeekId = Long.valueOf(roadmap.weeks().get(1).roadmapWeekId());
+        Long thirdWeekId = Long.valueOf(roadmap.weeks().get(2).roadmapWeekId());
 
         roadmapProgressCommandService.appendProgress(
                 user.getId(),
-                Long.valueOf(roadmap.roadmapId()),
-                Long.valueOf(roadmap.weeks().get(1).roadmapWeekId()),
+                roadmapId,
+                firstWeekId,
+                ProgressStatus.IN_PROGRESS,
+                "Redis 공식 문서 읽기 시작"
+        );
+        roadmapProgressCommandService.appendProgress(
+                user.getId(),
+                roadmapId,
+                firstWeekId,
                 ProgressStatus.DONE,
-                "Redis 캐시 예제 완료"
+                "Redis 공식 문서 정리 완료"
+        );
+        roadmapProgressCommandService.appendProgress(
+                user.getId(),
+                roadmapId,
+                secondWeekId,
+                ProgressStatus.IN_PROGRESS,
+                "캐시 예제 진행 중"
+        );
+        roadmapProgressCommandService.appendProgress(
+                user.getId(),
+                roadmapId,
+                thirdWeekId,
+                ProgressStatus.SKIPPED,
+                "이번 주는 후순위"
         );
 
+        List<ProgressLog> firstWeekProgressLogs = progressLogRepository
+                .findByUserIdAndRoadmapWeekIdOrderByCreatedAtDesc(user.getId(), firstWeekId);
+        assertThat(firstWeekProgressLogs).hasSize(2);
+        assertThat(firstWeekProgressLogs)
+                .extracting(ProgressLog::getStatus)
+                .containsExactly(ProgressStatus.DONE, ProgressStatus.IN_PROGRESS);
+        assertThat(firstWeekProgressLogs)
+                .extracting(ProgressLog::getNote)
+                .containsExactly("Redis 공식 문서 정리 완료", "Redis 공식 문서 읽기 시작");
+
         RoadmapDetailResponse updatedRoadmap = RoadmapDetailResponse.from(
-                roadmapDetailSnapshotService.findSnapshot(user.getId(), Long.valueOf(roadmap.roadmapId())),
+                roadmapDetailSnapshotService.findSnapshot(user.getId(), roadmapId),
                 new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
         );
         assertThat(updatedRoadmap.weeks())
                 .extracting(RoadmapDetailResponse.WeekResponse::progressStatus)
-                .containsExactly(ProgressStatus.TODO, ProgressStatus.DONE);
+                .containsExactly(
+                        ProgressStatus.DONE,
+                        ProgressStatus.IN_PROGRESS,
+                        ProgressStatus.SKIPPED,
+                        ProgressStatus.TODO
+                );
+        assertThat(updatedRoadmap.weeks().getFirst().progressNote())
+                .isEqualTo("Redis 공식 문서 정리 완료");
+        assertThat(updatedRoadmap.weeks().get(1).progressNote())
+                .isEqualTo("캐시 예제 진행 중");
+        assertThat(updatedRoadmap.weeks().get(2).progressNote())
+                .isEqualTo("이번 주는 후순위");
 
         DashboardSnapshot dashboard = dashboardSnapshotService.findSnapshot(user.getId());
         assertThat(dashboard.profile().profileId()).isEqualTo(profile.profileId());
@@ -175,7 +232,7 @@ class V1ResultFlowIntegrationTest {
         assertThat(dashboard.diagnosis().diagnosisId()).isEqualTo(persistedDiagnosis.getId());
         assertThat(dashboard.roadmap().roadmapId()).isEqualTo(persistedRoadmap.getId());
         assertThat(dashboard.roadmap().progress())
-                .isEqualTo(new DashboardSnapshot.ProgressSummary(2, 1, 0, 1, 0));
+                .isEqualTo(new DashboardSnapshot.ProgressSummary(4, 1, 1, 1, 1));
 
         DashboardSnapshot otherDashboard = dashboardSnapshotService.findSnapshot(otherUser.getId());
         assertThat(otherDashboard.profile()).isNull();
@@ -295,6 +352,32 @@ class V1ResultFlowIntegrationTest {
                       ],
                       "materials": [],
                       "estimatedHours": 6.0
+                    },
+                    {
+                      "weekNumber": 3,
+                      "topic": "프로젝트 캐시 설계",
+                      "reason": "포트폴리오에 남길 캐시 적용 근거가 필요함",
+                      "tasks": [
+                        {
+                          "type": "APPLY_PROJECT",
+                          "title": "기존 프로젝트에 조회 캐시 적용하기"
+                        }
+                      ],
+                      "materials": [],
+                      "estimatedHours": 5.0
+                    },
+                    {
+                      "weekNumber": 4,
+                      "topic": "학습 회고",
+                      "reason": "학습 결과를 정리하고 다음 보완점을 확인해야 함",
+                      "tasks": [
+                        {
+                          "type": "WRITE_NOTE",
+                          "title": "캐시 학습 회고 작성"
+                        }
+                      ],
+                      "materials": [],
+                      "estimatedHours": 3.0
                     }
                   ]
                 }
