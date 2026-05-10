@@ -118,6 +118,7 @@ class GithubAnalysisFlowIntegrationTest {
             org.springframework.test.util.ReflectionTestUtils.setField(p, "repoFullName", fullName);
             org.springframework.test.util.ReflectionTestUtils.setField(p, "repoUrl", "https://github.com/" + fullName);
             org.springframework.test.util.ReflectionTestUtils.setField(p, "primaryLanguage", lang);
+            org.springframework.test.util.ReflectionTestUtils.setField(p, "ownerType", "owner");
             org.springframework.test.util.ReflectionTestUtils.setField(p, "selected", true);
             org.springframework.test.util.ReflectionTestUtils.setField(p, "coreRepo", true);
             org.springframework.test.util.ReflectionTestUtils.setField(p, "metadataPayload", metadataJson);

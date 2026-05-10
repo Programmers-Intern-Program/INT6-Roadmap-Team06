@@ -3,6 +3,8 @@ package com.back.coach.domain.flow;
 import com.back.coach.domain.user.entity.User;
 import com.back.coach.domain.user.repository.UserRepository;
 import com.back.coach.external.github.GithubApiClient;
+import com.back.coach.external.github.dto.GithubCommitDetailDto;
+import com.back.coach.external.github.dto.GithubCommitDto;
 import com.back.coach.external.github.dto.GithubRepoDto;
 import com.back.coach.external.github.dto.GithubUserInfoDto;
 import com.back.coach.global.code.AuthProvider;
@@ -28,7 +30,7 @@ import java.util.UUID;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -86,7 +88,10 @@ class GithubAnalysisE2eTest extends ApiTestBase {
         ));
         given(githubApiClient.getReadme(anyString(), anyString(), anyString())).willReturn(Optional.empty());
         given(githubApiClient.getLanguages(anyString(), anyString(), anyString())).willReturn(Map.of("Java", 10000L));
-        given(githubApiClient.listCommits(anyString(), anyString(), anyString(), anyString(), any(int.class))).willReturn(List.of());
+        given(githubApiClient.listCommits(anyString(), anyString(), anyString(), anyString(), anyInt()))
+                .willReturn(List.of(commit("abc123", "feat: Spring Boot 도입")));
+        given(githubApiClient.getCommitDetail(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(commitDetail("abc123", "feat: Spring Boot 도입"));
         given(githubApiClient.listPullRequests(anyString(), anyString(), anyString())).willReturn(List.of());
         given(githubApiClient.listIssues(anyString(), anyString(), anyString())).willReturn(List.of());
 
@@ -157,7 +162,10 @@ class GithubAnalysisE2eTest extends ApiTestBase {
         ));
         given(githubApiClient.getReadme(anyString(), anyString(), anyString())).willReturn(Optional.empty());
         given(githubApiClient.getLanguages(anyString(), anyString(), anyString())).willReturn(Map.of());
-        given(githubApiClient.listCommits(anyString(), anyString(), anyString(), anyString(), any(int.class))).willReturn(List.of());
+        given(githubApiClient.listCommits(anyString(), anyString(), anyString(), anyString(), anyInt()))
+                .willReturn(List.of(commit("abc123", "refactor: 마이크로서비스 전환 시도")));
+        given(githubApiClient.getCommitDetail(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(commitDetail("abc123", "refactor: 마이크로서비스 전환 시도"));
         given(githubApiClient.listPullRequests(anyString(), anyString(), anyString())).willReturn(List.of());
         given(githubApiClient.listIssues(anyString(), anyString(), anyString())).willReturn(List.of());
 
@@ -234,6 +242,28 @@ class GithubAnalysisE2eTest extends ApiTestBase {
                 "\"depthEstimates\":[{\"skillName\":\"Spring Boot\",\"level\":\"PRACTICAL\",\"reason\":\"일관된 사용\"}]," +
                 "\"evidences\":[{\"repoName\":\"testuser/backend\",\"type\":\"COMMIT\",\"source\":\"abc123\",\"summary\":\"핵심 로직\"}]," +
                 "\"finalTechProfile\":{\"confirmedSkills\":[\"Spring Boot\"],\"focusAreas\":[\"백엔드\"]}}";
+    }
+
+    private static GithubCommitDto commit(String sha, String message) {
+        return new GithubCommitDto(
+                sha,
+                new GithubCommitDto.CommitInfo(
+                        message,
+                        new GithubCommitDto.Committer("2026-05-01T00:00:00Z")
+                )
+        );
+    }
+
+    private static GithubCommitDetailDto commitDetail(String sha, String message) {
+        return new GithubCommitDetailDto(
+                sha,
+                new GithubCommitDetailDto.CommitInfo(message),
+                new GithubCommitDetailDto.Stats(24, 3),
+                List.of(new GithubCommitDetailDto.FileChange(
+                        "src/main/java/com/example/App.java",
+                        "@@ -1,3 +1,5 @@\n+class App {}\n+// Spring Boot"
+                ))
+        );
     }
 
     private static long extractLong(String json, String field) {
