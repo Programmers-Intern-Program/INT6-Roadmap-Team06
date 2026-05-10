@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import { getDashboard } from "@/features/dashboard/api";
 import {
@@ -20,6 +21,7 @@ import type {
   GithubUserCorrection
 } from "@/features/github-analysis/types";
 import { ApiError } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 
 type GithubAnalysisViewProps = {
   initialGithubAnalysisId?: string | null;
@@ -27,6 +29,7 @@ type GithubAnalysisViewProps = {
 
 type GithubAnalysisState =
   | { status: "loading" }
+  | { status: "auth-required" }
   | { status: "empty"; message: string }
   | { status: "error"; message: string }
   | {
@@ -54,7 +57,13 @@ export function GithubAnalysisView({
       try {
         const queryGithubAnalysisId = normalizeOptionalId(initialGithubAnalysisId);
         const dashboard = queryGithubAnalysisId
-          ? await getDashboard().catch(() => null)
+          ? await getDashboard().catch((error) => {
+              if (isUnauthorizedError(error)) {
+                throw error;
+              }
+
+              return null;
+            })
           : await getDashboard();
         const githubAnalysisId =
           queryGithubAnalysisId ??
@@ -82,6 +91,10 @@ export function GithubAnalysisView({
         }
       } catch (error) {
         if (!ignore) {
+          if (isUnauthorizedError(error)) {
+            setState({ status: "auth-required" });
+            return;
+          }
           setState({
             message: getErrorMessage(error),
             status: "error"
@@ -148,6 +161,10 @@ export function GithubAnalysisView({
       });
       setSaveMessage(`저장 완료 ${formatDateTime(saved.savedAt)}`);
     } catch (error) {
+      if (isUnauthorizedError(error)) {
+        setState({ status: "auth-required" });
+        return;
+      }
       setSaveError(getSaveErrorMessage(error));
     } finally {
       setIsSaving(false);
@@ -159,6 +176,19 @@ export function GithubAnalysisView({
       <StatePanel
         className="github-analysis-state-panel"
         message="GitHub 분석 결과를 불러오는 중입니다."
+      />
+    );
+  }
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        className="github-analysis-state-panel"
+        redirectPath={
+          initialGithubAnalysisId
+            ? `/github/analysis?githubAnalysisId=${encodeURIComponent(initialGithubAnalysisId)}`
+            : "/github/analysis"
+        }
       />
     );
   }

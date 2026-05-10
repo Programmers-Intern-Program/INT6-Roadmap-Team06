@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import { getJobRoles, getMyProfile, saveProfile } from "@/features/profile/api";
 import {
@@ -20,9 +21,11 @@ import type {
   ProficiencyLevel
 } from "@/features/profile/types";
 import { ApiError } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 
 type ProfileState =
   | { status: "loading" }
+  | { status: "auth-required" }
   | { status: "error"; message: string }
   | { profile: ProfileDetail | null; status: "ready" };
 
@@ -54,6 +57,10 @@ export function ProfileView() {
         }
       } catch (error) {
         if (ignore) return;
+        if (isUnauthorizedError(error)) {
+          setState({ status: "auth-required" });
+          return;
+        }
         setState({ message: getErrorMessage(error), status: "error" });
       }
     }
@@ -70,6 +77,15 @@ export function ProfileView() {
       <StatePanel
         className="profile-state-panel"
         message="프로필을 불러오는 중입니다."
+      />
+    );
+  }
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        className="profile-state-panel"
+        redirectPath="/profile"
       />
     );
   }
@@ -108,6 +124,10 @@ export function ProfileView() {
       const profile = await getMyProfile();
       setState({ profile, status: "ready" });
     } catch (error) {
+      if (isUnauthorizedError(error)) {
+        setState({ status: "auth-required" });
+        return;
+      }
       setSaveError(getErrorMessage(error));
     } finally {
       setSaving(false);

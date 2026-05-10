@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import { getDashboard } from "@/features/dashboard/api";
-import { ApiError, githubLoginUrl } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 
 type DiagnosesPageState =
   | { status: "loading" }
+  | { status: "auth-required" }
   | { status: "ready"; githubAnalysisId: string | null }
   | { status: "error"; message: string };
 
@@ -36,8 +39,8 @@ export default function DiagnosesPage() {
       })
       .catch((error) => {
         if (ignore) return;
-        if (error instanceof ApiError && error.status === 401) {
-          window.location.href = githubLoginUrl("/diagnoses");
+        if (isUnauthorizedError(error)) {
+          setState({ status: "auth-required" });
           return;
         }
         setState({ message: getErrorMessage(error), status: "error" });
@@ -54,6 +57,15 @@ export default function DiagnosesPage() {
         className="diagnosis-state-panel"
         message={state.message}
         tone="danger"
+      />
+    );
+  }
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        className="diagnosis-state-panel"
+        redirectPath="/diagnoses"
       />
     );
   }

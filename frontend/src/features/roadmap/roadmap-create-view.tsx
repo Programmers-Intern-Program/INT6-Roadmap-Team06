@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { ApiError, apiClient } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 import { getMyProfile } from "@/features/profile/api";
 import { getDashboard } from "@/features/dashboard/api";
 import { StatePanel } from "@/components/state-panel";
@@ -12,6 +14,7 @@ import { StatePanel } from "@/components/state-panel";
 type CreateState =
   | { status: "idle" }
   | { status: "submitting" }
+  | { status: "auth-required" }
   | { status: "error"; message: string };
 
 function getErrorMessage(error: unknown): string {
@@ -57,7 +60,11 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
           setWeeklyStudyHours(String(profile.weeklyStudyHours));
         if (profile.targetDate) setTargetDate(profile.targetDate);
       })
-      .catch(() => {});
+      .catch((error) => {
+        if (isUnauthorizedError(error)) {
+          setState({ status: "auth-required" });
+        }
+      });
 
     // initialDiagnosisId가 없으면 대시보드에서 최신 진단 자동 로드
     if (!initialDiagnosisId) {
@@ -68,7 +75,11 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
             setDiagnosisSummary(dashboard.diagnosis.summary);
           }
         })
-        .catch(() => {});
+        .catch((error) => {
+          if (isUnauthorizedError(error)) {
+            setState({ status: "auth-required" });
+          }
+        });
     } else {
       // initialDiagnosisId가 있으면 대시보드에서 summary만 가져옴
       getDashboard()
@@ -80,7 +91,11 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
             setDiagnosisSummary(dashboard.diagnosis.summary);
           }
         })
-        .catch(() => {});
+        .catch((error) => {
+          if (isUnauthorizedError(error)) {
+            setState({ status: "auth-required" });
+          }
+        });
     }
   }, [initialDiagnosisId]);
 
@@ -123,11 +138,28 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
       });
       router.push(`/roadmaps/${result.roadmapId}`);
     } catch (err) {
+      if (isUnauthorizedError(err)) {
+        setState({ status: "auth-required" });
+        return;
+      }
       setState({ status: "error", message: getErrorMessage(err) });
     }
   }
 
   const isSubmitting = state.status === "submitting";
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        className="roadmap-state-panel"
+        redirectPath={
+          initialDiagnosisId
+            ? `/roadmaps/new?diagnosisId=${encodeURIComponent(initialDiagnosisId)}`
+            : "/roadmaps/new"
+        }
+      />
+    );
+  }
 
   return (
     <section className="screen-shell">

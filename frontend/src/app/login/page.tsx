@@ -4,6 +4,7 @@ import { Suspense, useSyncExternalStore, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { githubLoginUrl } from "@/lib/api";
+import { normalizeLocalRedirectPath } from "@/lib/auth";
 
 const ERROR_MESSAGES: Record<string, string> = {
   access_denied: "GitHub 로그인을 취소했습니다.",
@@ -45,6 +46,8 @@ function KakaoIcon() {
 function LoginInner() {
   const params = useSearchParams();
   const error = params.get("error");
+  const redirectPath = normalizeLocalRedirectPath(params.get("redirectUrl"));
+  const isAuthRequired = params.has("redirectUrl");
   const [githubLoading, setGithubLoading] = useState(false);
 
   const origin = useSyncExternalStore(
@@ -53,7 +56,7 @@ function LoginInner() {
     () => ""
   );
 
-  const loginUrl = origin ? githubLoginUrl(`${origin}/me`) : null;
+  const loginUrl = origin ? githubLoginUrl(`${origin}${redirectPath}`) : null;
 
   function handleGitHubLogin() {
     if (!loginUrl) return;
@@ -77,6 +80,13 @@ function LoginInner() {
           <div className="login-error" role="alert">
             <strong>로그인 실패</strong>
             <p>{errorMessage}</p>
+          </div>
+        )}
+
+        {!errorMessage && isAuthRequired && (
+          <div className="login-notice" role="status">
+            <strong>로그인이 필요합니다</strong>
+            <p>다시 로그인하면 이전 화면으로 돌아갑니다.</p>
           </div>
         )}
 

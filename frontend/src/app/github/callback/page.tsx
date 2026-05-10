@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { connectGithub } from "@/features/github-connection/api";
 import { StatePanel } from "@/components/state-panel";
+import { isUnauthorizedError, getLoginPath } from "@/lib/auth";
 
 const CONNECTION_ID_KEY = "githubConnectionId";
 
@@ -30,7 +31,11 @@ function CallbackInner() {
         localStorage.setItem(CONNECTION_ID_KEY, connection.githubConnectionId);
         router.replace("/github");
       })
-      .catch(() => {
+      .catch((error) => {
+        if (isUnauthorizedError(error)) {
+          router.replace(getLoginPath("/github"));
+          return;
+        }
         router.replace("/github?error=connection_failed");
       });
   }, [params, router]);

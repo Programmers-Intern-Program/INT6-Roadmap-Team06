@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import {
   StatusBadge,
@@ -15,6 +16,7 @@ import {
 } from "@/features/diagnosis/labels";
 import type { Diagnosis, MissingSkill } from "@/features/diagnosis/types";
 import { ApiError } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 
 type DiagnosisDetailViewProps = {
   diagnosisId: string;
@@ -22,6 +24,7 @@ type DiagnosisDetailViewProps = {
 
 type DiagnosisState =
   | { status: "loading" }
+  | { status: "auth-required" }
   | { status: "error"; message: string }
   | { status: "success"; diagnosis: Diagnosis };
 
@@ -42,6 +45,10 @@ export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
         }
       } catch (error) {
         if (!ignore) {
+          if (isUnauthorizedError(error)) {
+            setState({ status: "auth-required" });
+            return;
+          }
           setState({
             message: getErrorMessage(error),
             status: "error"
@@ -62,6 +69,15 @@ export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
       <StatePanel
         className="diagnosis-state-panel"
         message="진단 결과를 불러오는 중입니다."
+      />
+    );
+  }
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        className="diagnosis-state-panel"
+        redirectPath={`/diagnoses/${encodeURIComponent(diagnosisId)}`}
       />
     );
   }

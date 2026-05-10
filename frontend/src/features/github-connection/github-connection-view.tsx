@@ -3,8 +3,10 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, githubConnectionOAuthUrl } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 import { getRepositories, runAnalysis } from "@/features/github-connection/api";
 import type { Repository } from "@/features/github-connection/types";
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 
 const CONNECTION_ID_KEY = "githubConnectionId";
@@ -14,6 +16,7 @@ const SELECTED_REPOS_KEY = "githubSelectedRepos";
 type ViewState =
   | { status: "disconnected" }
   | { status: "loading-repos" }
+  | { status: "auth-required" }
   | { status: "ready"; repos: Repository[] }
   | { status: "analyzing" }
   | { status: "error"; message: string };
@@ -75,6 +78,8 @@ export function GithubConnectionView() {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 404) {
           clearConnectionId();
+        } else if (isUnauthorizedError(err)) {
+          setState({ status: "auth-required" });
         } else {
           setState({ status: "error", message: getErrorMessage(err) });
         }
@@ -99,6 +104,10 @@ export function GithubConnectionView() {
       const result = await runAnalysis(connectionId, ids, ids);
       router.push(`/github/analysis?githubAnalysisId=${result.githubAnalysisId}`);
     } catch (err) {
+      if (isUnauthorizedError(err)) {
+        setState({ status: "auth-required" });
+        return;
+      }
       setState({ status: "error", message: getErrorMessage(err) });
     }
   }
@@ -123,6 +132,15 @@ export function GithubConnectionView() {
 
   if (state.status === "analyzing") {
     return <StatePanel message="GitHub 분석 중입니다. 잠시 기다려주세요..." />;
+  }
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        className="github-connection-state-panel"
+        redirectPath="/github"
+      />
+    );
   }
 
   if (state.status === "error") {
