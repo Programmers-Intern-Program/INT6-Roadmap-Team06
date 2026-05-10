@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import { TagList } from "@/components/tag-list";
 import { getDashboard } from "@/features/dashboard/api";
@@ -11,10 +12,12 @@ import type {
   Dashboard,
   DashboardProgressSummary
 } from "@/features/dashboard/types";
-import { ApiError, githubLoginUrl } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 
 type DashboardState =
   | { status: "loading" }
+  | { status: "auth-required" }
   | { status: "error"; message: string }
   | { status: "success"; dashboard: Dashboard };
 
@@ -35,8 +38,8 @@ export function DashboardView() {
         }
       } catch (error) {
         if (ignore) return;
-        if (error instanceof ApiError && error.status === 401) {
-          window.location.href = githubLoginUrl("/");
+        if (isUnauthorizedError(error)) {
+          setState({ status: "auth-required" });
           return;
         }
         setState({
@@ -60,6 +63,10 @@ export function DashboardView() {
         message="대시보드를 불러오는 중입니다."
       />
     );
+  }
+
+  if (state.status === "auth-required") {
+    return <AuthRequiredPanel className="roadmap-state-panel" redirectPath="/" />;
   }
 
   if (state.status === "error") {

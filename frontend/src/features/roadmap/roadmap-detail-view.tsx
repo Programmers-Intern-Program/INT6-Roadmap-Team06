@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import {
   StatusBadge,
@@ -17,6 +18,7 @@ import {
 } from "@/features/roadmap/labels";
 import type { ProgressStatus, Roadmap } from "@/features/roadmap/types";
 import { ApiError } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 
 type RoadmapDetailViewProps = {
   roadmapId: string;
@@ -24,6 +26,7 @@ type RoadmapDetailViewProps = {
 
 type RoadmapState =
   | { status: "loading" }
+  | { status: "auth-required" }
   | { status: "error"; message: string }
   | { status: "success"; roadmap: Roadmap };
 
@@ -46,6 +49,10 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
         }
       } catch (error) {
         if (!ignore) {
+          if (isUnauthorizedError(error)) {
+            setState({ status: "auth-required" });
+            return;
+          }
           setState({
             message: getErrorMessage(error, "로드맵을 불러오지 못했습니다."),
             status: "error"
@@ -119,6 +126,10 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
         };
       });
     } catch (error) {
+      if (isUnauthorizedError(error)) {
+        setState({ status: "auth-required" });
+        return;
+      }
       setSaveErrors((current) => ({
         ...current,
         [roadmapWeekId]: getErrorMessage(error, "진도를 저장하지 못했습니다.")
@@ -133,6 +144,15 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
       <StatePanel
         className="roadmap-state-panel"
         message="로드맵을 불러오는 중입니다."
+      />
+    );
+  }
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        className="roadmap-state-panel"
+        redirectPath={`/roadmaps/${encodeURIComponent(roadmapId)}`}
       />
     );
   }

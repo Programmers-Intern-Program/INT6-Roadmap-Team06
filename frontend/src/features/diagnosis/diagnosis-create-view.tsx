@@ -2,13 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { ApiError } from "@/lib/api";
+import { isUnauthorizedError } from "@/lib/auth";
 import { createDiagnosis } from "@/features/diagnosis/api";
 import { getMyProfile } from "@/features/profile/api";
 import { StatePanel } from "@/components/state-panel";
 
 type CreateState =
   | { status: "loading" }
+  | { status: "auth-required" }
   | { status: "ready"; profileId: string }
   | { status: "submitting" }
   | { status: "error"; message: string };
@@ -32,7 +35,13 @@ export function DiagnosisCreateView({ githubAnalysisId }: Props) {
     loaded.current = true;
     getMyProfile()
       .then((profile) => setState({ status: "ready", profileId: profile.profileId }))
-      .catch((err) => setState({ status: "error", message: getErrorMessage(err) }));
+      .catch((err) => {
+        if (isUnauthorizedError(err)) {
+          setState({ status: "auth-required" });
+          return;
+        }
+        setState({ status: "error", message: getErrorMessage(err) });
+      });
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -43,6 +52,10 @@ export function DiagnosisCreateView({ githubAnalysisId }: Props) {
       const diagnosis = await createDiagnosis({ profileId: state.profileId, githubAnalysisId });
       router.push(`/diagnoses/${diagnosis.diagnosisId}`);
     } catch (err) {
+      if (isUnauthorizedError(err)) {
+        setState({ status: "auth-required" });
+        return;
+      }
       setState({ status: "error", message: getErrorMessage(err) });
     }
   }
@@ -53,6 +66,14 @@ export function DiagnosisCreateView({ githubAnalysisId }: Props) {
 
   if (state.status === "submitting") {
     return <StatePanel message="진단을 생성하는 중입니다. 잠시 기다려주세요..." />;
+  }
+
+  if (state.status === "auth-required") {
+    return (
+      <AuthRequiredPanel
+        redirectPath={`/diagnoses/new?githubAnalysisId=${encodeURIComponent(githubAnalysisId)}`}
+      />
+    );
   }
 
   if (state.status === "error") {

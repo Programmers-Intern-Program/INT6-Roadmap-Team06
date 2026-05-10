@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { api } from "@/lib/api";
 
 type Me = { userId: number; email: string; authProvider: string };
@@ -9,6 +10,7 @@ export default function MePage() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const didInitialLoad = useRef(false);
 
@@ -17,11 +19,13 @@ export default function MePage() {
       setLoading(true);
     }
     setError(null);
+    setAuthRequired(false);
     const res = await api<Me>("/api/v1/auth/me");
     if (res.ok && res.data) {
       setMe(res.data);
     } else if (res.status === 401) {
-      setError("인증 만료 또는 미인증. /refresh 시도하거나 다시 로그인하세요.");
+      setMe(null);
+      setAuthRequired(true);
     } else {
       setError(`HTTP ${res.status}`);
     }
@@ -40,7 +44,14 @@ export default function MePage() {
   const refresh = async () => {
     const res = await api("/api/v1/auth/refresh", { method: "POST" });
     if (res.ok) await load();
-    else setError(`refresh 실패: HTTP ${res.status}`);
+    else if (res.status === 401) {
+      setError(null);
+      setAuthRequired(true);
+    }
+    else {
+      setAuthRequired(false);
+      setError(`refresh 실패: HTTP ${res.status}`);
+    }
   };
 
   const logout = async () => {
@@ -62,6 +73,10 @@ export default function MePage() {
         <div className="panel">
           <p>불러오는 중…</p>
         </div>
+      )}
+
+      {!loading && authRequired && (
+        <AuthRequiredPanel redirectPath="/me" standalone={false} />
       )}
 
       {error && (
