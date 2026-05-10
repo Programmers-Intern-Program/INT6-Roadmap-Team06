@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { StatePanel } from "@/components/state-panel";
@@ -32,7 +33,6 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
   const [saveErrors, setSaveErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (roadmapId === "demo") return;
     let ignore = false;
 
     async function loadRoadmap() {
@@ -128,15 +128,6 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
     }
   }
 
-  if (roadmapId === "demo") {
-    return (
-      <StatePanel
-        tone="neutral"
-        message="이 페이지는 아직 구현 중입니다. 진단 생성 후 로드맵 생성 페이지(/roadmaps/new)를 이용해 주세요."
-      />
-    );
-  }
-
   if (state.status === "loading") {
     return (
       <StatePanel
@@ -148,11 +139,21 @@ export function RoadmapDetailView({ roadmapId }: RoadmapDetailViewProps) {
 
   if (state.status === "error") {
     return (
-      <StatePanel
-        className="roadmap-state-panel"
-        message={state.message}
-        tone="danger"
-      />
+      <section className="screen-shell">
+        <StatePanel
+          className="roadmap-state-panel"
+          message={state.message}
+          tone="danger"
+        />
+        <div className="action-row" aria-label="로드맵 오류 다음 행동">
+          <Link className="action-link primary" href="/roadmaps">
+            최근 로드맵 보기
+          </Link>
+          <Link className="action-link" href="/roadmaps/new">
+            로드맵 생성
+          </Link>
+        </div>
+      </section>
     );
   }
 

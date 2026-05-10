@@ -59,7 +59,7 @@ export const screens = {
       "프로필, GitHub 분석, 진단, 로드맵의 최신 상태를 한 화면에서 확인하는 진입점입니다.",
     states: ["최신 결과 조회", "상세 화면 이동", "진도 요약 확인"],
     primaryAction: { label: "프로필 입력", href: "/profile" },
-    secondaryAction: { label: "로드맵 보기", href: "/roadmaps/demo" },
+    secondaryAction: { label: "로드맵 보기", href: "/roadmaps" },
     sections: [
       {
         title: "표시 예정 데이터",
@@ -115,7 +115,7 @@ export const screens = {
     description:
       "정적 분석 결과와 근거를 확인하고 사용자 보정값을 저장하는 화면입니다.",
     states: ["분석 완료", "보정 전", "보정 저장 완료"],
-    primaryAction: { label: "진단 결과 확인", href: "/diagnoses/demo" },
+    primaryAction: { label: "진단 결과 확인", href: "/diagnoses" },
     secondaryAction: { label: "저장소 선택으로 이동", href: "/github" },
     sections: [
       {
@@ -149,8 +149,8 @@ export const screens = {
     description:
       "진단 결과를 기준으로 학습 가능 시간과 목표 날짜를 확인한 뒤 로드맵을 생성하는 화면입니다.",
     states: ["진단 선택", "생성 요청", "생성 완료"],
-    primaryAction: { label: "로드맵 보기", href: "/roadmaps/demo" },
-    secondaryAction: { label: "진단 결과로 이동", href: "/diagnoses/demo" },
+    primaryAction: { label: "로드맵 보기", href: "/roadmaps" },
+    secondaryAction: { label: "진단 결과로 이동", href: "/diagnoses" },
     sections: [
       {
         title: "입력 예정 항목",

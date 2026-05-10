@@ -29,7 +29,6 @@ export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
   const [state, setState] = useState<DiagnosisState>({ status: "loading" });
 
   useEffect(() => {
-    if (diagnosisId === "demo") return;
     let ignore = false;
 
     async function loadDiagnosis() {
@@ -58,15 +57,6 @@ export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
     };
   }, [diagnosisId]);
 
-  if (diagnosisId === "demo") {
-    return (
-      <StatePanel
-        tone="neutral"
-        message="이 페이지는 아직 구현 중입니다. 분석 결과 페이지(/github/analysis)의 '진단 생성' 버튼을 이용해 주세요."
-      />
-    );
-  }
-
   if (state.status === "loading") {
     return (
       <StatePanel
@@ -78,11 +68,21 @@ export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
 
   if (state.status === "error") {
     return (
-      <StatePanel
-        className="diagnosis-state-panel"
-        message={state.message}
-        tone="danger"
-      />
+      <section className="screen-shell">
+        <StatePanel
+          className="diagnosis-state-panel"
+          message={state.message}
+          tone="danger"
+        />
+        <div className="action-row" aria-label="진단 오류 다음 행동">
+          <Link className="action-link primary" href="/diagnoses">
+            최근 진단 보기
+          </Link>
+          <Link className="action-link" href="/github/analysis">
+            분석 보정
+          </Link>
+        </div>
+      </section>
     );
   }
 
