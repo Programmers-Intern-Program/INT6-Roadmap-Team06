@@ -37,3 +37,4 @@
 - 22_v1_smoke_test_result_2026-05-06.md: 2026-05-06 v1 full smoke 최종 결과 — 핵심 흐름 PASS
 - 23_v1_smoke_debug_2026-05-06.md: 2026-05-06 smoke 디버그 세션 — 버그 5종 수정 기록
 - 24_v1_demo_smoke_result_2026-05-08.md: 2026-05-08 v1 시연 핵심 저장/재조회 자동 검증 결과
+- 25_v1_demo_smoke_result_2026-05-11.md: 2026-05-11 v1 시연 smoke 기준 정리와 자동 검증 결과
