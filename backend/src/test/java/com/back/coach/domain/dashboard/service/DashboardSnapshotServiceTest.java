@@ -82,6 +82,88 @@ class DashboardSnapshotServiceTest {
     }
 
     @Test
+    void findSnapshot_whenOnlyProfileExists_returnsProfileAndNullResultSummaries() {
+        Instant profileUpdatedAt = Instant.parse("2026-04-28T01:00:00Z");
+        UserProfile profile = userProfile(10L, profileUpdatedAt);
+        given(userProfileRepository.findByUserId(1L)).willReturn(Optional.of(profile));
+        given(githubAnalysisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.empty());
+        given(capabilityDiagnosisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.empty());
+        given(learningRoadmapRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.empty());
+
+        DashboardSnapshot result = dashboardSnapshotService.findSnapshot(1L);
+
+        assertThat(result.profile()).isEqualTo(new DashboardSnapshot.ProfileSummary(
+                10L,
+                100L,
+                CurrentLevel.JUNIOR,
+                12,
+                LocalDate.of(2026, 12, 31),
+                profileUpdatedAt
+        ));
+        assertThat(result.githubAnalysis()).isNull();
+        assertThat(result.diagnosis()).isNull();
+        assertThat(result.roadmap()).isNull();
+        verifyNoInteractions(roadmapWeekRepository, roadmapProgressSnapshotService);
+    }
+
+    @Test
+    void findSnapshot_whenOnlyGithubAnalysisExists_returnsGithubAnalysisAndNullLaterSummaries() {
+        Instant githubAnalysisCreatedAt = Instant.parse("2026-04-28T02:00:00Z");
+        GithubAnalysis githubAnalysis = githubAnalysis(20L, 1, "latest analysis", githubAnalysisCreatedAt);
+        given(userProfileRepository.findByUserId(1L)).willReturn(Optional.empty());
+        given(githubAnalysisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.of(githubAnalysis));
+        given(capabilityDiagnosisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.empty());
+        given(learningRoadmapRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.empty());
+
+        DashboardSnapshot result = dashboardSnapshotService.findSnapshot(1L);
+
+        assertThat(result.profile()).isNull();
+        assertThat(result.githubAnalysis()).isEqualTo(new DashboardSnapshot.GithubAnalysisSummary(
+                20L,
+                1,
+                "latest analysis",
+                githubAnalysisCreatedAt,
+                finalTechProfile(),
+                1
+        ));
+        assertThat(result.diagnosis()).isNull();
+        assertThat(result.roadmap()).isNull();
+        verifyNoInteractions(roadmapWeekRepository, roadmapProgressSnapshotService);
+    }
+
+    @Test
+    void findSnapshot_whenDiagnosisExistsWithoutRoadmap_returnsDiagnosisAndNullRoadmap() {
+        Instant diagnosisCreatedAt = Instant.parse("2026-04-28T03:00:00Z");
+        CapabilityDiagnosis diagnosis = diagnosis(30L, 1, "latest diagnosis", diagnosisCreatedAt);
+        given(userProfileRepository.findByUserId(1L)).willReturn(Optional.empty());
+        given(githubAnalysisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.empty());
+        given(capabilityDiagnosisRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.of(diagnosis));
+        given(learningRoadmapRepository.findTopByUserIdOrderByVersionDescCreatedAtDesc(1L))
+                .willReturn(Optional.empty());
+
+        DashboardSnapshot result = dashboardSnapshotService.findSnapshot(1L);
+
+        assertThat(result.profile()).isNull();
+        assertThat(result.githubAnalysis()).isNull();
+        assertThat(result.diagnosis()).isEqualTo(new DashboardSnapshot.DiagnosisSummary(
+                30L,
+                1,
+                "latest diagnosis",
+                diagnosisCreatedAt
+        ));
+        assertThat(result.roadmap()).isNull();
+        verifyNoInteractions(roadmapWeekRepository, roadmapProgressSnapshotService);
+    }
+
+    @Test
     void findSnapshot_whenLatestResultsExist_returnsLatestSummaries() {
         Instant profileUpdatedAt = Instant.parse("2026-04-28T01:00:00Z");
         Instant githubAnalysisCreatedAt = Instant.parse("2026-04-28T02:00:00Z");
@@ -158,6 +240,27 @@ class DashboardSnapshotServiceTest {
         DashboardSnapshot result = dashboardSnapshotService.findSnapshot(1L);
 
         assertThat(result.roadmap().progress()).isEqualTo(new DashboardSnapshot.ProgressSummary(4, 1, 1, 1, 1));
+    }
+
+    @Test
+    void findSnapshot_whenLatestRoadmapHasWeeksWithoutProgressLogs_countsWeeksAsTodo() {
+        LearningRoadmap roadmap = roadmap(40L, 2, 2, "latest roadmap", Instant.parse("2026-04-28T04:00:00Z"));
+        givenEmptyLatestResultsExceptRoadmap(1L, roadmap);
+        List<RoadmapWeek> roadmapWeeks = List.of(
+                roadmapWeek(10L),
+                roadmapWeek(20L)
+        );
+        given(roadmapWeekRepository.findByRoadmapIdOrderByWeekNumberAsc(40L))
+                .willReturn(roadmapWeeks);
+        given(roadmapProgressSnapshotService.findSnapshots(1L, List.of(10L, 20L)))
+                .willReturn(List.of(
+                        progressSnapshot(10L, ProgressStatus.TODO),
+                        progressSnapshot(20L, ProgressStatus.TODO)
+                ));
+
+        DashboardSnapshot result = dashboardSnapshotService.findSnapshot(1L);
+
+        assertThat(result.roadmap().progress()).isEqualTo(new DashboardSnapshot.ProgressSummary(2, 2, 0, 0, 0));
     }
 
     @Test
