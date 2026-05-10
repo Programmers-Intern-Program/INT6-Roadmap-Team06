@@ -12,10 +12,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Repository / Schema 통합 테스트용 메타 어노테이션.
+ * Docker/Testcontainers 기반 통합 테스트용 메타 어노테이션.
  *
  * <p>SpringBootTest + test 프로파일 + Testcontainers PostgreSQL/Redis 를 한 번에 적용한다.
  * API 테스트(MockMvc 필요)는 {@link ApiTestBase} 를 상속.
+ * 이 어노테이션이 붙은 테스트는 Gradle {@code integrationTest} 태스크에서 실행한다.
  *
  * <ul>
  *   <li><b>Docker Desktop 이 켜져 있어야 한다.</b> Testcontainers 가 컨테이너를 띄운다.

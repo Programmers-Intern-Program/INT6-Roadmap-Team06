@@ -11,5 +11,7 @@ Closes #
 실행 내용:
 
 ```text
-예) ./gradlew test jacocoTestReport
+예) cd backend && ./gradlew prVerification
+예) cd backend && ./gradlew integrationTest  # Docker/Testcontainers 필요 시
+예) cd backend && ./gradlew fullVerification # 전체 백엔드 검증 필요 시
 ```

@@ -77,7 +77,32 @@ npm run build
 
 ## 테스트
 
+백엔드 테스트는 실행 범위와 Docker 필요 여부가 다릅니다.
+
 ```powershell
 cd backend
 .\gradlew.bat test
 ```
+
+- `test`: 단위 테스트와 Docker가 필요 없는 빠른 테스트를 실행합니다. `integration` 태그는 제외됩니다.
+- `prIntegrationTest`: PR 병합 전에 확인할 `pr-gate` 태그 테스트를 실행합니다. 현재 CI의 PR 검증에 포함됩니다.
+- `prVerification`: `test`와 `prIntegrationTest`를 함께 실행합니다. 백엔드 PR 본문에는 기본적으로 이 명령 결과를 적습니다.
+- `integrationTest`: `integration` 태그 테스트를 실행합니다. Testcontainers가 PostgreSQL/Redis 컨테이너를 띄우므로 Docker Desktop이 켜져 있어야 합니다.
+- `fullVerification`: `test`, `integrationTest`, JaCoCo 리포트 생성을 함께 실행합니다. `dev`/`main` push CI의 전체 백엔드 검증 기준입니다.
+
+PR 검증 기준:
+
+```powershell
+cd backend
+.\gradlew.bat prVerification
+```
+
+Docker/Testcontainers까지 포함해 전체 통합 테스트를 확인하려면 Docker Desktop을 먼저 실행한 뒤 다음 중 하나를 사용합니다.
+
+```powershell
+cd backend
+.\gradlew.bat integrationTest
+.\gradlew.bat fullVerification
+```
+
+Docker가 꺼져 있거나 Docker CLI에 접근할 수 없으면 `integrationTest`는 시작 전에 실패합니다. 이 경우 Docker Desktop을 켠 뒤 같은 명령을 다시 실행합니다.
