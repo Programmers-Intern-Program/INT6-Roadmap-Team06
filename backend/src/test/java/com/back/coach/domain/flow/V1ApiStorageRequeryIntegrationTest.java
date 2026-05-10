@@ -162,21 +162,70 @@ class V1ApiStorageRequeryIntegrationTest extends ApiTestBase {
                 .andExpect(jsonPath("$.data.diagnosis").value(nullValue()))
                 .andExpect(jsonPath("$.data.roadmap").value(nullValue()));
 
-        User partialUser = saveUser("dashboard-partial");
-        UserProfile profile = saveProfileFixture(partialUser.getId());
-        GithubAnalysis githubAnalysis = saveGithubAnalysisFixture(partialUser.getId());
+        User profileOnlyUser = saveUser("dashboard-profile-only");
+        UserProfile profile = saveProfileFixture(profileOnlyUser.getId());
 
         mockMvc.perform(get("/api/dashboard")
-                        .cookie(accessTokenCookie(partialUser)))
+                        .cookie(accessTokenCookie(profileOnlyUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.userId").value(String.valueOf(partialUser.getId())))
+                .andExpect(jsonPath("$.data.userId").value(String.valueOf(profileOnlyUser.getId())))
                 .andExpect(jsonPath("$.data.profile.profileId").value(String.valueOf(profile.getId())))
                 .andExpect(jsonPath("$.data.profile.currentLevel").value("JUNIOR"))
+                .andExpect(jsonPath("$.data.githubAnalysis").value(nullValue()))
+                .andExpect(jsonPath("$.data.diagnosis").value(nullValue()))
+                .andExpect(jsonPath("$.data.roadmap").value(nullValue()));
+
+        User githubOnlyUser = saveUser("dashboard-github-only");
+        GithubAnalysis githubAnalysis = saveGithubAnalysisFixture(githubOnlyUser.getId());
+
+        mockMvc.perform(get("/api/dashboard")
+                        .cookie(accessTokenCookie(githubOnlyUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(String.valueOf(githubOnlyUser.getId())))
+                .andExpect(jsonPath("$.data.profile").value(nullValue()))
                 .andExpect(jsonPath("$.data.githubAnalysis.githubAnalysisId").value(String.valueOf(githubAnalysis.getId())))
                 .andExpect(jsonPath("$.data.githubAnalysis.version").value(1))
                 .andExpect(jsonPath("$.data.githubAnalysis.finalTechProfile.confirmedSkills[0]").value("Spring Boot"))
                 .andExpect(jsonPath("$.data.diagnosis").value(nullValue()))
                 .andExpect(jsonPath("$.data.roadmap").value(nullValue()));
+
+        User diagnosisWithoutRoadmapUser = saveUser("dashboard-diagnosis-only");
+        CapabilityDiagnosis diagnosis = saveDiagnosisFixture(diagnosisWithoutRoadmapUser.getId());
+
+        mockMvc.perform(get("/api/dashboard")
+                        .cookie(accessTokenCookie(diagnosisWithoutRoadmapUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(String.valueOf(diagnosisWithoutRoadmapUser.getId())))
+                .andExpect(jsonPath("$.data.profile").isMap())
+                .andExpect(jsonPath("$.data.githubAnalysis").isMap())
+                .andExpect(jsonPath("$.data.diagnosis.diagnosisId").value(String.valueOf(diagnosis.getId())))
+                .andExpect(jsonPath("$.data.diagnosis.summary").value("Redis 보완 필요"))
+                .andExpect(jsonPath("$.data.roadmap").value(nullValue()));
+
+        User roadmapWithoutProgressUser = saveUser("dashboard-roadmap-no-progress");
+        LearningRoadmap roadmap = saveRoadmapFixture(roadmapWithoutProgressUser.getId(), 3);
+
+        mockMvc.perform(get("/api/dashboard")
+                        .cookie(accessTokenCookie(roadmapWithoutProgressUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roadmap.roadmapId").value(String.valueOf(roadmap.getId())))
+                .andExpect(jsonPath("$.data.roadmap.progress.totalWeeks").value(3))
+                .andExpect(jsonPath("$.data.roadmap.progress.todoWeeks").value(3))
+                .andExpect(jsonPath("$.data.roadmap.progress.inProgressWeeks").value(0))
+                .andExpect(jsonPath("$.data.roadmap.progress.doneWeeks").value(0))
+                .andExpect(jsonPath("$.data.roadmap.progress.skippedWeeks").value(0));
+    }
+
+    @Test
+    @DisplayName("대시보드 API는 잘못된 GitHub 분석 payload를 공통 에러 응답으로 반환한다")
+    void dashboardApi_whenGithubAnalysisPayloadIsInvalid_returnsCommonErrorResponse() throws Exception {
+        User invalidPayloadUser = saveUser("dashboard-invalid-payload");
+        saveInvalidGithubAnalysisFixture(invalidPayloadUser.getId());
+
+        mockMvc.perform(get("/api/dashboard")
+                        .cookie(accessTokenCookie(invalidPayloadUser)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
     }
 
     @Test
@@ -206,20 +255,7 @@ class V1ApiStorageRequeryIntegrationTest extends ApiTestBase {
     }
 
     private LearningRoadmap saveRoadmapFixture(Long userId, int totalWeeks) {
-        UserProfile profile = saveProfileFixture(userId);
-        GithubAnalysis githubAnalysis = saveGithubAnalysisFixture(userId);
-        JobRole jobRole = jobRoleRepository.findByRoleCodeAndActiveTrue("BACKEND_DEVELOPER")
-                .orElseThrow();
-        CapabilityDiagnosis diagnosis = capabilityDiagnosisRepository.save(CapabilityDiagnosis.create(
-                userId,
-                profile.getId(),
-                githubAnalysis.getId(),
-                jobRole.getId(),
-                1,
-                CurrentLevel.JUNIOR,
-                "Redis 보완 필요",
-                diagnosisPayload()
-        ));
+        CapabilityDiagnosis diagnosis = saveDiagnosisFixture(userId);
         LearningRoadmap roadmap = learningRoadmapRepository.save(LearningRoadmap.create(
                 userId,
                 diagnosis.getId(),
@@ -230,6 +266,23 @@ class V1ApiStorageRequeryIntegrationTest extends ApiTestBase {
         ));
         roadmapWeekRepository.saveAll(roadmapWeeks(roadmap.getId(), totalWeeks));
         return roadmap;
+    }
+
+    private CapabilityDiagnosis saveDiagnosisFixture(Long userId) {
+        UserProfile profile = saveProfileFixture(userId);
+        GithubAnalysis githubAnalysis = saveGithubAnalysisFixture(userId);
+        JobRole jobRole = jobRoleRepository.findByRoleCodeAndActiveTrue("BACKEND_DEVELOPER")
+                .orElseThrow();
+        return capabilityDiagnosisRepository.save(CapabilityDiagnosis.create(
+                userId,
+                profile.getId(),
+                githubAnalysis.getId(),
+                jobRole.getId(),
+                1,
+                CurrentLevel.JUNIOR,
+                "Redis 보완 필요",
+                diagnosisPayload()
+        ));
     }
 
     private UserProfile saveProfileFixture(Long userId) {
@@ -261,6 +314,23 @@ class V1ApiStorageRequeryIntegrationTest extends ApiTestBase {
                 1,
                 "Spring Boot 중심 GitHub 분석",
                 githubAnalysisPayloadJson.toJson(githubAnalysisPayload())
+        ));
+    }
+
+    private GithubAnalysis saveInvalidGithubAnalysisFixture(Long userId) {
+        GithubConnection connection = githubConnectionRepository.save(GithubConnection.connect(
+                userId,
+                unique("gh-user"),
+                unique("login"),
+                GithubAccessType.OAUTH,
+                "ghp_test_token"
+        ));
+        return githubAnalysisRepository.save(GithubAnalysis.create(
+                userId,
+                connection.getId(),
+                1,
+                "깨진 GitHub 분석 payload",
+                "\"not-an-object\""
         ));
     }
 
