@@ -12,6 +12,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
  * API(HTTP 계층) 테스트 베이스.
  *
  * <p>{@link IntegrationTest} 설정을 포함한다 — 별도 어노테이션 불필요.
+ * Docker/Testcontainers 기반 테스트이므로 Gradle {@code integrationTest} 태스크에서 실행한다.
  *
  * <h2>사용 예 (HTTP 레이어만 검증)</h2>
  * <pre>{@code

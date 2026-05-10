@@ -1,5 +1,43 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.testing.Test
+import org.gradle.process.ExecOperations
+import java.io.ByteArrayOutputStream
+import javax.inject.Inject
+
+abstract class DockerPreflightTask : DefaultTask() {
+  @get:Inject
+  abstract val execOperations: ExecOperations
+
+  @TaskAction
+  fun checkDocker() {
+    val output = ByteArrayOutputStream()
+    val result = try {
+      execOperations.exec {
+        commandLine("docker", "info", "--format", "{{.ServerVersion}}")
+        isIgnoreExitValue = true
+        standardOutput = output
+        errorOutput = output
+      }
+    } catch (ex: Exception) {
+      throw GradleException(dockerPreflightMessage(), ex)
+    }
+
+    if (result.exitValue != 0) {
+      val dockerOutput = output.toString().trim()
+      val detail = if (dockerOutput.isBlank()) "" else "\n\nDocker output:\n${dockerOutput.take(1200)}"
+      throw GradleException(dockerPreflightMessage() + detail)
+    }
+  }
+
+  private fun dockerPreflightMessage() = """
+    integrationTest는 Docker/Testcontainers 환경이 필요합니다.
+    Docker Desktop을 실행한 뒤 다시 시도하세요.
+    Docker가 필요 없는 빠른 검증은 ./gradlew test 또는 ./gradlew prVerification을 사용하세요.
+  """.trimIndent()
+}
 
 plugins {
   java
@@ -103,6 +141,11 @@ tasks.test {
 
 val testSourceSet = the<JavaPluginExtension>().sourceSets.getByName("test")
 
+val dockerPreflight = tasks.register<DockerPreflightTask>("dockerPreflight") {
+  description = "Checks whether Docker is available before Testcontainers integration tests."
+  group = "verification"
+}
+
 val prIntegrationTest = tasks.register<Test>("prIntegrationTest") {
   description = "Runs integration tests that must pass before merging a PR."
   group = "verification"
@@ -117,6 +160,7 @@ val prIntegrationTest = tasks.register<Test>("prIntegrationTest") {
 val integrationTest = tasks.register<Test>("integrationTest") {
   description = "Runs integration tests that require Spring Boot and Testcontainers."
   group = "verification"
+  dependsOn(dockerPreflight)
   testClassesDirs = testSourceSet.output.classesDirs
   classpath = testSourceSet.runtimeClasspath
   useJUnitPlatform {
