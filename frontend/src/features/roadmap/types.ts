@@ -69,6 +69,10 @@ export type RoadmapProgressResponse = {
   status: ProgressStatus;
 };
 
+export type RoadmapConstraints = {
+  maxWeeks: number;
+};
+
 export type RoadmapSummary = {
   roadmapId: string;
   version: number;

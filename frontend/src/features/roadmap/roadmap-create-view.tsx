@@ -9,6 +9,7 @@ import { ApiError, apiClient } from "@/lib/api";
 import { isUnauthorizedError } from "@/lib/auth";
 import { getMyProfile } from "@/features/profile/api";
 import { getDashboard } from "@/features/dashboard/api";
+import { getRoadmapConstraints } from "@/features/roadmap/api";
 import { StatePanel } from "@/components/state-panel";
 
 type CreateState =
@@ -22,14 +23,14 @@ function getErrorMessage(error: unknown): string {
   return "오류가 발생했습니다. 다시 시도해주세요.";
 }
 
-const MAX_WEEKS = 8;
+const FALLBACK_MAX_WEEKS = 8;
 
 function getTomorrowDateValue() {
   return new Date(Date.now() + 86400000).toISOString().split("T")[0];
 }
 
-function getMaxDateValue() {
-  return new Date(Date.now() + MAX_WEEKS * 7 * 86400000)
+function getMaxDateValue(maxWeeks: number) {
+  return new Date(Date.now() + maxWeeks * 7 * 86400000)
     .toISOString()
     .split("T")[0];
 }
@@ -45,6 +46,7 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
   const [diagnosisSummary, setDiagnosisSummary] = useState<string | null>(null);
   const [weeklyStudyHours, setWeeklyStudyHours] = useState("");
   const [targetDate, setTargetDate] = useState("");
+  const [maxWeeks, setMaxWeeks] = useState<number>(FALLBACK_MAX_WEEKS);
   const loaded = useRef(false);
   const targetDateInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,6 +54,12 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
     if (loaded.current) return;
     loaded.current = true;
     targetDateInputRef.current?.setAttribute("min", getTomorrowDateValue());
+
+    getRoadmapConstraints()
+      .then((constraints) => setMaxWeeks(constraints.maxWeeks))
+      .catch(() => {
+        // fallback 값을 그대로 사용
+      });
 
     // 프로필에서 학습 시간/목표일 기본값 로드
     getMyProfile()
@@ -121,10 +129,10 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
       setState({ status: "error", message: "목표 날짜는 오늘 이후여야 합니다." });
       return;
     }
-    if (new Date(targetDate) > new Date(getMaxDateValue())) {
+    if (new Date(targetDate) > new Date(getMaxDateValue(maxWeeks))) {
       setState({
         status: "error",
-        message: `목표 날짜는 최대 ${MAX_WEEKS}주 이내여야 합니다.`
+        message: `목표 날짜는 최대 ${maxWeeks}주 이내여야 합니다.`
       });
       return;
     }
@@ -223,11 +231,11 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
         </label>
 
         <label>
-          <span>목표 날짜 (최대 {MAX_WEEKS}주)</span>
+          <span>목표 날짜 (최대 {maxWeeks}주)</span>
           <input
             type="date"
             ref={targetDateInputRef}
-            max={getMaxDateValue()}
+            max={getMaxDateValue(maxWeeks)}
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
             disabled={isSubmitting}

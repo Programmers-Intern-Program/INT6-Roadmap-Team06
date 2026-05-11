@@ -106,7 +106,7 @@ class RoadmapCommandServiceTest {
                 learningRoadmapRepository,
                 roadmapWeekRepository,
                 resultVersionService,
-                new RoadmapPromptBuilder(),
+                new RoadmapPromptBuilder(8),
                 new RoadmapResponseParser(),
                 llmClient,
                 objectMapper,
