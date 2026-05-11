@@ -37,6 +37,7 @@ export const navigationItems: NavigationItem[] = [
     label: "진단",
     activePrefix: "/diagnoses"
   },
+  { href: "/coach", label: "코치", activePrefix: "/coach" },
   { href: "/roadmaps/new", label: "로드맵 생성", exact: true },
   {
     href: "/roadmaps",

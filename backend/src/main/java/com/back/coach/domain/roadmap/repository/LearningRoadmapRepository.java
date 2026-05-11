@@ -5,11 +5,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface LearningRoadmapRepository extends JpaRepository<LearningRoadmap, Long> {
 
     Optional<LearningRoadmap> findTopByUserIdOrderByVersionDescCreatedAtDesc(Long userId);
+
+    List<LearningRoadmap> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     Optional<LearningRoadmap> findByIdAndUserId(Long id, Long userId);
 

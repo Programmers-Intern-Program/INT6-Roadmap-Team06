@@ -1,3 +1,4 @@
+import { GithubAnalysisListView } from "@/features/github-analysis/github-analysis-list-view";
 import { GithubAnalysisView } from "@/features/github-analysis/github-analysis-view";
 
 type GithubAnalysisPageProps = {
@@ -10,12 +11,13 @@ export default async function GithubAnalysisPage({
   searchParams
 }: GithubAnalysisPageProps) {
   const { githubAnalysisId } = await searchParams;
+  const id = getFirstQueryValue(githubAnalysisId);
 
-  return (
-    <GithubAnalysisView
-      initialGithubAnalysisId={getFirstQueryValue(githubAnalysisId)}
-    />
-  );
+  if (!id) {
+    return <GithubAnalysisListView />;
+  }
+
+  return <GithubAnalysisView initialGithubAnalysisId={id} />;
 }
 
 function getFirstQueryValue(value?: string | string[]) {

@@ -1,7 +1,8 @@
 import { apiClient } from "@/lib/api";
 import type {
   Diagnosis,
-  DiagnosisRequest
+  DiagnosisRequest,
+  DiagnosisSummary
 } from "@/features/diagnosis/types";
 
 export function createDiagnosis(payload: DiagnosisRequest) {
@@ -13,4 +14,8 @@ export function createDiagnosis(payload: DiagnosisRequest) {
 
 export function getDiagnosis(diagnosisId: string) {
   return apiClient.get<Diagnosis>(`/api/diagnoses/${diagnosisId}`);
+}
+
+export function listDiagnoses() {
+  return apiClient.get<DiagnosisSummary[]>("/api/diagnoses");
 }

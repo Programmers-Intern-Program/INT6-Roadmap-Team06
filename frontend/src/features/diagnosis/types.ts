@@ -32,3 +32,12 @@ export type DiagnosisRequest = {
   githubAnalysisId: string;
   profileId: string;
 };
+
+export type DiagnosisSummary = {
+  diagnosisId: string;
+  version: number;
+  currentLevel: CurrentLevel;
+  summary: string;
+  githubAnalysisId: string;
+  createdAt: string;
+};

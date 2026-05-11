@@ -5,11 +5,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface GithubAnalysisRepository extends JpaRepository<GithubAnalysis, Long> {
 
     Optional<GithubAnalysis> findTopByUserIdOrderByVersionDescCreatedAtDesc(Long userId);
+
+    List<GithubAnalysis> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     Optional<GithubAnalysis> findByIdAndUserId(Long id, Long userId);
 

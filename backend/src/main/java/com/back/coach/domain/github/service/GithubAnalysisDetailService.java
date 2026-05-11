@@ -4,6 +4,7 @@ import com.back.coach.domain.github.dto.GithubAnalysisDetailResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisCorrectionRequest;
 import com.back.coach.domain.github.dto.GithubAnalysisCorrectionResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
+import com.back.coach.domain.github.dto.GithubAnalysisSummaryResponse;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.global.exception.ErrorCode;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class GithubAnalysisDetailService {
@@ -40,6 +42,13 @@ public class GithubAnalysisDetailService {
         this.githubAnalysisRepository = githubAnalysisRepository;
         this.objectMapper = objectMapper;
         this.clock = clock;
+    }
+
+    @Transactional(readOnly = true)
+    public List<GithubAnalysisSummaryResponse> listByUser(Long userId) {
+        return githubAnalysisRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(GithubAnalysisSummaryResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)

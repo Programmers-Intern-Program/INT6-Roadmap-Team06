@@ -32,6 +32,14 @@ public class GithubConnectionController {
         return ResponseEntity.ok(ApiResponse.success(GithubConnectionResponse.from(result)));
     }
 
+    @GetMapping("/connections/latest")
+    public ResponseEntity<ApiResponse<GithubConnectionResponse>> getLatestConnection(Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return ResponseEntity.ok(ApiResponse.success(
+                GithubConnectionResponse.from(connectionService.findLatestConnection(user.userId()))
+        ));
+    }
+
     @GetMapping("/repositories")
     public ResponseEntity<ApiResponse<GithubRepositoryListResponse>> listRepositories(
             Authentication authentication,

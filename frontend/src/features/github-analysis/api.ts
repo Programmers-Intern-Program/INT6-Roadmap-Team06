@@ -3,7 +3,8 @@ import type {
   GithubAnalysis,
   GithubAnalysisCorrectionRequest,
   GithubAnalysisCorrectionResponse,
-  GithubAnalysisRequest
+  GithubAnalysisRequest,
+  GithubAnalysisSummary
 } from "@/features/github-analysis/types";
 
 export function createGithubAnalysis(payload: GithubAnalysisRequest) {
@@ -14,6 +15,10 @@ export function getGithubAnalysis(githubAnalysisId: string) {
   return apiClient.get<GithubAnalysis>(
     `/api/github-analyses/${githubAnalysisId}`
   );
+}
+
+export function listGithubAnalyses() {
+  return apiClient.get<GithubAnalysisSummary[]>("/api/github-analyses");
 }
 
 export function saveGithubAnalysisCorrections(

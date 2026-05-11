@@ -5,6 +5,7 @@ import com.back.coach.domain.github.dto.GithubAnalysisCorrectionResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisDetailResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisRequest;
 import com.back.coach.domain.github.dto.GithubAnalysisResponse;
+import com.back.coach.domain.github.dto.GithubAnalysisSummaryResponse;
 import com.back.coach.domain.github.service.GithubAnalysisDetailService;
 import com.back.coach.domain.github.service.GithubAnalysisService;
 import com.back.coach.global.response.ApiResponse;
@@ -19,6 +20,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(path = "/api/github-analyses", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -47,6 +50,12 @@ public class GithubAnalysisController {
                 request.coreRepositoryIds()
         );
         return ApiResponse.success(GithubAnalysisResponse.from(result));
+    }
+
+    @GetMapping
+    public ApiResponse<List<GithubAnalysisSummaryResponse>> listAnalyses(Authentication authentication) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) authentication.getPrincipal();
+        return ApiResponse.success(githubAnalysisDetailService.listByUser(authenticatedUser.userId()));
     }
 
     @GetMapping("/{githubAnalysisId}")

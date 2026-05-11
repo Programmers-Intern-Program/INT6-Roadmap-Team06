@@ -28,6 +28,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -82,6 +83,35 @@ class CoachSessionControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SNAPSHOT_NOT_FOUND"));
+    }
+
+    @Test
+    void getActiveSession_whenActiveSessionExists_returnsSessionResponse() throws Exception {
+        ChatSession session = session(10001L, 1L, 3, 2, Instant.parse("2026-05-07T09:00:00Z"));
+        given(coachSessionService.getActiveSession(1L)).willReturn(session);
+
+        mockMvc.perform(get("/api/coach/sessions/active")
+                        .principal(authentication(1L))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.sessionId").value("10001"))
+                .andExpect(jsonPath("$.data.profileVersion").value(3))
+                .andExpect(jsonPath("$.data.roadmapVersion").value(2))
+                .andExpect(jsonPath("$.data.startedAt").value("2026-05-07T09:00:00Z"));
+
+        verify(coachSessionService).getActiveSession(1L);
+    }
+
+    @Test
+    void getActiveSession_whenNoActiveSession_returnsNotFound() throws Exception {
+        given(coachSessionService.getActiveSession(1L))
+                .willThrow(new ServiceException(ErrorCode.SESSION_NOT_FOUND));
+
+        mockMvc.perform(get("/api/coach/sessions/active")
+                        .principal(authentication(1L))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SESSION_NOT_FOUND"));
     }
 
     @Test

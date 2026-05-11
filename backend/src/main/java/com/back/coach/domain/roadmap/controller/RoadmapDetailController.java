@@ -2,6 +2,7 @@ package com.back.coach.domain.roadmap.controller;
 
 import com.back.coach.domain.roadmap.dto.RoadmapDetailResponse;
 import com.back.coach.domain.roadmap.dto.RoadmapDetailSnapshot;
+import com.back.coach.domain.roadmap.dto.RoadmapSummaryResponse;
 import com.back.coach.domain.roadmap.service.RoadmapDetailSnapshotService;
 import com.back.coach.global.response.ApiResponse;
 import com.back.coach.global.security.AuthenticatedUser;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(path = "/api/roadmaps", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -26,6 +29,12 @@ public class RoadmapDetailController {
     ) {
         this.roadmapDetailSnapshotService = roadmapDetailSnapshotService;
         this.objectMapper = objectMapper;
+    }
+
+    @GetMapping
+    public ApiResponse<List<RoadmapSummaryResponse>> listRoadmaps(Authentication authentication) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) authentication.getPrincipal();
+        return ApiResponse.success(roadmapDetailSnapshotService.listByUser(authenticatedUser.userId()));
     }
 
     @GetMapping("/{roadmapId}")
