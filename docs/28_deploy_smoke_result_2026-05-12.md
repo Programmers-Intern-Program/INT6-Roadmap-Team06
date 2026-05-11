@@ -91,6 +91,18 @@ Elastic IP HTTP 기준으로는 배포 파이프라인이 동작한다.
 
 단, 이 결과는 배포 경로와 Nginx active switch 검증이다. 최종 시연 가능 여부는 도메인 HTTPS, 운영 OAuth callback, 실제 GitHub OAuth, GitHub API, AI Gateway, Redis polling, v1/v2 Coach 흐름을 포함한 2차 full rehearsal에서 판단한다.
 
+## 리소스 정리
+
+1차 Elastic IP HTTP smoke 이후 비용 방지를 위해 Terraform destroy를 실행했다.
+
+- 실행 명령: `terraform destroy -var-file="terraform.tfvars" -auto-approve`
+- 삭제 결과: `Destroy complete! Resources: 7 destroyed.`
+- 삭제 대상: EC2, Elastic IP, EIP association, Security Group, IAM role, IAM instance profile, SSM policy attachment
+- 후속 확인: `terraform state list` 결과 비어 있음
+- 후속 확인: `terraform plan -destroy -var-file="terraform.tfvars"` 결과 `No changes. No objects need to be destroyed.`
+
+기존 HTTP smoke IP `3.39.160.175`는 더 이상 유효하지 않다. 내일 도메인/HTTPS 2차 검증 전 새로 `terraform apply`를 수행한 뒤 GitHub Actions secrets/variables를 새 IP 또는 도메인 기준으로 다시 갱신해야 한다.
+
 ## 2차 예정
 
 - 도메인 A record 또는 Route53 연결
@@ -102,4 +114,3 @@ Elastic IP HTTP 기준으로는 배포 파이프라인이 동작한다.
 - `DEPLOY_ENV_FILE`에 운영 OAuth/AI Gateway 값을 반영
 - SSH ingress 임시 공개 설정 정리
 - #304 기준 운영 도메인 full rehearsal 수행
-
