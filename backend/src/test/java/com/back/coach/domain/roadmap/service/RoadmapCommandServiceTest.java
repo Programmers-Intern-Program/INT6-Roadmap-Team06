@@ -110,7 +110,8 @@ class RoadmapCommandServiceTest {
                 new RoadmapResponseParser(),
                 llmClient,
                 objectMapper,
-                transactionTemplate
+                transactionTemplate,
+                org.mockito.Mockito.mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class)
         );
     }
 

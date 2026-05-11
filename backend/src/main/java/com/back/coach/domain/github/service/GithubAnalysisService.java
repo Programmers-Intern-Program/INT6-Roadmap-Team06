@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service;
 
+import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.entity.GithubProject;
@@ -51,6 +52,7 @@ public class GithubAnalysisService {
     private final SynthesisResponseParser synthesisResponseParser;
     private final GithubAnalysisPayloadJson payloadJson;
     private final LlmClient llmClient;
+    private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     public GithubAnalysisService(GithubConnectionRepository connectionRepo,
                                  GithubProjectRepository projectRepo,
@@ -63,7 +65,8 @@ public class GithubAnalysisService {
                                  SynthesisPromptBuilder synthesisPromptBuilder,
                                  SynthesisResponseParser synthesisResponseParser,
                                  GithubAnalysisPayloadJson payloadJson,
-                                 LlmClient llmClient) {
+                                 LlmClient llmClient,
+                                 ContextSnapshotPublisher contextSnapshotPublisher) {
         this.connectionRepo = connectionRepo;
         this.projectRepo = projectRepo;
         this.analysisRepo = analysisRepo;
@@ -76,6 +79,7 @@ public class GithubAnalysisService {
         this.synthesisResponseParser = synthesisResponseParser;
         this.payloadJson = payloadJson;
         this.llmClient = llmClient;
+        this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
     @Transactional
@@ -157,6 +161,7 @@ public class GithubAnalysisService {
         GithubAnalysis saved = analysisRepo.save(
                 GithubAnalysis.create(userId, githubConnectionId, version, summary, payloadJson.toJson(payload))
         );
+        contextSnapshotPublisher.publishProfile(userId);
         long totalElapsedMs = System.currentTimeMillis() - analysisStartMs;
         AnalysisMetrics metrics = new AnalysisMetrics(
                 totalElapsedMs,
