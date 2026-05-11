@@ -11,6 +11,17 @@ Thumbs.db
 .env
 .env.deploy
 *.env.local
+*.tfvars
+!*.tfvars.example
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform/
 
 # Spring Boot 로컬 시크릿 프로필 (application-secret.yml.example 만 commit)
 application-secret.yml
