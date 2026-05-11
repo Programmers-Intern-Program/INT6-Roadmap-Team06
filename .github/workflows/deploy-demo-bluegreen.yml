@@ -1,0 +1,213 @@
+name: deploy-demo-bluegreen
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_color:
+        description: "Deploy target color. Use auto to deploy inactive color."
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - blue
+          - green
+
+concurrency:
+  group: deploy-demo-bluegreen
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  REGISTRY: ghcr.io
+  REMOTE_DIR: /opt/coach
+
+jobs:
+  deploy:
+    name: deploy demo blue-green
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deployment inputs
+        env:
+          EC2_HOST_SECRET: ${{ secrets.EC2_HOST }}
+          EC2_USER_SECRET: ${{ secrets.EC2_USER }}
+          EC2_SSH_PRIVATE_KEY_SECRET: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          DEPLOY_ENV_FILE_SECRET: ${{ secrets.DEPLOY_ENV_FILE }}
+          APP_BASE_URL_VAR: ${{ vars.APP_BASE_URL }}
+          API_BASE_URL_VAR: ${{ vars.API_BASE_URL }}
+          NEXT_PUBLIC_API_BASE_URL_VAR: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID_VAR: ${{ vars.NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID }}
+          NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI_VAR: ${{ vars.NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI }}
+        run: |
+          set -euo pipefail
+
+          require_value() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              echo "::error::${name} is required"
+              exit 1
+            fi
+          }
+
+          require_value "secrets.EC2_HOST" "$EC2_HOST_SECRET"
+          require_value "secrets.EC2_SSH_PRIVATE_KEY" "$EC2_SSH_PRIVATE_KEY_SECRET"
+          require_value "secrets.DEPLOY_ENV_FILE" "$DEPLOY_ENV_FILE_SECRET"
+          require_value "vars.NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID" "$NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID_VAR"
+          require_value "vars.NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI" "$NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI_VAR"
+
+          ec2_user="${EC2_USER_SECRET:-ubuntu}"
+          app_base_url="${APP_BASE_URL_VAR:-http://${EC2_HOST_SECRET}}"
+          api_base_url="${API_BASE_URL_VAR:-$app_base_url}"
+          next_public_api_base_url="${NEXT_PUBLIC_API_BASE_URL_VAR:-$api_base_url}"
+
+          {
+            echo "EC2_HOST=$EC2_HOST_SECRET"
+            echo "EC2_USER=$ec2_user"
+            echo "APP_BASE_URL=$app_base_url"
+            echo "API_BASE_URL=$api_base_url"
+            echo "NEXT_PUBLIC_API_BASE_URL=$next_public_api_base_url"
+            echo "NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID=$NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID_VAR"
+            echo "NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI=$NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI_VAR"
+          } >> "$GITHUB_ENV"
+
+      - name: Derive image tags
+        run: |
+          set -euo pipefail
+          owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+          repo="$(printf '%s' "${GITHUB_REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]')"
+          tag="${GITHUB_SHA::12}"
+
+          {
+            echo "BACKEND_IMAGE=${REGISTRY}/${owner}/${repo}-backend:${tag}"
+            echo "FRONTEND_IMAGE=${REGISTRY}/${owner}/${repo}-frontend:${tag}"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ env.BACKEND_IMAGE }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ env.FRONTEND_IMAGE }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}
+            NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID=${{ env.NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID }}
+            NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI=${{ env.NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI }}
+
+      - name: Configure SSH
+        env:
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Sync deployment files
+        env:
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+        run: |
+          set -euo pipefail
+          bundle_dir="$RUNNER_TEMP/coach-deploy"
+          rm -rf "$bundle_dir"
+          mkdir -p "$bundle_dir/docker" "$bundle_dir/scripts/smoke" "$bundle_dir/scripts/deploy"
+
+          cp docker/docker-compose.deploy.yml "$bundle_dir/docker/docker-compose.deploy.yml"
+          printf '%s\n' "$DEPLOY_ENV_FILE" > "$bundle_dir/docker/.env.deploy"
+          cp scripts/smoke/deploy-smoke.ps1 "$bundle_dir/scripts/smoke/deploy-smoke.ps1"
+          cp scripts/deploy/*.sh "$bundle_dir/scripts/deploy/"
+
+          tar -C "$bundle_dir" -czf "$RUNNER_TEMP/coach-deploy.tar.gz" .
+          scp -i ~/.ssh/deploy_key "$RUNNER_TEMP/coach-deploy.tar.gz" "$EC2_USER@$EC2_HOST:/tmp/coach-deploy.tar.gz"
+          ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" \
+            "sudo mkdir -p '$REMOTE_DIR' && sudo tar -xzf /tmp/coach-deploy.tar.gz -C '$REMOTE_DIR' && sudo chown -R '$EC2_USER' '$REMOTE_DIR' && chmod +x '$REMOTE_DIR'/scripts/deploy/*.sh"
+
+      - name: Determine target color
+        id: target
+        env:
+          REQUESTED_COLOR: ${{ inputs.target_color }}
+        run: |
+          set -euo pipefail
+          target_color="$(ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" "cd '$REMOTE_DIR' && ./scripts/deploy/resolve-target-color.sh '$REQUESTED_COLOR'")"
+          ports="$(ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" "cd '$REMOTE_DIR' && ./scripts/deploy/color-ports.sh '$target_color'")"
+
+          {
+            echo "target_color=$target_color"
+            echo "$ports"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Target color: $target_color"
+          echo "$ports"
+
+      - name: Deploy inactive color
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          TARGET_COLOR: ${{ steps.target.outputs.target_color }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" \
+            "GITHUB_ACTOR='$GITHUB_ACTOR' GHCR_TOKEN='$GHCR_TOKEN' BACKEND_IMAGE='$BACKEND_IMAGE' FRONTEND_IMAGE='$FRONTEND_IMAGE' TARGET_COLOR='$TARGET_COLOR' REMOTE_DIR='$REMOTE_DIR' bash -s" <<'REMOTE'
+          set -euo pipefail
+          cd "$REMOTE_DIR"
+          printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          ./scripts/deploy/set-compose-images.sh "$BACKEND_IMAGE" "$FRONTEND_IMAGE"
+          docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d postgres redis
+          docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml pull "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
+          docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
+          docker image prune -f
+          REMOTE
+
+      - name: Smoke inactive color
+        env:
+          TARGET_FRONTEND_PORT: ${{ steps.target.outputs.frontend_port }}
+          TARGET_BACKEND_PORT: ${{ steps.target.outputs.backend_port }}
+        run: |
+          set -euo pipefail
+          pwsh ./scripts/smoke/deploy-smoke.ps1 \
+            -AppBaseUrl "http://${EC2_HOST}:${TARGET_FRONTEND_PORT}" \
+            -ApiBaseUrl "http://${EC2_HOST}:${TARGET_BACKEND_PORT}" \
+            -Origin "$APP_BASE_URL"
+
+      - name: Switch active color
+        env:
+          TARGET_COLOR: ${{ steps.target.outputs.target_color }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key "$EC2_USER@$EC2_HOST" \
+            "cd '$REMOTE_DIR' && sudo ./scripts/deploy/switch-active-color.sh '$TARGET_COLOR'"
+
+      - name: Smoke active endpoint
+        run: |
+          set -euo pipefail
+          pwsh ./scripts/smoke/deploy-smoke.ps1 \
+            -AppBaseUrl "$APP_BASE_URL" \
+            -ApiBaseUrl "$API_BASE_URL" \
+            -Origin "$APP_BASE_URL"

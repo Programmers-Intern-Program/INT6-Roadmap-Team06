@@ -4,7 +4,7 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y
-apt-get install -y ca-certificates curl git gnupg unzip
+apt-get install -y ca-certificates curl git gnupg nginx unzip
 
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -18,11 +18,15 @@ apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 systemctl enable --now docker
+systemctl enable --now nginx
 usermod -aG docker ubuntu
 
 install -d -m 0755 -o ubuntu -g ubuntu "${deploy_dir}"
 install -d -m 0755 -o ubuntu -g ubuntu "${deploy_dir}/docker"
 install -d -m 0755 -o ubuntu -g ubuntu "${deploy_dir}/scripts"
+install -d -m 0755 -o ubuntu -g ubuntu "${deploy_dir}/scripts/deploy"
+install -d -m 0755 -o ubuntu -g ubuntu "${deploy_dir}/scripts/smoke"
+printf 'blue\n' > "${deploy_dir}/ACTIVE_COLOR"
 
 cat > "${deploy_dir}/README.txt" <<'EOT'
 Coach demo deployment host.
@@ -30,9 +34,11 @@ Coach demo deployment host.
 Expected files:
 - docker/docker-compose.deploy.yml
 - docker/.env.deploy
+- scripts/deploy/*.sh
 - scripts/smoke/deploy-smoke.ps1
 
 Secrets must be provided at runtime and must not be baked into Docker images.
 EOT
 
 chown ubuntu:ubuntu "${deploy_dir}/README.txt"
+chown ubuntu:ubuntu "${deploy_dir}/ACTIVE_COLOR"

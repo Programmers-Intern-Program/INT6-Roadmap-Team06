@@ -52,6 +52,12 @@ variable "allowed_http_cidr" {
   default     = "0.0.0.0/0"
 }
 
+variable "http_port" {
+  description = "Public HTTP port for Nginx active color routing."
+  type        = number
+  default     = 80
+}
+
 variable "app_blue_port" {
   description = "Host port for frontend blue container."
   type        = number

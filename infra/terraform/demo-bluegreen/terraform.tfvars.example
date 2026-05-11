@@ -17,6 +17,7 @@ vpc_id    = null
 subnet_id = null
 
 # Must match docker/docker-compose.deploy.yml host ports.
+http_port       = 80
 app_blue_port   = 3001
 app_green_port  = 3002
 api_blue_port   = 8081
