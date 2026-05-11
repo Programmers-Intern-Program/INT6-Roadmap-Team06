@@ -3,6 +3,7 @@ package com.back.coach.domain.coach.controller;
 import com.back.coach.domain.coach.entity.CoachConversation;
 import com.back.coach.domain.coach.entity.ReplanProposal;
 import com.back.coach.domain.coach.service.CoachMessageService;
+import com.back.coach.global.code.CoachMessageRole;
 import com.back.coach.global.code.CoachRoute;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.GlobalExceptionHandler;
@@ -26,6 +27,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.nullValue;
@@ -34,6 +36,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -180,6 +183,80 @@ class CoachMessageControllerTest {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    @Test
+    void getMessages_returnsMessagesInTimeOrder() throws Exception {
+        CoachConversation userMessage = userMessage(
+                9000L, 10001L, 1L,
+                "오늘 무엇부터 공부하면 좋을까?",
+                Instant.parse("2026-05-08T09:00:00Z")
+        );
+        CoachConversation coachMessage = coachMessage(
+                9001L, 10001L, 1L,
+                "이번 주는 Redis TTL과 캐시 무효화 개념부터 정리하는 것이 좋습니다.",
+                CoachRoute.SIMPLE_GUIDE,
+                Instant.parse("2026-05-08T09:00:03Z")
+        );
+        given(coachMessageService.getMessages(1L, 10001L))
+                .willReturn(List.of(userMessage, coachMessage));
+
+        mockMvc.perform(get("/api/coach/sessions/{sessionId}/messages", 10001L)
+                        .principal(authentication(1L))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].messageId").value("9000"))
+                .andExpect(jsonPath("$.data[0].role").value("USER"))
+                .andExpect(jsonPath("$.data[0].messageText").value("오늘 무엇부터 공부하면 좋을까?"))
+                .andExpect(jsonPath("$.data[0].route").value(nullValue()))
+                .andExpect(jsonPath("$.data[0].detectedIntent").value(nullValue()))
+                .andExpect(jsonPath("$.data[0].createdAt").value("2026-05-08T09:00:00Z"))
+                .andExpect(jsonPath("$.data[1].messageId").value("9001"))
+                .andExpect(jsonPath("$.data[1].role").value("COACH"))
+                .andExpect(jsonPath("$.data[1].route").value("SIMPLE_GUIDE"))
+                .andExpect(jsonPath("$.data[1].detectedIntent").value("CHECK_TODAY_PLAN"))
+                .andExpect(jsonPath("$.data[1].createdAt").value("2026-05-08T09:00:03Z"))
+                .andExpect(jsonPath("$.meta").isMap());
+
+        verify(coachMessageService).getMessages(1L, 10001L);
+    }
+
+    @Test
+    void getMessages_whenSessionNotFound_returnsNotFound() throws Exception {
+        given(coachMessageService.getMessages(1L, 10001L))
+                .willThrow(new ServiceException(ErrorCode.SESSION_NOT_FOUND));
+
+        mockMvc.perform(get("/api/coach/sessions/{sessionId}/messages", 10001L)
+                        .principal(authentication(1L))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("SESSION_NOT_FOUND"));
+    }
+
+    @Test
+    void getMessages_whenSessionBelongsToAnotherUser_returnsForbidden() throws Exception {
+        given(coachMessageService.getMessages(1L, 10001L))
+                .willThrow(new ServiceException(ErrorCode.FORBIDDEN));
+
+        mockMvc.perform(get("/api/coach/sessions/{sessionId}/messages", 10001L)
+                        .principal(authentication(1L))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    private CoachConversation userMessage(
+            Long id,
+            Long sessionId,
+            Long userId,
+            String messageText,
+            Instant createdAt
+    ) {
+        CoachConversation conversation = CoachConversation.user(sessionId, userId, messageText);
+        ReflectionTestUtils.setField(conversation, "id", id);
+        ReflectionTestUtils.setField(conversation, "role", CoachMessageRole.USER);
+        ReflectionTestUtils.setField(conversation, "createdAt", createdAt);
+        return conversation;
+    }
+
     private CoachConversation coachMessage(
             Long id,
             Long sessionId,
@@ -187,10 +264,22 @@ class CoachMessageControllerTest {
             String responseText,
             CoachRoute route
     ) {
+        return coachMessage(id, sessionId, userId, responseText, route, Instant.parse("2026-05-08T09:00:00Z"));
+    }
+
+    private CoachConversation coachMessage(
+            Long id,
+            Long sessionId,
+            Long userId,
+            String responseText,
+            CoachRoute route,
+            Instant createdAt
+    ) {
         CoachConversation conversation = CoachConversation.coach(
                 sessionId, userId, responseText, route, "CHECK_TODAY_PLAN"
         );
         ReflectionTestUtils.setField(conversation, "id", id);
+        ReflectionTestUtils.setField(conversation, "createdAt", createdAt);
         return conversation;
     }
 

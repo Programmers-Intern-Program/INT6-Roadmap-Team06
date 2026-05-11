@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Service
 public class CoachMessageService {
@@ -47,6 +48,18 @@ public class CoachMessageService {
     }
 
     public record MessageResult(CoachConversation coachMessage, ReplanProposal proposal) {}
+
+    @Transactional(readOnly = true)
+    public List<CoachConversation> getMessages(Long userId, Long sessionId) {
+        ChatSession session = chatSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.SESSION_NOT_FOUND));
+
+        if (!session.isOwnedBy(userId)) {
+            throw new ServiceException(ErrorCode.FORBIDDEN);
+        }
+
+        return coachConversationRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
+    }
 
     @Transactional
     public MessageResult sendMessage(Long userId, Long sessionId, String userMessage) {

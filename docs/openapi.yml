@@ -393,6 +393,22 @@ paths:
           $ref: '#/components/responses/ResourceNotFound'
 
   /api/coach/sessions:
+    get:
+      tags:
+        - Coach
+      summary: List Coach sessions
+      operationId: listCoachSessions
+      x-implementation-status: implemented
+      responses:
+        '200':
+          description: Coach sessions sorted by startedAt descending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachSessionListApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
     post:
       tags:
         - Coach
@@ -431,6 +447,28 @@ paths:
           $ref: '#/components/responses/ResourceNotFound'
 
   /api/coach/sessions/{sessionId}/messages:
+    get:
+      tags:
+        - Coach
+      summary: List Coach session messages
+      operationId: listCoachSessionMessages
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/CoachSessionId'
+      responses:
+        '200':
+          description: Coach messages sorted by createdAt ascending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CoachMessageHistoryListApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
     post:
       tags:
         - Coach
@@ -782,6 +820,49 @@ components:
         meta:
           $ref: '#/components/schemas/ApiMeta'
 
+    CoachSessionSummaryData:
+      type: object
+      required:
+        - sessionId
+        - profileVersion
+        - roadmapVersion
+        - status
+        - startedAt
+      properties:
+        sessionId:
+          type: string
+          example: '10001'
+        profileVersion:
+          type: integer
+          example: 3
+        roadmapVersion:
+          type: integer
+          example: 2
+        status:
+          $ref: '#/components/schemas/ChatSessionStatus'
+        startedAt:
+          type: string
+          format: date-time
+          example: '2026-05-07T09:00:00Z'
+        endedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-05-07T10:00:00Z'
+
+    CoachSessionListApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoachSessionSummaryData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
     CoachMessageRequest:
       type: object
       required:
@@ -840,6 +921,48 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/CoachMessageResponseData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    CoachMessageHistoryData:
+      type: object
+      required:
+        - messageId
+        - role
+        - messageText
+        - createdAt
+      properties:
+        messageId:
+          type: string
+          example: '9001'
+        role:
+          $ref: '#/components/schemas/CoachMessageRole'
+        messageText:
+          type: string
+          example: 오늘 무엇부터 공부하면 좋을까?
+        route:
+          allOf:
+            - $ref: '#/components/schemas/CoachRoute'
+          nullable: true
+        detectedIntent:
+          type: string
+          nullable: true
+          example: CHECK_TODAY_PLAN
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-05-08T09:00:00Z'
+
+    CoachMessageHistoryListApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoachMessageHistoryData'
         meta:
           $ref: '#/components/schemas/ApiMeta'
 

@@ -1,6 +1,7 @@
 package com.back.coach.domain.coach.controller;
 
 import com.back.coach.domain.coach.dto.CoachSessionResponse;
+import com.back.coach.domain.coach.dto.CoachSessionSummaryResponse;
 import com.back.coach.domain.coach.entity.ChatSession;
 import com.back.coach.domain.coach.service.CoachSessionService;
 import com.back.coach.global.response.ApiResponse;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping(path = "/api/coach/sessions", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -39,6 +42,15 @@ public class CoachSessionController {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
         ChatSession session = coachSessionService.getActiveSession(user.userId());
         return ApiResponse.success(CoachSessionResponse.from(session));
+    }
+
+    @GetMapping
+    public ApiResponse<List<CoachSessionSummaryResponse>> getSessions(Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        List<CoachSessionSummaryResponse> sessions = coachSessionService.getSessions(user.userId()).stream()
+                .map(CoachSessionSummaryResponse::from)
+                .toList();
+        return ApiResponse.success(sessions);
     }
 
     @DeleteMapping("/{sessionId}")

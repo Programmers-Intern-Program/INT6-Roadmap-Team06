@@ -73,7 +73,37 @@ POST /api/coach/sessions
 
 ---
 
-### 4.2 메시지 전송 (단일 응답)
+### 4.2 세션 목록 조회
+
+```
+GET /api/coach/sessions
+```
+
+응답 body
+```json
+{
+  "data": [
+    {
+      "sessionId": "string",
+      "profileVersion": 3,
+      "roadmapVersion": 2,
+      "status": "ACTIVE",
+      "startedAt": "2026-05-07T09:00:00Z",
+      "endedAt": null
+    }
+  ]
+}
+```
+
+규칙
+- 현재 사용자의 세션만 반환한다.
+- `startedAt` 내림차순으로 정렬한다.
+- `ACTIVE`, `CLOSED` 세션을 모두 포함한다.
+- 세션이 없으면 빈 배열을 반환한다.
+
+---
+
+### 4.3 메시지 전송 (단일 응답)
 
 ```
 POST /api/coach/sessions/{sessionId}/messages
@@ -131,7 +161,50 @@ POST /api/coach/sessions/{sessionId}/messages
 
 ---
 
-### 4.3 재계획 확인 (사용자 동의)
+### 4.4 메시지 히스토리 조회
+
+```
+GET /api/coach/sessions/{sessionId}/messages
+```
+
+응답 body
+```json
+{
+  "data": [
+    {
+      "messageId": "string",
+      "role": "USER",
+      "messageText": "오늘 무엇부터 공부하면 좋을까?",
+      "route": null,
+      "detectedIntent": null,
+      "createdAt": "2026-05-08T09:00:00Z"
+    },
+    {
+      "messageId": "string",
+      "role": "COACH",
+      "messageText": "이번 주는 Redis TTL과 캐시 무효화 개념부터 정리하는 것이 좋습니다.",
+      "route": "SIMPLE_GUIDE",
+      "detectedIntent": "CHECK_TODAY_PLAN",
+      "createdAt": "2026-05-08T09:00:03Z"
+    }
+  ]
+}
+```
+
+규칙
+- `sessionId`가 현재 사용자 소유가 아니면 `403 FORBIDDEN`.
+- 종료된 세션도 히스토리 조회는 허용한다.
+- 메시지는 `createdAt` 오름차순으로 반환한다.
+
+에러
+| 코드 | HTTP | 조건 |
+| --- | --- | --- |
+| `SESSION_NOT_FOUND` | 404 | sessionId 없음 |
+| `FORBIDDEN` | 403 | 다른 사용자의 세션 |
+
+---
+
+### 4.5 재계획 확인 (사용자 동의)
 
 ```
 POST /api/coach/sessions/{sessionId}/replan
@@ -181,7 +254,7 @@ POST /api/coach/sessions/{sessionId}/replan
 
 ---
 
-### 4.4 스트리밍 응답 (선택)
+### 4.6 스트리밍 응답 (선택)
 
 ```
 GET /api/coach/sessions/{sessionId}/stream
@@ -201,13 +274,13 @@ data: {"messageId":"string","route":"SIMPLE_GUIDE","replanProposal":null}
 ```
 
 규칙
-- 스트리밍은 4.2의 단일 응답과 동일한 처리 경로를 사용한다.
+- 스트리밍은 4.3의 단일 응답과 동일한 처리 경로를 사용한다.
 - `done` 이벤트에 최종 `route`와 `replanProposal`을 포함한다.
 - 스트리밍 중 오류는 `event: error`로 전달하고 연결을 닫는다.
 
 ---
 
-### 4.5 세션 종료
+### 4.7 세션 종료
 
 ```
 DELETE /api/coach/sessions/{sessionId}

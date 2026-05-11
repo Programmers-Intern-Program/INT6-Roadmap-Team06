@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class CoachSessionService {
@@ -57,6 +58,11 @@ public class CoachSessionService {
         return chatSessionRepository
                 .findFirstByUserIdAndStatusOrderByStartedAtDesc(userId, ChatSessionStatus.ACTIVE)
                 .orElseThrow(() -> new ServiceException(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ChatSession> getSessions(Long userId) {
+        return chatSessionRepository.findByUserIdOrderByStartedAtDesc(userId);
     }
 
     @Transactional

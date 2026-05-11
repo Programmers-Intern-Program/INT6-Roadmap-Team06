@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -179,6 +180,31 @@ class CoachSessionServiceIntegrationTest {
         assertThatThrownBy(() -> coachSessionService.getActiveSession(userId))
                 .isInstanceOf(ServiceException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SESSION_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("getSessions: ACTIVE/CLOSED 세션을 최신순으로 반환")
+    void getSessionsReturnsActiveAndClosedSessionsLatestFirst() {
+        seedSnapshot(ContextType.PROFILE, 1);
+        seedSnapshot(ContextType.PLAN, 1);
+        ChatSession older = coachSessionService.startSession(userId);
+        coachSessionService.closeSession(userId, older.getId());
+        ChatSession newer = coachSessionService.startSession(userId);
+
+        List<ChatSession> sessions = coachSessionService.getSessions(userId);
+
+        assertThat(sessions).extracting(ChatSession::getId)
+                .containsExactly(newer.getId(), older.getId());
+        assertThat(sessions).extracting(ChatSession::getStatus)
+                .containsExactly(ChatSessionStatus.ACTIVE, ChatSessionStatus.CLOSED);
+    }
+
+    @Test
+    @DisplayName("getSessions: 세션이 없으면 빈 목록")
+    void getSessionsReturnsEmptyListWhenNoSession() {
+        List<ChatSession> sessions = coachSessionService.getSessions(userId);
+
+        assertThat(sessions).isEmpty();
     }
 
     private void seedSnapshot(ContextType type, int version) {

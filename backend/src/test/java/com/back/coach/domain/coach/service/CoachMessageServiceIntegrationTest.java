@@ -154,4 +154,56 @@ class CoachMessageServiceIntegrationTest {
         // @Transactional로 묶여 있어 USER 행도 롤백됨 — 시도-기록 둘 다 안 남는 게 안전
         assertThat(rows).isEmpty();
     }
+
+    @Test
+    @DisplayName("getMessages: 저장된 USER/COACH 메시지를 시간순으로 조회")
+    void getMessagesReturnsStoredMessagesInTimeOrder() {
+        given(llmClient.complete(anyString())).willReturn(
+                "{\"route\":\"SIMPLE_GUIDE\",\"responseText\":\"이번 주는 Redis 캐시부터 학습하세요.\",\"detectedIntent\":\"CHECK_TODAY_PLAN\"}"
+        );
+        coachMessageService.sendMessage(userId, sessionId, "오늘 뭐 공부할까?");
+
+        List<CoachConversation> messages = coachMessageService.getMessages(userId, sessionId);
+
+        assertThat(messages).hasSize(2);
+        assertThat(messages.get(0).getRole()).isEqualTo(CoachMessageRole.USER);
+        assertThat(messages.get(0).getMessageText()).isEqualTo("오늘 뭐 공부할까?");
+        assertThat(messages.get(1).getRole()).isEqualTo(CoachMessageRole.COACH);
+        assertThat(messages.get(1).getRoute()).isEqualTo(CoachRoute.SIMPLE_GUIDE);
+        assertThat(messages.get(1).getDetectedIntent()).isEqualTo("CHECK_TODAY_PLAN");
+    }
+
+    @Test
+    @DisplayName("getMessages: 닫힌 세션도 히스토리 조회 가능")
+    void getMessagesAllowsClosedSession() {
+        given(llmClient.complete(anyString())).willReturn(
+                "{\"route\":\"SIMPLE_GUIDE\",\"responseText\":\"이번 주는 Redis 캐시부터 학습하세요.\"}"
+        );
+        coachMessageService.sendMessage(userId, sessionId, "오늘 뭐 공부할까?");
+        ChatSession session = chatSessionRepository.findById(sessionId).orElseThrow();
+        session.close(Instant.now());
+        chatSessionRepository.save(session);
+
+        List<CoachConversation> messages = coachMessageService.getMessages(userId, sessionId);
+
+        assertThat(messages).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("getMessages: 다른 사용자의 세션이면 FORBIDDEN")
+    void getMessagesByOtherUserForbidden() {
+        Long otherUserId = userId + 99999L;
+
+        assertThatThrownBy(() -> coachMessageService.getMessages(otherUserId, sessionId))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("getMessages: 존재하지 않는 sessionId면 SESSION_NOT_FOUND")
+    void getMessagesNonexistentSessionFails() {
+        assertThatThrownBy(() -> coachMessageService.getMessages(userId, 999_999_999L))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SESSION_NOT_FOUND);
+    }
 }
