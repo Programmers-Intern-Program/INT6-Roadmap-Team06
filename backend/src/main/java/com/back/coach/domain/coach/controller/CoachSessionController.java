@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +31,13 @@ public class CoachSessionController {
     public ApiResponse<CoachSessionResponse> startSession(Authentication authentication) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
         ChatSession session = coachSessionService.startSession(user.userId());
+        return ApiResponse.success(CoachSessionResponse.from(session));
+    }
+
+    @GetMapping("/active")
+    public ApiResponse<CoachSessionResponse> getActiveSession(Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        ChatSession session = coachSessionService.getActiveSession(user.userId());
         return ApiResponse.success(CoachSessionResponse.from(session));
     }
 

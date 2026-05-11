@@ -4,6 +4,7 @@ import com.back.coach.domain.coach.entity.ChatSession;
 import com.back.coach.domain.coach.repository.ChatSessionRepository;
 import com.back.coach.domain.context.entity.UserContextSnapshot;
 import com.back.coach.domain.context.repository.UserContextSnapshotRepository;
+import com.back.coach.global.code.ChatSessionStatus;
 import com.back.coach.global.code.ContextType;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
@@ -49,6 +50,13 @@ public class CoachSessionService {
         );
 
         return chatSessionRepository.save(session);
+    }
+
+    @Transactional(readOnly = true)
+    public ChatSession getActiveSession(Long userId) {
+        return chatSessionRepository
+                .findFirstByUserIdAndStatusOrderByStartedAtDesc(userId, ChatSessionStatus.ACTIVE)
+                .orElseThrow(() -> new ServiceException(ErrorCode.SESSION_NOT_FOUND));
     }
 
     @Transactional
