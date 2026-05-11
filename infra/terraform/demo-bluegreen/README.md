@@ -1,6 +1,6 @@
 # Demo Blue-Green Terraform
 
-시연용 단일 EC2 Blue-Green 배포 인프라를 만드는 Terraform 구성이다. #302의 `docker/docker-compose.deploy.yml`을 EC2에서 실행할 수 있도록 서버, 보안 그룹, Elastic IP, IAM instance profile, Docker 설치 user data를 준비한다.
+시연용 단일 EC2 Blue-Green 배포 인프라를 만드는 Terraform 구성이다. #302의 `docker/docker-compose.deploy.yml`을 EC2에서 실행할 수 있도록 서버, 보안 그룹, Elastic IP, IAM instance profile, Docker/Nginx 설치 user data를 준비한다.
 
 ## 범위
 
@@ -11,7 +11,7 @@
 - Elastic IP
 - IAM role / instance profile
 - Ubuntu 24.04 LTS AMI 조회
-- Docker, Docker Compose plugin 설치 user data
+- Docker, Docker Compose plugin, Nginx 설치 user data
 - `/opt/coach` 배포 디렉터리 준비
 
 제외:
@@ -20,7 +20,7 @@
 - ALB target group 기반 Blue-Green
 - CloudFront / S3 정적 배포
 - Route53 record 생성
-- GitHub Actions CD 자동화
+- GitHub Actions CD workflow 구현 자체
 
 ## 준비
 
@@ -63,10 +63,12 @@ terraform apply -var-file="terraform.tfvars"
 - `frontend_green_url`
 - `backend_blue_url`
 - `backend_green_url`
+- `public_http_url`
 - `deploy_directory`
 
-기본 포트는 #302 deploy compose와 맞춘다.
+기본 포트는 #302 deploy compose와 #303 Nginx active switch 기준에 맞춘다.
 
+- nginx active endpoint: `80`
 - frontend blue: `3001`
 - frontend green: `3002`
 - backend blue: `8081`
@@ -79,7 +81,7 @@ terraform apply -var-file="terraform.tfvars"
 - 로그인 OAuth App: `https://API_DOMAIN/login/oauth2/code/github`
 - 저장소 연결 OAuth App: `https://APP_DOMAIN/github/callback`
 
-Elastic IP만 사용하는 1차 검증에서는 GitHub OAuth callback이 HTTPS 도메인을 요구하는지 먼저 확인한다. HTTPS 도메인이 필요하면 Route53, reverse proxy, TLS 설정을 #303 또는 후속 배포 작업에서 붙인다.
+Elastic IP만 사용하는 1차 검증에서는 GitHub OAuth callback이 HTTPS 도메인을 요구하는지 먼저 확인한다. #303은 HTTP Nginx active switch까지만 다루고, HTTPS 인증서 자동화는 도메인 확정 후 후속 작업으로 붙인다.
 
 ## 배포 파일
 
@@ -87,9 +89,29 @@ user data는 EC2에 `/opt/coach`와 하위 디렉터리를 만든다. #303 CD wo
 
 - `docker/docker-compose.deploy.yml`
 - `docker/.env.deploy`
+- `scripts/deploy/*.sh`
 - `scripts/smoke/deploy-smoke.ps1`
 
 secret은 image에 bake하지 않고 `docker/.env.deploy` 또는 GitHub Actions secret에서 runtime env로만 주입한다.
+
+## #303 CD 기준
+
+GitHub Actions workflow는 backend/frontend image를 GHCR에 push한 뒤 EC2의 inactive color에서 pull/up 한다. inactive color smoke가 통과하면 `scripts/deploy/switch-active-color.sh`가 Nginx upstream을 전환하고 `/opt/coach/ACTIVE_COLOR`를 갱신한다.
+
+GitHub Secrets:
+
+- `EC2_HOST`
+- `EC2_USER` (없으면 `ubuntu`)
+- `EC2_SSH_PRIVATE_KEY`
+- `DEPLOY_ENV_FILE`
+
+GitHub Variables:
+
+- `APP_BASE_URL`
+- `API_BASE_URL`
+- `NEXT_PUBLIC_API_BASE_URL`
+- `NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID`
+- `NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI`
 
 ## 금지
 
