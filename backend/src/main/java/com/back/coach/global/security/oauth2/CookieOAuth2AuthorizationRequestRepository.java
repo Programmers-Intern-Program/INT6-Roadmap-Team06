@@ -109,21 +109,49 @@ public class CookieOAuth2AuthorizationRequestRepository
     }
 
     private OAuth2AuthorizationRequest tryDeserialize(String cookieValue) {
+        byte[] raw;
         try {
-            byte[] raw = Base64.getUrlDecoder().decode(cookieValue);
-            if (raw.length < 4 + 32) return null;
-            ByteBuffer buf = ByteBuffer.wrap(raw);
-            int len = buf.getInt();
-            if (len <= 0 || len > raw.length - 4 - 32) return null;
-            byte[] payloadBytes = new byte[len];
-            buf.get(payloadBytes);
-            byte[] expectedSig = new byte[32];
-            buf.get(expectedSig);
-            byte[] actualSig = sign(payloadBytes);
-            if (!MessageDigest.isEqual(expectedSig, actualSig)) {
-                return null;
-            }
-            CookiePayload p = mapper.readValue(payloadBytes, CookiePayload.class);
+            raw = Base64.getUrlDecoder().decode(cookieValue);
+        } catch (IllegalArgumentException e) {
+            log.warn("oauth2_auth_request base64 decode 실패: {}", e.getMessage());
+            return null;
+        }
+        if (raw.length < 4 + 32) {
+            log.warn("oauth2_auth_request size 비정상: {} bytes (minimum {})", raw.length, 4 + 32);
+            return null;
+        }
+        ByteBuffer buf = ByteBuffer.wrap(raw);
+        int len = buf.getInt();
+        if (len <= 0 || len > raw.length - 4 - 32) {
+            log.warn("oauth2_auth_request payloadLen 비정상: declared={} raw={}", len, raw.length);
+            return null;
+        }
+        byte[] payloadBytes = new byte[len];
+        buf.get(payloadBytes);
+        byte[] expectedSig = new byte[32];
+        buf.get(expectedSig);
+        byte[] actualSig;
+        try {
+            actualSig = sign(payloadBytes);
+        } catch (Exception e) {
+            log.warn("oauth2_auth_request HMAC 계산 실패: {}", e.getMessage());
+            return null;
+        }
+        if (!MessageDigest.isEqual(expectedSig, actualSig)) {
+            log.warn("oauth2_auth_request HMAC mismatch — JwtProperties.secret 불일치(재시작·환경 변경) 또는 변조 가능");
+            return null;
+        }
+        CookiePayload p;
+        try {
+            p = mapper.readValue(payloadBytes, CookiePayload.class);
+        } catch (Exception e) {
+            log.warn("oauth2_auth_request JSON parse 실패: {}", e.getMessage());
+            return null;
+        }
+        log.debug("oauth2_auth_request 복원 성공 redirectUri={} attrsKeys={}",
+                p.redirectUri(),
+                p.attributes() == null ? "[]" : p.attributes().keySet());
+        try {
             return OAuth2AuthorizationRequest.authorizationCode()
                     .authorizationUri(p.authorizationUri())
                     .clientId(p.clientId())
@@ -135,7 +163,7 @@ public class CookieOAuth2AuthorizationRequestRepository
                     .authorizationRequestUri(p.authorizationRequestUri())
                     .build();
         } catch (Exception e) {
-            log.warn("oauth2_auth_request deserialization exception: {}", e.getMessage());
+            log.warn("oauth2_auth_request 빌더 실패: {}", e.getMessage());
             return null;
         }
     }

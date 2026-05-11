@@ -39,6 +39,9 @@ public class CoachOAuth2LoginFailureHandler implements AuthenticationFailureHand
                                         HttpServletResponse response,
                                         AuthenticationException exception) throws IOException {
         log.warn("OAuth2 authentication failed: {}", exception.getMessage());
+        if (log.isDebugEnabled()) {
+            log.debug("OAuth2 authentication failure detail", exception);
+        }
         String message = extractMessage(exception);
         String encoded = URLEncoder.encode(message, StandardCharsets.UTF_8);
         response.sendRedirect(frontendBaseUrl + "/login?error=" + encoded);
