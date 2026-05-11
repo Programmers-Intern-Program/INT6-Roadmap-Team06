@@ -145,6 +145,42 @@ class CoachSessionServiceIntegrationTest {
         assertThat(reloaded.getStatus()).isEqualTo(ChatSessionStatus.CLOSED);
     }
 
+    @Test
+    @DisplayName("getActiveSession: ACTIVE 세션이 있으면 해당 세션 반환")
+    void getActiveSessionReturnsActive() {
+        seedSnapshot(ContextType.PROFILE, 1);
+        seedSnapshot(ContextType.PLAN, 1);
+        ChatSession started = coachSessionService.startSession(userId);
+
+        ChatSession active = coachSessionService.getActiveSession(userId);
+
+        assertThat(active.getId()).isEqualTo(started.getId());
+        assertThat(active.getStatus()).isEqualTo(ChatSessionStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("getActiveSession: ACTIVE/CLOSED 혼재 시 가장 최근 ACTIVE 반환")
+    void getActiveSessionReturnsMostRecentActiveAmongMixed() {
+        seedSnapshot(ContextType.PROFILE, 1);
+        seedSnapshot(ContextType.PLAN, 1);
+        ChatSession older = coachSessionService.startSession(userId);
+        coachSessionService.closeSession(userId, older.getId());
+        ChatSession newerActive = coachSessionService.startSession(userId);
+
+        ChatSession active = coachSessionService.getActiveSession(userId);
+
+        assertThat(active.getId()).isEqualTo(newerActive.getId());
+        assertThat(active.getStatus()).isEqualTo(ChatSessionStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("getActiveSession: ACTIVE 세션이 없으면 SESSION_NOT_FOUND")
+    void getActiveSessionThrowsWhenNoActive() {
+        assertThatThrownBy(() -> coachSessionService.getActiveSession(userId))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SESSION_NOT_FOUND);
+    }
+
     private void seedSnapshot(ContextType type, int version) {
         UserContextSnapshot snapshot = UserContextSnapshot.create(
                 userId, type, version, "{}", Instant.now()

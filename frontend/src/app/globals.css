@@ -1697,3 +1697,279 @@ a {
     flex-direction: column;
   }
 }
+
+/* ===== Coach (Slice 8) ===== */
+
+.coach-screen {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 56px);
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 16px 24px 24px;
+  gap: 12px;
+}
+
+.coach-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.coach-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.coach-secondary-button {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--foreground);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.coach-secondary-button:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.coach-scroller {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 4px;
+  scroll-behavior: smooth;
+}
+
+.coach-empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 48px 16px;
+  font-size: 14px;
+}
+
+.coach-bubbles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coach-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 80%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.coach-bubble-user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.coach-bubble-coach {
+  align-self: flex-start;
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+}
+
+.coach-bubble-body p:first-child {
+  margin-top: 0;
+}
+
+.coach-bubble-body p:last-child {
+  margin-bottom: 0;
+}
+
+.coach-bubble-body pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.coach-bubble-body code {
+  background: rgba(15, 23, 42, 0.08);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.coach-bubble-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.coach-bubble-body table {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.coach-bubble-body th,
+.coach-bubble-body td {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+}
+
+.coach-typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.coach-typing span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: coach-typing-bounce 1.2s infinite ease-in-out;
+}
+
+.coach-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.coach-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes coach-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
+.coach-replan-card {
+  margin-top: 4px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.coach-replan-card[data-expired="true"] {
+  opacity: 0.6;
+  border-color: var(--line);
+  background: var(--background);
+}
+
+.coach-replan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.coach-replan-timer {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.coach-replan-reason {
+  margin: 0;
+  font-size: 13px;
+  color: var(--foreground);
+}
+
+.coach-replan-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.coach-scroll-bottom {
+  position: sticky;
+  bottom: 8px;
+  margin-left: auto;
+  display: block;
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.coach-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.coach-input {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: var(--foreground);
+  padding: 8px 4px;
+}
+
+.coach-input:disabled {
+  opacity: 0.6;
+}
+
+.coach-send-button,
+.coach-stop-button {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.coach-send-button {
+  background: var(--accent);
+  color: #fff;
+}
+
+.coach-send-button:disabled {
+  background: var(--line);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.coach-stop-button {
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--line);
+}
+
+.coach-trace-id {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}

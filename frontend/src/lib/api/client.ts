@@ -4,7 +4,7 @@ import type {
   ApiRequestOptions
 } from "@/lib/api/types";
 
-type HttpMethod = "GET" | "POST" | "PATCH";
+type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
 
 export type ApiTokenProvider = () =>
   | Promise<string | null | undefined>
@@ -178,5 +178,8 @@ export const apiClient = {
   },
   post<TData>(path: string, body?: unknown, options?: ApiRequestOptions) {
     return request<TData>("POST", path, { ...options, body });
+  },
+  delete<TData>(path: string, options?: ApiRequestOptions) {
+    return request<TData>("DELETE", path, options);
   }
 };

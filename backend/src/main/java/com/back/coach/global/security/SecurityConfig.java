@@ -74,7 +74,8 @@ public class SecurityConfig {
                 HttpHeaders.AUTHORIZATION,
                 HttpHeaders.CONTENT_TYPE,
                 "X-Requested-With",
-                "X-Trace-Id"
+                "X-Trace-Id",
+                "Idempotency-Key"
         ));
         configuration.setExposedHeaders(List.of("X-Trace-Id"));
         configuration.setAllowCredentials(true);

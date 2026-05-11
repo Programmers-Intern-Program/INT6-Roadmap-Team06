@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="ko">
       <body>
         <AppShell>{children}</AppShell>
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );
