@@ -36,7 +36,8 @@ class JobStatusControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new JobStatusController(jobStatusService))
+                .standaloneSetup(new JobStatusController(jobStatusService,
+                        org.mockito.Mockito.mock(com.back.coach.domain.job.service.JobHistoryService.class)))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -44,7 +45,7 @@ class JobStatusControllerTest {
     @Test
     void findStatus_whenJobExists_returnsJobStatus() throws Exception {
         given(jobStatusService.find(1L, "job-1"))
-                .willReturn(Optional.of(new JobStatusSnapshot("job-1", JobStatus.RUNNING, "FETCH_REPOSITORIES", null)));
+                .willReturn(Optional.of(new JobStatusSnapshot("job-1", JobStatus.RUNNING, "FETCH_REPOSITORIES", null, null)));
 
         mockMvc.perform(get("/api/jobs/{jobId}/status", "job-1")
                         .principal(authentication(1L))
@@ -62,7 +63,7 @@ class JobStatusControllerTest {
     @Test
     void findStatus_whenJobFailed_returnsError() throws Exception {
         given(jobStatusService.find(1L, "job-failed"))
-                .willReturn(Optional.of(new JobStatusSnapshot("job-failed", JobStatus.FAILED, "LLM_SUMMARY", "LLM timeout")));
+                .willReturn(Optional.of(new JobStatusSnapshot("job-failed", JobStatus.FAILED, "LLM_SUMMARY", "LLM timeout", null)));
 
         mockMvc.perform(get("/api/jobs/{jobId}/status", "job-failed")
                         .principal(authentication(1L))

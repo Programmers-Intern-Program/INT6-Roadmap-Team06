@@ -43,8 +43,8 @@ class JobStatusServiceTest {
 
     @Test
     void findAll_usesSingleMultiGetWithOrderedKeys() throws Exception {
-        JobStatusSnapshot first = new JobStatusSnapshot("job-1", JobStatus.REQUESTED, "REQUEST_ACCEPTED", null);
-        JobStatusSnapshot second = new JobStatusSnapshot("job-2", JobStatus.RUNNING, "FETCH_REPOSITORIES", null);
+        JobStatusSnapshot first = new JobStatusSnapshot("job-1", JobStatus.REQUESTED, "REQUEST_ACCEPTED", null, null);
+        JobStatusSnapshot second = new JobStatusSnapshot("job-2", JobStatus.RUNNING, "FETCH_REPOSITORIES", null, null);
         given(valueOperations.multiGet(List.of(
                 "job:status:10:job-1",
                 "job:status:10:job-2"

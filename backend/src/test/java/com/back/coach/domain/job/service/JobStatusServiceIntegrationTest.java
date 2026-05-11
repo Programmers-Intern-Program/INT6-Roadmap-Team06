@@ -47,10 +47,10 @@ class JobStatusServiceIntegrationTest {
         );
 
         assertThat(saved).isEqualTo(new JobStatusSnapshot(
-                jobId, JobStatus.REQUESTED, "REQUEST_ACCEPTED", null
+                jobId, JobStatus.REQUESTED, "REQUEST_ACCEPTED", null, null
         ));
         assertThat(jobStatusService.find(USER_ID, jobId))
-                .hasValue(new JobStatusSnapshot(jobId, JobStatus.REQUESTED, "REQUEST_ACCEPTED", null));
+                .hasValue(new JobStatusSnapshot(jobId, JobStatus.REQUESTED, "REQUEST_ACCEPTED", null, null));
     }
 
     @Test
@@ -62,7 +62,7 @@ class JobStatusServiceIntegrationTest {
         jobStatusService.save(USER_ID, jobId, JobStatus.RUNNING, "FETCH_REPOSITORIES");
 
         assertThat(jobStatusService.find(USER_ID, jobId))
-                .hasValue(new JobStatusSnapshot(jobId, JobStatus.RUNNING, "FETCH_REPOSITORIES", null));
+                .hasValue(new JobStatusSnapshot(jobId, JobStatus.RUNNING, "FETCH_REPOSITORIES", null, null));
     }
 
     @Test
@@ -73,7 +73,7 @@ class JobStatusServiceIntegrationTest {
         jobStatusService.saveFailure(USER_ID, jobId, "LLM_SUMMARY", "LLM timeout");
 
         assertThat(jobStatusService.find(USER_ID, jobId))
-                .hasValue(new JobStatusSnapshot(jobId, JobStatus.FAILED, "LLM_SUMMARY", "LLM timeout"));
+                .hasValue(new JobStatusSnapshot(jobId, JobStatus.FAILED, "LLM_SUMMARY", "LLM timeout", null));
     }
 
     @Test
@@ -113,8 +113,8 @@ class JobStatusServiceIntegrationTest {
 
         assertThat(result)
                 .containsExactly(
-                        Map.entry(firstJobId, new JobStatusSnapshot(firstJobId, JobStatus.REQUESTED, "REQUEST_ACCEPTED", null)),
-                        Map.entry(secondJobId, new JobStatusSnapshot(secondJobId, JobStatus.RUNNING, "FETCH_REPOSITORIES", null))
+                        Map.entry(firstJobId, new JobStatusSnapshot(firstJobId, JobStatus.REQUESTED, "REQUEST_ACCEPTED", null, null)),
+                        Map.entry(secondJobId, new JobStatusSnapshot(secondJobId, JobStatus.RUNNING, "FETCH_REPOSITORIES", null, null))
                 );
     }
 
@@ -133,7 +133,7 @@ class JobStatusServiceIntegrationTest {
         assertThat(result)
                 .containsExactly(Map.entry(
                         existingJobId,
-                        new JobStatusSnapshot(existingJobId, JobStatus.FAILED, "LLM_SUMMARY", "LLM timeout")
+                        new JobStatusSnapshot(existingJobId, JobStatus.FAILED, "LLM_SUMMARY", "LLM timeout", null)
                 ));
     }
 
@@ -151,7 +151,7 @@ class JobStatusServiceIntegrationTest {
         assertThat(result)
                 .containsExactly(Map.entry(
                         jobId,
-                        new JobStatusSnapshot(jobId, JobStatus.SUCCEEDED, "DONE", null)
+                        new JobStatusSnapshot(jobId, JobStatus.SUCCEEDED, "DONE", null, null)
                 ));
     }
 

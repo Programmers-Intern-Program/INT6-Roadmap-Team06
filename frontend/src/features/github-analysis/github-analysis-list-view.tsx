@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import { listGithubAnalyses } from "@/features/github-analysis/api";
+import { AnalysisJobHistorySection } from "@/features/github-analysis/analysis-job-history-section";
 import type { GithubAnalysisSummary } from "@/features/github-analysis/types";
 import { ApiError } from "@/lib/api";
 import { isUnauthorizedError } from "@/lib/auth";
@@ -56,6 +57,7 @@ export function GithubAnalysisListView() {
   if (state.items.length === 0) {
     return (
       <section className="screen-shell">
+        <AnalysisJobHistorySection />
         <StatePanel message="아직 생성된 GitHub 분석 결과가 없습니다." />
         <div className="action-row" aria-label="GitHub 분석 다음 행동">
           <Link className="action-link primary" href="/github">
@@ -74,6 +76,7 @@ export function GithubAnalysisListView() {
           저장소 분석 결과를 시점별로 모아 봅니다. 보정 작업은 카드 상세에서 진행해요.
         </p>
       </header>
+      <AnalysisJobHistorySection />
       <ul className="card-grid">
         {state.items.map((item) => (
           <li key={item.githubAnalysisId} className="result-card">
