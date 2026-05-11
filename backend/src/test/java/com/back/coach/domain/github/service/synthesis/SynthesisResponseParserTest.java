@@ -88,8 +88,8 @@ class SynthesisResponseParserTest {
     }
 
     @Test
-    @DisplayName("Evidence.type이 enum 외 값이면 LLM_INVALID_RESPONSE")
-    void parse_invalidEvidenceType_throws() {
+    @DisplayName("Evidence.type이 enum 외 값이면 REPO_METADATA로 보정한다")
+    void parse_invalidEvidenceType_fallsBackToRepoMetadata() {
         String json = """
                 {
                   "techTags": [],
@@ -99,9 +99,43 @@ class SynthesisResponseParserTest {
                 }
                 """;
 
-        assertThatThrownBy(() -> parser.parse(json))
-                .isInstanceOf(ServiceException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.LLM_INVALID_RESPONSE);
+        SynthesisResponseParser.SynthesisResult result = parser.parse(json);
+
+        assertThat(result.evidences().get(0).type()).isEqualTo(GithubEvidenceType.REPO_METADATA);
+    }
+
+    @Test
+    @DisplayName("Evidence.type이 소문자면 enum 대문자 값으로 보정한다")
+    void parse_lowercaseEvidenceType_normalizesToEnum() {
+        String json = """
+                {
+                  "techTags": [],
+                  "depthEstimates": [],
+                  "evidences": [{"repoName": "r", "type": "commit", "source": "s", "summary": "x"}],
+                  "finalTechProfile": {"confirmedSkills": [], "focusAreas": []}
+                }
+                """;
+
+        SynthesisResponseParser.SynthesisResult result = parser.parse(json);
+
+        assertThat(result.evidences().get(0).type()).isEqualTo(GithubEvidenceType.COMMIT);
+    }
+
+    @Test
+    @DisplayName("Evidence.type이 빈 문자열이면 REPO_METADATA로 보정한다")
+    void parse_blankEvidenceType_fallsBackToRepoMetadata() {
+        String json = """
+                {
+                  "techTags": [],
+                  "depthEstimates": [],
+                  "evidences": [{"repoName": "r", "type": " ", "source": "s", "summary": "x"}],
+                  "finalTechProfile": {"confirmedSkills": [], "focusAreas": []}
+                }
+                """;
+
+        SynthesisResponseParser.SynthesisResult result = parser.parse(json);
+
+        assertThat(result.evidences().get(0).type()).isEqualTo(GithubEvidenceType.REPO_METADATA);
     }
 
     @Test

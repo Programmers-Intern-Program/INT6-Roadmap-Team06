@@ -8,6 +8,7 @@ import com.back.coach.global.exception.ServiceException;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SpecVersion;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Component
@@ -40,6 +42,8 @@ public class SynthesisResponseParser {
             log.warn("Synthesis 응답 JSON 파싱 실패: {}", e.getMessage());
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
         }
+
+        normalizeEvidenceTypes(root);
 
         Set<ValidationMessage> errors = schema.validate(root);
         if (!errors.isEmpty()) {
@@ -63,6 +67,33 @@ public class SynthesisResponseParser {
                         mapList(root.get("finalTechProfile").get("confirmedSkills"), JsonNode::asText),
                         mapList(root.get("finalTechProfile").get("focusAreas"), JsonNode::asText))
         );
+    }
+
+    private static void normalizeEvidenceTypes(JsonNode root) {
+        JsonNode evidences = root.get("evidences");
+        if (evidences == null || !evidences.isArray()) {
+            return;
+        }
+
+        evidences.forEach(evidence -> {
+            if (evidence instanceof ObjectNode object && object.has("type")) {
+                object.put("type", normalizeEvidenceType(object.get("type").asText()));
+            }
+        });
+    }
+
+    private static String normalizeEvidenceType(String rawType) {
+        if (rawType != null) {
+            String candidate = rawType.trim().toUpperCase(Locale.ROOT);
+            if (!candidate.isBlank()) {
+                try {
+                    return GithubEvidenceType.valueOf(candidate).name();
+                } catch (IllegalArgumentException ignored) {
+                    // Unknown evidence labels are non-critical; keep analysis usable with a safe enum value.
+                }
+            }
+        }
+        return GithubEvidenceType.REPO_METADATA.name();
     }
 
     private static <T> List<T> mapList(JsonNode array, java.util.function.Function<JsonNode, T> mapper) {
