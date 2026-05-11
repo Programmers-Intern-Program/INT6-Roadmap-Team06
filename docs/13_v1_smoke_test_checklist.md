@@ -33,6 +33,39 @@ v1 시연 핵심 흐름을 같은 기준으로 수동 검증하기 위한 체크
 - [ ] 401 응답은 로그인 CTA 또는 로그인 화면으로 복구 가능하고, 일반 API 오류와 구분된다.
 - [ ] 실패한 단계가 있으면 blocker 양식에 요청, 응답, 화면 경로, 관련 ID, 로그를 기록한다.
 
+## 운영 배포 Smoke / 시연 Rehearsal 기준
+
+### 배포 직후 Deploy Smoke
+
+배포 직후 smoke는 짧고 반복 가능한 자동 검증으로 수행한다. 목적은 새 배포가 운영 도메인에서 최소한의 접속, health, CORS 기준을 깨지 않았는지 빠르게 확인하는 것이다.
+
+- [ ] `APP_BASE_URL`, `API_BASE_URL`이 배포 대상 도메인 또는 inactive color를 가리키는지 확인한다.
+- [ ] frontend root 응답이 2xx 또는 3xx인지 확인한다.
+- [ ] backend `/actuator/health` 응답이 200이고 `status`가 `UP`인지 확인한다.
+- [ ] backend `/actuator/info` 등 공개 API 경로가 응답하는지 확인한다.
+- [ ] frontend origin 기준 CORS preflight가 통과하는지 확인한다.
+- [ ] 실패 시 active 전환을 중단하고 기존 active color를 유지한다.
+- [ ] active 전환 후 같은 smoke를 한 번 더 실행한다.
+
+실행 예시:
+
+```powershell
+.\scripts\smoke\deploy-smoke.ps1 `
+  -AppBaseUrl "https://APP_DOMAIN" `
+  -ApiBaseUrl "https://API_DOMAIN"
+```
+
+### 시연 전 Full Rehearsal
+
+full rehearsal은 실제 사용자가 보는 흐름을 확인하는 수동 검증이다. 매 배포마다 실행하지 않고 시연 전 또는 큰 기능 변경 후 수행한다.
+
+- [ ] 실제 운영 도메인에서 GitHub 로그인 OAuth callback을 확인한다.
+- [ ] 실제 운영 도메인에서 저장소 연결 OAuth callback을 확인한다.
+- [ ] 실제 GitHub API와 AI Gateway 응답을 포함해 v1 핵심 흐름을 끝까지 수행한다.
+- [ ] v2 Coach 진입이 필요한 시연이면 active snapshot 기준 세션 생성까지 확인한다.
+- [ ] 외부 API 지연 시간과 사용자 입장에서 멈춘 것처럼 보이는 구간을 기록한다.
+- [ ] token, cookie, API key, OAuth secret 원문은 문서, 로그 캡처, PR에 남기지 않는다.
+
 ## v1 흐름 체크리스트
 
 ### 1. 로그인 / 인증 복구

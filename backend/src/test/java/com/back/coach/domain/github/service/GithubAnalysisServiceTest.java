@@ -20,6 +20,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -67,7 +72,9 @@ class GithubAnalysisServiceTest {
                 new SynthesisPromptBuilder(),
                 new SynthesisResponseParser(),
                 new GithubAnalysisPayloadJson(),
-                llmClient
+                llmClient,
+                transactionTemplate(),
+                mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class)
         );
 
         triageJson = """
@@ -208,5 +215,22 @@ class GithubAnalysisServiceTest {
     private static GithubAnalysis withId(GithubAnalysis a, long id) {
         ReflectionTestUtils.setField(a, "id", id);
         return a;
+    }
+
+    private static TransactionTemplate transactionTemplate() {
+        return new TransactionTemplate(new PlatformTransactionManager() {
+            @Override
+            public TransactionStatus getTransaction(TransactionDefinition definition) {
+                return new SimpleTransactionStatus();
+            }
+
+            @Override
+            public void commit(TransactionStatus status) {
+            }
+
+            @Override
+            public void rollback(TransactionStatus status) {
+            }
+        });
     }
 }

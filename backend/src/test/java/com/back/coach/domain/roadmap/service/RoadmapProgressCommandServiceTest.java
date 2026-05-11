@@ -40,6 +40,9 @@ class RoadmapProgressCommandServiceTest {
     @Mock
     private ProgressLogRepository progressLogRepository;
 
+    @Mock
+    private com.back.coach.domain.context.service.ContextSnapshotPublisher contextSnapshotPublisher;
+
     @InjectMocks
     private RoadmapProgressCommandService roadmapProgressCommandService;
 

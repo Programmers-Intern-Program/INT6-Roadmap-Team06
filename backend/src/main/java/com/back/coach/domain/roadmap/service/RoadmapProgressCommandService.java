@@ -1,5 +1,6 @@
 package com.back.coach.domain.roadmap.service;
 
+import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.roadmap.dto.RoadmapProgressCommandResult;
 import com.back.coach.domain.roadmap.entity.ProgressLog;
 import com.back.coach.domain.roadmap.repository.LearningRoadmapRepository;
@@ -18,15 +19,18 @@ public class RoadmapProgressCommandService {
     private final LearningRoadmapRepository learningRoadmapRepository;
     private final RoadmapWeekRepository roadmapWeekRepository;
     private final ProgressLogRepository progressLogRepository;
+    private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     public RoadmapProgressCommandService(
             LearningRoadmapRepository learningRoadmapRepository,
             RoadmapWeekRepository roadmapWeekRepository,
-            ProgressLogRepository progressLogRepository
+            ProgressLogRepository progressLogRepository,
+            ContextSnapshotPublisher contextSnapshotPublisher
     ) {
         this.learningRoadmapRepository = learningRoadmapRepository;
         this.roadmapWeekRepository = roadmapWeekRepository;
         this.progressLogRepository = progressLogRepository;
+        this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
     public RoadmapProgressCommandResult appendProgress(
@@ -44,6 +48,8 @@ public class RoadmapProgressCommandService {
 
         ProgressLog progressLog = ProgressLog.create(userId, roadmapWeekId, nextStatus, note);
         ProgressLog savedProgressLog = progressLogRepository.save(progressLog);
+
+        contextSnapshotPublisher.publishPlan(userId);
 
         return new RoadmapProgressCommandResult(
                 savedProgressLog.getId(),

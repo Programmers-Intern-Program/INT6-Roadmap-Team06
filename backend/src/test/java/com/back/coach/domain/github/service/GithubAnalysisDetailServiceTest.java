@@ -50,7 +50,8 @@ class GithubAnalysisDetailServiceTest {
         githubAnalysisDetailService = new GithubAnalysisDetailService(
                 githubAnalysisRepository,
                 objectMapper,
-                Clock.fixed(FIXED_NOW, ZoneOffset.UTC)
+                Clock.fixed(FIXED_NOW, ZoneOffset.UTC),
+                org.mockito.Mockito.mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class)
         );
     }
 

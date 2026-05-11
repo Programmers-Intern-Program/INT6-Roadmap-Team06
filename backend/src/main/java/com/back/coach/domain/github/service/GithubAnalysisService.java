@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service;
 
+import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.entity.GithubProject;
@@ -20,7 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -51,6 +52,8 @@ public class GithubAnalysisService {
     private final SynthesisResponseParser synthesisResponseParser;
     private final GithubAnalysisPayloadJson payloadJson;
     private final LlmClient llmClient;
+    private final TransactionTemplate transactionTemplate;
+    private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     public GithubAnalysisService(GithubConnectionRepository connectionRepo,
                                  GithubProjectRepository projectRepo,
@@ -63,7 +66,9 @@ public class GithubAnalysisService {
                                  SynthesisPromptBuilder synthesisPromptBuilder,
                                  SynthesisResponseParser synthesisResponseParser,
                                  GithubAnalysisPayloadJson payloadJson,
-                                 LlmClient llmClient) {
+                                 LlmClient llmClient,
+                                 TransactionTemplate transactionTemplate,
+                                 ContextSnapshotPublisher contextSnapshotPublisher) {
         this.connectionRepo = connectionRepo;
         this.projectRepo = projectRepo;
         this.analysisRepo = analysisRepo;
@@ -76,57 +81,45 @@ public class GithubAnalysisService {
         this.synthesisResponseParser = synthesisResponseParser;
         this.payloadJson = payloadJson;
         this.llmClient = llmClient;
+        this.transactionTemplate = transactionTemplate;
+        this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
-    @Transactional
     public GithubAnalysisResult run(Long userId, Long githubConnectionId,
                                     List<Long> selectedRepoIds, List<Long> coreRepoIds) {
         long analysisStartMs = System.currentTimeMillis();
         validateInputs(selectedRepoIds, coreRepoIds);
-        if (!connectionRepo.existsByIdAndUserId(githubConnectionId, userId)) {
-            throw new ServiceException(ErrorCode.FORBIDDEN);
-        }
-
-        Map<Long, GithubProject> projectsById = projectRepo
-                .findByUserIdAndGithubConnectionId(userId, githubConnectionId).stream()
-                .collect(Collectors.toMap(GithubProject::getId, p -> p));
-
-        List<GithubProject> selected = pickProjects(projectsById, selectedRepoIds);
-        List<GithubProject> coreProjects = pickProjects(projectsById, coreRepoIds);
-
-        List<StaticSignalAggregator.RepoSignalInput> signalInputs = selected.stream()
-                .map(p -> new StaticSignalAggregator.RepoSignalInput(
-                        p.getPrimaryLanguage(), parseMetadata(p.getMetadataPayload())))
-                .toList();
-        GithubAnalysisPayload.StaticSignals signals = signalAggregator.aggregate(signalInputs);
+        AnalysisInputs inputs = transactionTemplate.execute(status ->
+                loadInputs(userId, githubConnectionId, selectedRepoIds, coreRepoIds)
+        );
 
         List<GithubAnalysisPayload.RepoSummary> repoSummaries = new ArrayList<>();
         long triageElapsedMs = 0, summaryElapsedMs = 0;
         int triagePromptBytes = 0, summaryPromptBytes = 0;
 
-        for (GithubProject core : coreProjects) {
+        for (RepoAnalysisInput core : inputs.coreProjects()) {
             long repoStartMs = System.currentTimeMillis();
-            RepoMetadata metadata = parseMetadata(core.getMetadataPayload());
+            RepoMetadata metadata = core.metadata();
             if (isEmptyMetadata(metadata)) {
-                log.warn("분석 skip: 메타데이터 없음 repo={}", core.getRepoFullName());
+                log.warn("분석 skip: 메타데이터 없음 repo={}", core.repoFullName());
                 continue;
             }
             ChampionTriageService.TriageResult triage;
             try {
                 long triageStartMs = System.currentTimeMillis();
-                triage = triageService.triage(core.getRepoFullName(), core.getRepoUrl(), metadata);
+                triage = triageService.triage(core.repoFullName(), core.repoUrl(), metadata);
                 triageElapsedMs += System.currentTimeMillis() - triageStartMs;
                 log.debug("Triage completed: repo={}, elapsedMs={}, champions={}",
-                        core.getRepoFullName(), triageElapsedMs, triage.champions().size());
+                        core.repoFullName(), triageElapsedMs, triage.champions().size());
             } catch (ServiceException e) {
-                log.warn("분석 skip: 기여 커밋 없음 repo={}", core.getRepoFullName());
+                log.warn("분석 skip: 기여 커밋 없음 repo={}", core.repoFullName());
                 continue;
             }
 
             List<ResolvedChampion> resolved = resolveChampions(triage.champions(), metadata);
             String summaryPrompt = summaryPromptBuilder.build(
-                    String.valueOf(core.getId()), core.getRepoFullName(),
-                    core.getPrimaryLanguage(), resolved);
+                    String.valueOf(core.id()), core.repoFullName(),
+                    core.primaryLanguage(), resolved);
             summaryPromptBytes += summaryPrompt.getBytes().length;
             long summaryStartMs = System.currentTimeMillis();
             String summaryResponse = llmClient.complete(summaryPrompt);
@@ -134,11 +127,11 @@ public class GithubAnalysisService {
             repoSummaries.add(summaryResponseParser.parse(summaryResponse));
             long repoElapsedMs = System.currentTimeMillis() - repoStartMs;
             log.debug("Repo analysis completed: repo={}, totalElapsedMs={}",
-                    core.getRepoFullName(), repoElapsedMs);
+                    core.repoFullName(), repoElapsedMs);
         }
 
         long synthesisStartMs = System.currentTimeMillis();
-        String synthesisPrompt = synthesisPromptBuilder.build(signals, repoSummaries);
+        String synthesisPrompt = synthesisPromptBuilder.build(inputs.signals(), repoSummaries);
         int synthesisPromptBytes = synthesisPrompt.getBytes().length;
         log.debug("Synthesis prompt built: bytes={}", synthesisPromptBytes);
         String synthesisResponse = llmClient.complete(synthesisPrompt);
@@ -147,16 +140,20 @@ public class GithubAnalysisService {
         log.debug("Synthesis completed: elapsedMs={}", synthesisElapsedMs);
 
         GithubAnalysisPayload payload = new GithubAnalysisPayload(
-                signals, repoSummaries,
+                inputs.signals(), repoSummaries,
                 synthesis.techTags(), synthesis.depthEstimates(), synthesis.evidences(),
                 List.of(), synthesis.finalTechProfile()
         );
 
-        int version = nextVersion(userId);
-        String summary = composeSummary(synthesis.finalTechProfile());
-        GithubAnalysis saved = analysisRepo.save(
-                GithubAnalysis.create(userId, githubConnectionId, version, summary, payloadJson.toJson(payload))
-        );
+        GithubAnalysis saved = transactionTemplate.execute(status -> {
+            int version = nextVersion(userId);
+            String summary = composeSummary(synthesis.finalTechProfile());
+            GithubAnalysis savedAnalysis = analysisRepo.save(
+                    GithubAnalysis.create(userId, githubConnectionId, version, summary, payloadJson.toJson(payload))
+            );
+            contextSnapshotPublisher.publishProfile(userId);
+            return savedAnalysis;
+        });
         long totalElapsedMs = System.currentTimeMillis() - analysisStartMs;
         AnalysisMetrics metrics = new AnalysisMetrics(
                 totalElapsedMs,
@@ -172,6 +169,40 @@ public class GithubAnalysisService {
                 totalElapsedMs, repoSummaries.size(), metrics);
         return new GithubAnalysisResult(saved.getId(), saved.getVersion(), payload, saved.getSummary(),
                 saved.getCreatedAt() == null ? Instant.now() : saved.getCreatedAt(), metrics);
+    }
+
+    private AnalysisInputs loadInputs(Long userId, Long githubConnectionId,
+                                      List<Long> selectedRepoIds, List<Long> coreRepoIds) {
+        if (!connectionRepo.existsByIdAndUserId(githubConnectionId, userId)) {
+            throw new ServiceException(ErrorCode.FORBIDDEN);
+        }
+
+        Map<Long, GithubProject> projectsById = projectRepo
+                .findByUserIdAndGithubConnectionId(userId, githubConnectionId).stream()
+                .collect(Collectors.toMap(GithubProject::getId, p -> p));
+
+        List<RepoAnalysisInput> selected = pickProjects(projectsById, selectedRepoIds).stream()
+                .map(this::toRepoInput)
+                .toList();
+        List<RepoAnalysisInput> coreProjects = pickProjects(projectsById, coreRepoIds).stream()
+                .map(this::toRepoInput)
+                .toList();
+
+        List<StaticSignalAggregator.RepoSignalInput> signalInputs = selected.stream()
+                .map(p -> new StaticSignalAggregator.RepoSignalInput(p.primaryLanguage(), p.metadata()))
+                .toList();
+        GithubAnalysisPayload.StaticSignals signals = signalAggregator.aggregate(signalInputs);
+        return new AnalysisInputs(signals, coreProjects);
+    }
+
+    private RepoAnalysisInput toRepoInput(GithubProject project) {
+        return new RepoAnalysisInput(
+                project.getId(),
+                project.getRepoFullName(),
+                project.getRepoUrl(),
+                project.getPrimaryLanguage(),
+                parseMetadata(project.getMetadataPayload())
+        );
     }
 
     private void validateInputs(List<Long> selectedRepoIds, List<Long> coreRepoIds) {
@@ -308,5 +339,18 @@ public class GithubAnalysisService {
             long summaryElapsedMs,
             int synthesisPromptBytes,
             long synthesisElapsedMs
+    ) {}
+
+    private record AnalysisInputs(
+            GithubAnalysisPayload.StaticSignals signals,
+            List<RepoAnalysisInput> coreProjects
+    ) {}
+
+    private record RepoAnalysisInput(
+            Long id,
+            String repoFullName,
+            String repoUrl,
+            String primaryLanguage,
+            RepoMetadata metadata
     ) {}
 }

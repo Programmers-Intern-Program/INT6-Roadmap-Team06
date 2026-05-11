@@ -1,5 +1,6 @@
 package com.back.coach.domain.user.service;
 
+import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.jobrole.entity.JobRole;
 import com.back.coach.domain.jobrole.repository.JobRoleRepository;
 import com.back.coach.domain.user.dto.ProfileDetailResponse;
@@ -35,17 +36,20 @@ public class ProfileService {
     private final UserSkillRepository userSkillRepository;
     private final JobRoleRepository jobRoleRepository;
     private final ObjectMapper objectMapper;
+    private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     public ProfileService(
             UserProfileRepository userProfileRepository,
             UserSkillRepository userSkillRepository,
             JobRoleRepository jobRoleRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ContextSnapshotPublisher contextSnapshotPublisher
     ) {
         this.userProfileRepository = userProfileRepository;
         this.userSkillRepository = userSkillRepository;
         this.jobRoleRepository = jobRoleRepository;
         this.objectMapper = objectMapper;
+        this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
     @Transactional
@@ -80,6 +84,8 @@ public class ProfileService {
 
         UserProfile savedProfile = userProfileRepository.saveAndFlush(profile);
         replaceUserInputSkills(userId, normalizedSkills);
+
+        contextSnapshotPublisher.publishProfile(userId);
 
         return new ProfileSaveResult(savedProfile.getId(), savedProfile.getUpdatedAt());
     }

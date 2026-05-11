@@ -1,5 +1,6 @@
 package com.back.coach.domain.roadmap.service;
 
+import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.diagnosis.dto.DiagnosisPayload;
 import com.back.coach.domain.diagnosis.entity.CapabilityDiagnosis;
 import com.back.coach.domain.diagnosis.repository.CapabilityDiagnosisRepository;
@@ -45,6 +46,7 @@ public class RoadmapCommandService {
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     public RoadmapCommandService(
             CapabilityDiagnosisRepository capabilityDiagnosisRepository,
@@ -58,7 +60,8 @@ public class RoadmapCommandService {
             RoadmapResponseParser roadmapResponseParser,
             LlmClient llmClient,
             ObjectMapper objectMapper,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            ContextSnapshotPublisher contextSnapshotPublisher
     ) {
         this.capabilityDiagnosisRepository = capabilityDiagnosisRepository;
         this.githubAnalysisRepository = githubAnalysisRepository;
@@ -72,6 +75,7 @@ public class RoadmapCommandService {
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
+        this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
     // LLM 호출을 트랜잭션 밖에서 수행해 DB 커넥션을 장시간 점유하지 않도록 분리
@@ -98,7 +102,7 @@ public class RoadmapCommandService {
                 roadmapResponseParser.parse(llmClient.complete(prompt));
 
         // 3. DB 저장 (새 트랜잭션)
-        return transactionTemplate.execute(status -> {
+        RoadmapDetailResponse response = transactionTemplate.execute(status -> {
             RoadmapPayload roadmapPayload = new RoadmapPayload(roadmapResult.weeks());
             LearningRoadmap savedRoadmap = learningRoadmapRepository.save(LearningRoadmap.create(
                     userId,
@@ -111,8 +115,10 @@ public class RoadmapCommandService {
             List<RoadmapWeek> savedWeeks = roadmapWeekRepository.saveAll(toRoadmapWeeks(
                     savedRoadmap.getId(), roadmapResult.weeks()
             ));
+            contextSnapshotPublisher.publishPlan(userId);
             return RoadmapDetailResponse.from(toSnapshot(savedRoadmap, savedWeeks), objectMapper);
         });
+        return response;
     }
 
     private void validateGithubAnalysisOwnership(Long userId, Long githubAnalysisId) {

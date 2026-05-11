@@ -64,7 +64,8 @@ class AiGatewayLlmClientTest {
                         {
                           "model": "test-model",
                           "messages": [{"role": "user", "content": "hello"}],
-                          "max_tokens": 16384
+                          "max_tokens": 16384,
+                          "stream": false
                         }
                         """)));
     }

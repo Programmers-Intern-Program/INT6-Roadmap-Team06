@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service;
 
+import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.github.dto.GithubAnalysisDetailResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisCorrectionRequest;
 import com.back.coach.domain.github.dto.GithubAnalysisCorrectionResponse;
@@ -25,23 +26,27 @@ public class GithubAnalysisDetailService {
     private final GithubAnalysisRepository githubAnalysisRepository;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     @Autowired
     public GithubAnalysisDetailService(
             GithubAnalysisRepository githubAnalysisRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ContextSnapshotPublisher contextSnapshotPublisher
     ) {
-        this(githubAnalysisRepository, objectMapper, Clock.systemUTC());
+        this(githubAnalysisRepository, objectMapper, Clock.systemUTC(), contextSnapshotPublisher);
     }
 
     GithubAnalysisDetailService(
             GithubAnalysisRepository githubAnalysisRepository,
             ObjectMapper objectMapper,
-            Clock clock
+            Clock clock,
+            ContextSnapshotPublisher contextSnapshotPublisher
     ) {
         this.githubAnalysisRepository = githubAnalysisRepository;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -86,6 +91,8 @@ public class GithubAnalysisDetailService {
 
         githubAnalysis.updateAnalysisPayload(toJson(updatedPayload));
         Instant savedAt = Instant.now(clock);
+
+        contextSnapshotPublisher.publishProfile(userId);
 
         return GithubAnalysisCorrectionResponse.of(
                 githubAnalysis.getId(),
