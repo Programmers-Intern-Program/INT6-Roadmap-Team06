@@ -185,6 +185,26 @@ jobs:
           docker image prune -f
           REMOTE
 
+      - name: Wait inactive backend health
+        env:
+          TARGET_BACKEND_PORT: ${{ steps.target.outputs.backend_port }}
+        run: |
+          set -euo pipefail
+
+          health_url="http://${EC2_HOST}:${TARGET_BACKEND_PORT}/actuator/health"
+          for attempt in $(seq 1 30); do
+            if curl -fsS "$health_url" | grep -q '"status":"UP"'; then
+              echo "Inactive backend is healthy"
+              exit 0
+            fi
+
+            echo "Waiting for inactive backend health... attempt ${attempt}/30"
+            sleep 5
+          done
+
+          echo "::error::Inactive backend did not become healthy in time"
+          exit 1
+
       - name: Smoke inactive color
         env:
           TARGET_FRONTEND_PORT: ${{ steps.target.outputs.frontend_port }}
