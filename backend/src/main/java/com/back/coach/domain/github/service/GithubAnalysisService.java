@@ -3,10 +3,12 @@ package com.back.coach.domain.github.service;
 import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
+import com.back.coach.domain.github.entity.GithubConnection;
 import com.back.coach.domain.github.entity.GithubProject;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.github.repository.GithubConnectionRepository;
 import com.back.coach.domain.github.repository.GithubProjectRepository;
+import com.back.coach.domain.github.service.fetcher.GithubMetadataFetcher;
 import com.back.coach.domain.github.service.summary.DiffPreprocessor;
 import com.back.coach.domain.github.service.summary.RepoSummaryPromptBuilder;
 import com.back.coach.domain.github.service.summary.RepoSummaryResponseParser;
@@ -17,6 +19,7 @@ import com.back.coach.domain.github.service.triage.ChampionTriageService;
 import com.back.coach.external.llm.LlmClient;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +57,7 @@ public class GithubAnalysisService {
     private final LlmClient llmClient;
     private final TransactionTemplate transactionTemplate;
     private final ContextSnapshotPublisher contextSnapshotPublisher;
+    private final GithubMetadataFetcher metadataFetcher;
 
     public GithubAnalysisService(GithubConnectionRepository connectionRepo,
                                  GithubProjectRepository projectRepo,
@@ -68,7 +72,8 @@ public class GithubAnalysisService {
                                  GithubAnalysisPayloadJson payloadJson,
                                  LlmClient llmClient,
                                  TransactionTemplate transactionTemplate,
-                                 ContextSnapshotPublisher contextSnapshotPublisher) {
+                                 ContextSnapshotPublisher contextSnapshotPublisher,
+                                 GithubMetadataFetcher metadataFetcher) {
         this.connectionRepo = connectionRepo;
         this.projectRepo = projectRepo;
         this.analysisRepo = analysisRepo;
@@ -83,12 +88,19 @@ public class GithubAnalysisService {
         this.llmClient = llmClient;
         this.transactionTemplate = transactionTemplate;
         this.contextSnapshotPublisher = contextSnapshotPublisher;
+        this.metadataFetcher = metadataFetcher;
     }
 
     public GithubAnalysisResult run(Long userId, Long githubConnectionId,
                                     List<Long> selectedRepoIds, List<Long> coreRepoIds) {
         long analysisStartMs = System.currentTimeMillis();
         validateInputs(selectedRepoIds, coreRepoIds);
+
+        // Slice 6: 선택된 repo에 한해 metadata를 분석 시점에 fetch한다.
+        // #283 트랜잭션 분리 의도와 맞게 HTTP 호출은 트랜잭션 밖에서 수행하고,
+        // 각 projectRepo.save 만 짧은 auto-tx로 들어간다.
+        fetchAndPersistMetadataForSelected(userId, githubConnectionId, selectedRepoIds);
+
         AnalysisInputs inputs = transactionTemplate.execute(status ->
                 loadInputs(userId, githubConnectionId, selectedRepoIds, coreRepoIds)
         );
@@ -169,6 +181,43 @@ public class GithubAnalysisService {
                 totalElapsedMs, repoSummaries.size(), metrics);
         return new GithubAnalysisResult(saved.getId(), saved.getVersion(), payload, saved.getSummary(),
                 saved.getCreatedAt() == null ? Instant.now() : saved.getCreatedAt(), metrics);
+    }
+
+    private void fetchAndPersistMetadataForSelected(Long userId, Long githubConnectionId, List<Long> selectedRepoIds) {
+        GithubConnection connection = connectionRepo.findByIdAndUserId(githubConnectionId, userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.FORBIDDEN));
+
+        Set<Long> selectedIdSet = new HashSet<>(selectedRepoIds);
+        List<GithubProject> selected = projectRepo
+                .findByUserIdAndGithubConnectionId(userId, githubConnectionId).stream()
+                .filter(p -> selectedIdSet.contains(p.getId()))
+                .toList();
+        if (selected.size() != selectedRepoIds.size()) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT, "선택된 저장소 일부가 사용자의 것이 아닙니다");
+        }
+
+        String token = connection.getAccessToken();
+        String login = connection.getGithubLogin();
+        for (GithubProject project : selected) {
+            String[] parts = project.getRepoFullName().split("/", 2);
+            if (parts.length < 2) {
+                log.warn("repo_full_name 형식 비정상, metadata fetch skip: {}", project.getRepoFullName());
+                continue;
+            }
+            String owner = parts[0];
+            String repo = parts[1];
+            try {
+                RepoMetadata metadata = metadataFetcher.fetch(token, owner, repo, login);
+                String json = METADATA_MAPPER.writeValueAsString(metadata);
+                project.updateMetadataPayload(json);
+                projectRepo.save(project);
+            } catch (JsonProcessingException e) {
+                log.warn("metadata 직렬화 실패 repo={} reason={}", project.getRepoFullName(), e.getMessage());
+            } catch (ServiceException e) {
+                log.warn("GitHub API 오류로 metadata fetch 실패 repo={} code={} message={}",
+                        project.getRepoFullName(), e.getErrorCode(), e.getMessage());
+            }
+        }
     }
 
     private AnalysisInputs loadInputs(Long userId, Long githubConnectionId,

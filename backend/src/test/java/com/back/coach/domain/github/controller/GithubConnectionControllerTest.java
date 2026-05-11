@@ -138,7 +138,8 @@ class GithubConnectionControllerTest extends ApiTestBase {
                 connections.get(0).getId(), user.getId());
         assertThat(projects).hasSize(1);
         assertThat(projects.get(0).getRepoFullName()).isEqualTo("testuser/cool-repo");
-        assertThat(projects.get(0).getMetadataPayload()).contains("languageBytes");
+        // Slice 6: 연결 단계에서는 metadata fetch 안 함. 분석 시점에 fetch.
+        assertThat(projects.get(0).getMetadataPayload()).doesNotContain("languageBytes");
     }
 
     @Test
