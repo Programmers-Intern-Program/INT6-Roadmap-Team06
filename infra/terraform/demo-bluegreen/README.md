@@ -113,12 +113,36 @@ GitHub Variables:
 - `NEXT_PUBLIC_GITHUB_CONNECTION_CLIENT_ID`
 - `NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI`
 
+## Destroy / 비용 정리
+
+테스트가 끝났거나 장시간 사용하지 않을 때는 EC2, EIP, EBS 비용을 막기 위해 로컬 Terraform state 기준으로 리소스를 제거한다.
+
+```powershell
+cd infra/terraform/demo-bluegreen
+terraform plan -destroy -var-file="terraform.tfvars"
+terraform destroy -var-file="terraform.tfvars"
+```
+
+destroy 후에는 Terraform state와 AWS 리소스가 정리됐는지 확인한다.
+
+```powershell
+terraform state list
+terraform plan -destroy -var-file="terraform.tfvars"
+aws ec2 describe-instances --region ap-northeast-2 --filters "Name=tag:Name,Values=coach-demo-ec2"
+aws ec2 describe-addresses --region ap-northeast-2 --filters "Name=tag:Name,Values=coach-demo-eip"
+```
+
+다시 `terraform apply`하면 Elastic IP가 바뀔 수 있다. GitHub Actions secrets/variables의 `EC2_HOST`, `APP_BASE_URL`, `API_BASE_URL`, `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_GITHUB_CONNECTION_REDIRECT_URI`는 새 IP 또는 도메인 기준으로 갱신한다.
+
+현재 구성은 로컬 `terraform.tfstate`를 기준으로 한다. GitHub Actions에서 destroy를 실행하는 workflow는 S3 backend와 DynamoDB lock 같은 remote state를 도입한 뒤 별도 작업으로 만든다.
+
 ## 금지
 
 다음 파일과 값은 repo에 커밋하지 않는다.
 
 - `terraform.tfvars`
 - `*.tfstate`
+- private key
 - AWS access key / secret key
 - OAuth client secret
 - JWT secret

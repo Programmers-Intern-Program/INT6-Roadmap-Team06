@@ -105,6 +105,13 @@ function Write-Fail {
     $script:failures.Add($Message) | Out-Null
 }
 
+function Get-Origin {
+    param([Parameter(Mandatory = $true)] [string] $BaseUrl)
+
+    $uri = [Uri] $BaseUrl
+    return $uri.GetLeftPart([UriPartial]::Authority).ToLowerInvariant()
+}
+
 $appBase = Normalize-BaseUrl -Value $AppBaseUrl -Fallback "http://localhost:3000" -Name "APP_BASE_URL"
 $apiBase = Normalize-BaseUrl -Value $ApiBaseUrl -Fallback "http://localhost:8080" -Name "API_BASE_URL"
 
@@ -112,6 +119,7 @@ if ([string]::IsNullOrWhiteSpace($Origin)) {
     $Origin = $appBase
 }
 $originBase = Normalize-BaseUrl -Value $Origin -Fallback $appBase -Name "SMOKE_ORIGIN"
+$requiresCorsHeaders = (Get-Origin -BaseUrl $originBase) -ne (Get-Origin -BaseUrl $apiBase)
 
 $script:failures = [System.Collections.Generic.List[string]]::new()
 
@@ -171,14 +179,18 @@ try {
     $allowOrigin = Get-HeaderValue -Response $corsResponse -Name "Access-Control-Allow-Origin"
     $allowCredentials = Get-HeaderValue -Response $corsResponse -Name "Access-Control-Allow-Credentials"
 
-    if ($allowOrigin -ne $originBase -and $allowOrigin -ne "*") {
-        throw "CORS preflight returned Access-Control-Allow-Origin='$allowOrigin'"
-    }
-    if ($allowCredentials.ToLowerInvariant() -ne "true") {
-        throw "CORS preflight did not allow credentials"
-    }
+    if ($requiresCorsHeaders) {
+        if ($allowOrigin -ne $originBase -and $allowOrigin -ne "*") {
+            throw "CORS preflight returned Access-Control-Allow-Origin='$allowOrigin'"
+        }
+        if ($allowCredentials.ToLowerInvariant() -ne "true") {
+            throw "CORS preflight did not allow credentials"
+        }
 
-    Write-Pass "CORS preflight allowed $originBase"
+        Write-Pass "CORS preflight allowed $originBase"
+    } else {
+        Write-Pass "same-origin API preflight responded with HTTP $([int] $corsResponse.StatusCode)"
+    }
 } catch {
     Write-Fail $_.Exception.Message
 }
