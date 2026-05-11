@@ -68,6 +68,8 @@ public class SynthesisPromptBuilder {
         sb.append("  \"evidences\": [ { \"repoName\": string, \"type\": \"").append(EVIDENCE_VALUES).append("\", \"source\": string, \"summary\": string } ],\n");
         sb.append("  \"finalTechProfile\": { \"confirmedSkills\": [ string ], \"focusAreas\": [ string ] }\n");
         sb.append("}\n");
+        sb.append("For evidences[].type, use ONLY one of: ").append(EVIDENCE_VALUES).append(".\n");
+        sb.append("If evidence type is uncertain, use REPO_METADATA. Do NOT leave it blank and do NOT invent new values.\n");
         sb.append("Do NOT rename fields. Do NOT add extra fields.\n");
         return sb.toString();
     }
