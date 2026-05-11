@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, githubConnectionOAuthUrl } from "@/lib/api";
 import { isUnauthorizedError } from "@/lib/auth";
-import { getRepositories, runAnalysis } from "@/features/github-connection/api";
+import {
+  getLatestGithubConnection,
+  getRepositories,
+  runAnalysis
+} from "@/features/github-connection/api";
 import type { Repository } from "@/features/github-connection/types";
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 
-const CONNECTION_ID_KEY = "githubConnectionId";
-const CONNECTION_ID_CHANGE_EVENT = "githubConnectionIdChange";
-const SELECTED_REPOS_KEY = "githubSelectedRepos";
-
 type ViewState =
+  | { status: "loading-connection" }
   | { status: "disconnected" }
   | { status: "loading-repos" }
   | { status: "auth-required" }
@@ -26,45 +27,39 @@ function getErrorMessage(error: unknown): string {
   return "오류가 발생했습니다. 다시 시도해주세요.";
 }
 
-function getConnectionIdSnapshot() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(CONNECTION_ID_KEY);
-}
-
-function subscribeToConnectionId(onChange: () => void) {
-  if (typeof window === "undefined") return () => {};
-
-  window.addEventListener("storage", onChange);
-  window.addEventListener(CONNECTION_ID_CHANGE_EVENT, onChange);
-
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(CONNECTION_ID_CHANGE_EVENT, onChange);
-  };
-}
-
-function clearConnectionId() {
-  localStorage.removeItem(CONNECTION_ID_KEY);
-  localStorage.removeItem(SELECTED_REPOS_KEY);
-  window.dispatchEvent(new Event(CONNECTION_ID_CHANGE_EVENT));
-}
-
 export function GithubConnectionView() {
   const router = useRouter();
-  const connectionId = useSyncExternalStore(
-    subscribeToConnectionId,
-    getConnectionIdSnapshot,
-    () => null
-  );
-  const [state, setState] = useState<ViewState>({ status: "loading-repos" });
-  const [selected, setSelected] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const saved = localStorage.getItem(SELECTED_REPOS_KEY);
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch { return new Set(); }
-  });
+  const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [state, setState] = useState<ViewState>({ status: "loading-connection" });
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [connectUrl] = useState(() => githubConnectionOAuthUrl());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getLatestGithubConnection()
+      .then((connection) => {
+        if (cancelled) return;
+        setConnectionId(connection.githubConnectionId);
+        setState({ status: "loading-repos" });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        if (isUnauthorizedError(error)) {
+          setState({ status: "auth-required" });
+          return;
+        }
+        if (error instanceof ApiError && error.status === 404) {
+          setState({ status: "disconnected" });
+          return;
+        }
+        setState({ status: "error", message: getErrorMessage(error) });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!connectionId) return;
@@ -77,7 +72,8 @@ export function GithubConnectionView() {
       .catch((err) => {
         if (cancelled) return;
         if (err instanceof ApiError && err.status === 404) {
-          clearConnectionId();
+          setConnectionId(null);
+          setState({ status: "disconnected" });
         } else if (isUnauthorizedError(err)) {
           setState({ status: "auth-required" });
         } else {
@@ -91,9 +87,14 @@ export function GithubConnectionView() {
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) { next.delete(id); } else { next.add(id); }
-      localStorage.setItem(SELECTED_REPOS_KEY, JSON.stringify(Array.from(next)));
       return next;
     });
+  }
+
+  function reconnect() {
+    setConnectionId(null);
+    setSelected(new Set());
+    setState({ status: "disconnected" });
   }
 
   async function handleAnalyze() {
@@ -110,6 +111,10 @@ export function GithubConnectionView() {
       }
       setState({ status: "error", message: getErrorMessage(err) });
     }
+  }
+
+  if (state.status === "loading-connection") {
+    return <StatePanel message="연결 정보를 확인하는 중..." />;
   }
 
   if (!connectionId || state.status === "disconnected") {
@@ -148,7 +153,7 @@ export function GithubConnectionView() {
       <div>
         <StatePanel message={state.message} tone="danger" />
         <p>
-          <button onClick={clearConnectionId}>
+          <button onClick={reconnect}>
             다시 연결하기
           </button>
         </p>
@@ -274,10 +279,7 @@ export function GithubConnectionView() {
         </button>
         <button
           className="action-link"
-          onClick={() => {
-            clearConnectionId();
-            setSelected(new Set());
-          }}
+          onClick={reconnect}
         >
           다른 계정으로 연결
         </button>

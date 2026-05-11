@@ -2,6 +2,7 @@ package com.back.coach.domain.diagnosis.service;
 
 import com.back.coach.domain.diagnosis.dto.DiagnosisDetailResponse;
 import com.back.coach.domain.diagnosis.dto.DiagnosisPayload;
+import com.back.coach.domain.diagnosis.dto.DiagnosisSummaryResponse;
 import com.back.coach.domain.diagnosis.entity.CapabilityDiagnosis;
 import com.back.coach.domain.diagnosis.repository.CapabilityDiagnosisRepository;
 import com.back.coach.domain.jobrole.entity.JobRole;
@@ -12,6 +13,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class DiagnosisDetailService {
@@ -53,6 +56,13 @@ public class DiagnosisDetailService {
                 payload.recommendations(),
                 diagnosis.getCreatedAt()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<DiagnosisSummaryResponse> listByUser(Long userId) {
+        return capabilityDiagnosisRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(DiagnosisSummaryResponse::from)
+                .toList();
     }
 
     private DiagnosisPayload parsePayload(String diagnosisPayload) {

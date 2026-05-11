@@ -2,6 +2,7 @@ package com.back.coach.domain.roadmap.service;
 
 import com.back.coach.domain.roadmap.dto.RoadmapDetailSnapshot;
 import com.back.coach.domain.roadmap.dto.RoadmapProgressSnapshot;
+import com.back.coach.domain.roadmap.dto.RoadmapSummaryResponse;
 import com.back.coach.domain.roadmap.entity.LearningRoadmap;
 import com.back.coach.domain.roadmap.entity.RoadmapWeek;
 import com.back.coach.domain.roadmap.repository.LearningRoadmapRepository;
@@ -29,6 +30,12 @@ public class RoadmapDetailSnapshotService {
         this.learningRoadmapRepository = learningRoadmapRepository;
         this.roadmapWeekRepository = roadmapWeekRepository;
         this.roadmapProgressSnapshotService = roadmapProgressSnapshotService;
+    }
+
+    public List<RoadmapSummaryResponse> listByUser(Long userId) {
+        return learningRoadmapRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(RoadmapSummaryResponse::from)
+                .toList();
     }
 
     public RoadmapDetailSnapshot findSnapshot(Long userId, Long roadmapId) {

@@ -11,6 +11,10 @@ export function connectGithub(authorizationCode: string) {
   });
 }
 
+export function getLatestGithubConnection() {
+  return apiClient.get<GithubConnection>("/api/github/connections/latest");
+}
+
 export function getRepositories(connectionId: string) {
   return apiClient.get<GithubRepositoryList>(
     `/api/github/repositories?githubConnectionId=${connectionId}`

@@ -10,6 +10,8 @@ public interface GithubConnectionRepository extends JpaRepository<GithubConnecti
 
     List<GithubConnection> findByUserIdOrderByConnectedAtDesc(Long userId);
 
+    Optional<GithubConnection> findFirstByUserIdOrderByConnectedAtDesc(Long userId);
+
     Optional<GithubConnection> findByIdAndUserId(Long id, Long userId);
 
     boolean existsByIdAndUserId(Long id, Long userId);

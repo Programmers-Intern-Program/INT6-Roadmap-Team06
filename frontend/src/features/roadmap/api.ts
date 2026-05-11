@@ -3,7 +3,8 @@ import type {
   Roadmap,
   RoadmapRequest,
   RoadmapProgressRequest,
-  RoadmapProgressResponse
+  RoadmapProgressResponse,
+  RoadmapSummary
 } from "@/features/roadmap/types";
 
 export function createRoadmap(payload: RoadmapRequest) {
@@ -12,6 +13,10 @@ export function createRoadmap(payload: RoadmapRequest) {
 
 export function getRoadmap(roadmapId: string) {
   return apiClient.get<Roadmap>(`/api/roadmaps/${roadmapId}`);
+}
+
+export function listRoadmaps() {
+  return apiClient.get<RoadmapSummary[]>("/api/roadmaps");
 }
 
 export function saveRoadmapProgress(

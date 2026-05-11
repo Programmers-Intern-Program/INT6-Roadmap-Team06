@@ -7,8 +7,6 @@ import { connectGithub } from "@/features/github-connection/api";
 import { StatePanel } from "@/components/state-panel";
 import { isUnauthorizedError, getLoginPath } from "@/lib/auth";
 
-const CONNECTION_ID_KEY = "githubConnectionId";
-
 function CallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -27,8 +25,7 @@ function CallbackInner() {
     }
 
     connectGithub(code)
-      .then((connection) => {
-        localStorage.setItem(CONNECTION_ID_KEY, connection.githubConnectionId);
+      .then(() => {
         router.replace("/github");
       })
       .catch((error) => {

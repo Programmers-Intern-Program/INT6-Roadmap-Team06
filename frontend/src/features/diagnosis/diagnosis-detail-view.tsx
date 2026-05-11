@@ -120,6 +120,14 @@ export function DiagnosisDetailView({ diagnosisId }: DiagnosisDetailViewProps) {
           >
             로드맵 생성
           </Link>
+          {diagnosis.githubAnalysisId ? (
+            <Link
+              className="action-link"
+              href={`/diagnoses/new?githubAnalysisId=${diagnosis.githubAnalysisId}`}
+            >
+              재진단
+            </Link>
+          ) : null}
           <Link className="action-link" href="/github/analysis">
             분석 보정
           </Link>
