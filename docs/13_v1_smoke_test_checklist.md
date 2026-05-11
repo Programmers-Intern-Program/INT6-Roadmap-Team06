@@ -47,6 +47,14 @@ v1 시연 핵심 흐름을 같은 기준으로 수동 검증하기 위한 체크
 - [ ] 실패 시 active 전환을 중단하고 기존 active color를 유지한다.
 - [ ] active 전환 후 같은 smoke를 한 번 더 실행한다.
 
+실행 예시:
+
+```powershell
+.\scripts\smoke\deploy-smoke.ps1 `
+  -AppBaseUrl "https://APP_DOMAIN" `
+  -ApiBaseUrl "https://API_DOMAIN"
+```
+
 ### 시연 전 Full Rehearsal
 
 full rehearsal은 실제 사용자가 보는 흐름을 확인하는 수동 검증이다. 매 배포마다 실행하지 않고 시연 전 또는 큰 기능 변경 후 수행한다.
