@@ -18,6 +18,11 @@ output "frontend_blue_url" {
   value       = "http://${aws_eip.demo.public_ip}:${var.app_blue_port}"
 }
 
+output "public_http_url" {
+  description = "Public Nginx URL for the active color."
+  value       = "http://${aws_eip.demo.public_ip}:${var.http_port}"
+}
+
 output "frontend_green_url" {
   description = "Frontend green URL."
   value       = "http://${aws_eip.demo.public_ip}:${var.app_green_port}"

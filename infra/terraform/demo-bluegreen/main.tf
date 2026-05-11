@@ -61,6 +61,14 @@ resource "aws_security_group" "demo" {
   }
 
   ingress {
+    description = "Nginx HTTP"
+    from_port   = var.http_port
+    to_port     = var.http_port
+    protocol    = "tcp"
+    cidr_blocks = [var.allowed_http_cidr]
+  }
+
+  ingress {
     description = "Frontend blue"
     from_port   = var.app_blue_port
     to_port     = var.app_blue_port
