@@ -26,7 +26,7 @@ import com.back.coach.global.exception.ServiceException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -46,6 +46,7 @@ public class DiagnosisCommandService {
     private final DiagnosisResponseParser diagnosisResponseParser;
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
     private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     public DiagnosisCommandService(
@@ -61,6 +62,7 @@ public class DiagnosisCommandService {
             DiagnosisResponseParser diagnosisResponseParser,
             LlmClient llmClient,
             ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate,
             ContextSnapshotPublisher contextSnapshotPublisher
     ) {
         this.userProfileRepository = userProfileRepository;
@@ -75,29 +77,32 @@ public class DiagnosisCommandService {
         this.diagnosisResponseParser = diagnosisResponseParser;
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
         this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
-    @Transactional
     public DiagnosisDetailResponse createDiagnosis(Long userId, DiagnosisRequest request) {
-        UserProfile profile = userProfileRepository.findByIdAndUserId(request.profileId(), userId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
-        GithubAnalysis githubAnalysis = githubAnalysisRepository.findByIdAndUserId(request.githubAnalysisId(), userId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
-        JobRole jobRole = jobRoleRepository.findById(profile.getJobRoleId())
-                .orElseThrow(() -> new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR));
-        List<UserSkill> userSkills = userSkillRepository
-                .findByUserIdAndSourceTypeOrderBySkillNameAsc(userId, SkillSourceType.USER_INPUT);
-        List<SkillRequirement> skillRequirements = skillRequirementRepository
-                .findByJobRoleIdOrderByImportanceDescSkillNameAsc(profile.getJobRoleId());
-        GithubAnalysisPayload githubAnalysisPayload = parseGithubAnalysisPayload(githubAnalysis);
+        DiagnosisInputs inputs = transactionTemplate.execute(status -> {
+            UserProfile profile = userProfileRepository.findByIdAndUserId(request.profileId(), userId)
+                    .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
+            GithubAnalysis githubAnalysis = githubAnalysisRepository.findByIdAndUserId(request.githubAnalysisId(), userId)
+                    .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
+            JobRole jobRole = jobRoleRepository.findById(profile.getJobRoleId())
+                    .orElseThrow(() -> new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR));
+            List<UserSkill> userSkills = userSkillRepository
+                    .findByUserIdAndSourceTypeOrderBySkillNameAsc(userId, SkillSourceType.USER_INPUT);
+            List<SkillRequirement> skillRequirements = skillRequirementRepository
+                    .findByJobRoleIdOrderByImportanceDescSkillNameAsc(profile.getJobRoleId());
+            GithubAnalysisPayload githubAnalysisPayload = parseGithubAnalysisPayload(githubAnalysis);
+            return new DiagnosisInputs(profile, githubAnalysis, jobRole, userSkills, skillRequirements, githubAnalysisPayload);
+        });
 
         String prompt = diagnosisPromptBuilder.build(new DiagnosisPromptBuilder.Input(
-                jobRole,
-                profile,
-                userSkills,
-                skillRequirements,
-                githubAnalysisPayload.finalTechProfile()
+                inputs.jobRole(),
+                inputs.profile(),
+                inputs.userSkills(),
+                inputs.skillRequirements(),
+                inputs.githubAnalysisPayload().finalTechProfile()
         ));
         DiagnosisResponseParser.DiagnosisResult diagnosisResult =
                 diagnosisResponseParser.parse(llmClient.complete(prompt));
@@ -106,22 +111,23 @@ public class DiagnosisCommandService {
                 diagnosisResult.strengths(),
                 diagnosisResult.recommendations()
         );
-        CapabilityDiagnosis savedDiagnosis = capabilityDiagnosisRepository.save(
-                CapabilityDiagnosis.create(
-                        userId,
-                        profile.getId(),
-                        githubAnalysis.getId(),
-                        profile.getJobRoleId(),
-                        resultVersionService.nextCapabilityDiagnosisVersion(userId),
-                        profile.getCurrentLevel(),
-                        diagnosisResult.summary(),
-                        toJson(diagnosisPayload)
-                )
-        );
 
-        contextSnapshotPublisher.publishProfile(userId);
-
-        return toResponse(savedDiagnosis, jobRole, diagnosisPayload);
+        return transactionTemplate.execute(status -> {
+            CapabilityDiagnosis savedDiagnosis = capabilityDiagnosisRepository.save(
+                    CapabilityDiagnosis.create(
+                            userId,
+                            inputs.profile().getId(),
+                            inputs.githubAnalysis().getId(),
+                            inputs.profile().getJobRoleId(),
+                            resultVersionService.nextCapabilityDiagnosisVersion(userId),
+                            inputs.profile().getCurrentLevel(),
+                            diagnosisResult.summary(),
+                            toJson(diagnosisPayload)
+                    )
+            );
+            contextSnapshotPublisher.publishProfile(userId);
+            return toResponse(savedDiagnosis, inputs.jobRole(), diagnosisPayload);
+        });
     }
 
     private GithubAnalysisPayload parseGithubAnalysisPayload(GithubAnalysis githubAnalysis) {
@@ -165,4 +171,13 @@ public class DiagnosisCommandService {
     private Instant createdAtOrNow(CapabilityDiagnosis diagnosis) {
         return diagnosis.getCreatedAt() == null ? Instant.now() : diagnosis.getCreatedAt();
     }
+
+    private record DiagnosisInputs(
+            UserProfile profile,
+            GithubAnalysis githubAnalysis,
+            JobRole jobRole,
+            List<UserSkill> userSkills,
+            List<SkillRequirement> skillRequirements,
+            GithubAnalysisPayload githubAnalysisPayload
+    ) {}
 }
