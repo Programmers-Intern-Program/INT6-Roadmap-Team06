@@ -23,7 +23,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.Instant;
+import java.util.List;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
@@ -112,6 +114,45 @@ class CoachSessionControllerTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("SESSION_NOT_FOUND"));
+    }
+
+    @Test
+    void getSessions_returnsSessionsLatestFirst() throws Exception {
+        ChatSession active = session(10002L, 1L, 4, 3, Instant.parse("2026-05-08T09:00:00Z"));
+        ChatSession closed = session(10001L, 1L, 3, 2, Instant.parse("2026-05-07T09:00:00Z"));
+        closed.close(Instant.parse("2026-05-07T10:00:00Z"));
+        given(coachSessionService.getSessions(1L)).willReturn(List.of(active, closed));
+
+        mockMvc.perform(get("/api/coach/sessions")
+                        .principal(authentication(1L))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].sessionId").value("10002"))
+                .andExpect(jsonPath("$.data[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.data[0].profileVersion").value(4))
+                .andExpect(jsonPath("$.data[0].roadmapVersion").value(3))
+                .andExpect(jsonPath("$.data[0].startedAt").value("2026-05-08T09:00:00Z"))
+                .andExpect(jsonPath("$.data[0].endedAt").value(nullValue()))
+                .andExpect(jsonPath("$.data[1].sessionId").value("10001"))
+                .andExpect(jsonPath("$.data[1].status").value("CLOSED"))
+                .andExpect(jsonPath("$.data[1].endedAt").value("2026-05-07T10:00:00Z"))
+                .andExpect(jsonPath("$.meta").isMap());
+
+        verify(coachSessionService).getSessions(1L);
+    }
+
+    @Test
+    void getSessions_whenNoSessions_returnsEmptyList() throws Exception {
+        given(coachSessionService.getSessions(1L)).willReturn(List.of());
+
+        mockMvc.perform(get("/api/coach/sessions")
+                        .principal(authentication(1L))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0))
+                .andExpect(jsonPath("$.meta").isMap());
+
+        verify(coachSessionService).getSessions(1L);
     }
 
     @Test
