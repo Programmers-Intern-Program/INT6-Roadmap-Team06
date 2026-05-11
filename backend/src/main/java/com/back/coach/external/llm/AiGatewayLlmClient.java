@@ -58,7 +58,8 @@ public class AiGatewayLlmClient implements LlmClient {
                     .body(new ChatCompletionRequest(
                             properties.model(),
                             java.util.List.of(new Message("user", prompt)),
-                            16384
+                            16384,
+                            false
                     ))
                     .retrieve()
                     .onStatus(status -> status.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
@@ -119,7 +120,8 @@ public class AiGatewayLlmClient implements LlmClient {
     private record Message(String role, String content) {}
 
     private record ChatCompletionRequest(String model, java.util.List<Message> messages,
-                                         @com.fasterxml.jackson.annotation.JsonProperty("max_tokens") int maxTokens) {}
+                                         @com.fasterxml.jackson.annotation.JsonProperty("max_tokens") int maxTokens,
+                                         boolean stream) {}
 
     private record ChatCompletionResponse(java.util.List<Choice> choices) {}
 
