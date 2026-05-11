@@ -32,3 +32,43 @@ export function runAnalysis(
     coreRepositoryIds: coreIds.map(Number),
   });
 }
+
+export type AnalysisJobSubmission = { jobId: string };
+
+export type AnalysisJobStatusResponse = {
+  jobId: string;
+  status: "REQUESTED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+  currentStep: string | null;
+  error: string | null;
+  resultId: string | null;
+};
+
+export function submitAnalysisAsync(
+  connectionId: string,
+  selectedIds: string[],
+  coreIds: string[]
+) {
+  return apiClient.post<AnalysisJobSubmission>("/api/github-analyses/async", {
+    githubConnectionId: Number(connectionId),
+    selectedRepositoryIds: selectedIds.map(Number),
+    coreRepositoryIds: coreIds.map(Number),
+  });
+}
+
+export function getJobStatus(jobId: string) {
+  return apiClient.get<AnalysisJobStatusResponse>(`/api/jobs/${jobId}/status`);
+}
+
+export type JobHistoryItem = {
+  jobId: string;
+  jobType: string;
+  status: "REQUESTED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+  currentStep: string | null;
+  error: string | null;
+  resultId: string | null;
+  recordedAt: string;
+};
+
+export function listJobHistory(limit = 20) {
+  return apiClient.get<JobHistoryItem[]>(`/api/jobs/history?limit=${limit}`);
+}

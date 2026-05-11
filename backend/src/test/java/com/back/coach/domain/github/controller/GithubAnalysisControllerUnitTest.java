@@ -61,7 +61,8 @@ class GithubAnalysisControllerUnitTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new GithubAnalysisController(githubAnalysisDetailService, analysisService))
+                .standaloneSetup(new GithubAnalysisController(githubAnalysisDetailService, analysisService,
+                        org.mockito.Mockito.mock(com.back.coach.domain.github.service.GithubAnalysisAsyncOrchestrator.class)))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setValidator(validator)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))

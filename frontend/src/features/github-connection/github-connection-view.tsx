@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { ApiError, githubConnectionOAuthUrl } from "@/lib/api";
 import { isUnauthorizedError } from "@/lib/auth";
 import {
+  getJobStatus,
   getLatestGithubConnection,
   getRepositories,
-  runAnalysis
+  submitAnalysisAsync
 } from "@/features/github-connection/api";
 import type { Repository } from "@/features/github-connection/types";
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
@@ -19,8 +20,11 @@ type ViewState =
   | { status: "loading-repos" }
   | { status: "auth-required" }
   | { status: "ready"; repos: Repository[] }
-  | { status: "analyzing" }
+  | { status: "analyzing"; currentStep: string | null }
   | { status: "error"; message: string };
+
+const POLL_INTERVAL_MS = 2000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
@@ -99,11 +103,32 @@ export function GithubConnectionView() {
 
   async function handleAnalyze() {
     if (!connectionId || selected.size === 0) return;
-    setState({ status: "analyzing" });
+    setState({ status: "analyzing", currentStep: null });
     try {
       const ids = Array.from(selected);
-      const result = await runAnalysis(connectionId, ids, ids);
-      router.push(`/github/analysis?githubAnalysisId=${result.githubAnalysisId}`);
+      const { jobId } = await submitAnalysisAsync(connectionId, ids, ids);
+
+      const deadline = Date.now() + POLL_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        const snapshot = await getJobStatus(jobId);
+        if (snapshot.status === "SUCCEEDED" && snapshot.resultId) {
+          router.push(`/github/analysis?githubAnalysisId=${snapshot.resultId}`);
+          return;
+        }
+        if (snapshot.status === "FAILED") {
+          setState({
+            status: "error",
+            message: snapshot.error ?? "분석에 실패했습니다. 다시 시도해주세요."
+          });
+          return;
+        }
+        setState({ status: "analyzing", currentStep: snapshot.currentStep });
+      }
+      setState({
+        status: "error",
+        message: "분석이 너무 오래 걸려 대기를 중단했습니다. 잠시 후 결과를 확인해주세요."
+      });
     } catch (err) {
       if (isUnauthorizedError(err)) {
         setState({ status: "auth-required" });
@@ -136,7 +161,12 @@ export function GithubConnectionView() {
   }
 
   if (state.status === "analyzing") {
-    return <StatePanel message="GitHub 분석 중입니다. 잠시 기다려주세요..." />;
+    const stepLabel = state.currentStep ? ` (${state.currentStep})` : "";
+    return (
+      <StatePanel
+        message={`GitHub 분석 중입니다. 잠시 기다려주세요...${stepLabel}`}
+      />
+    );
   }
 
   if (state.status === "auth-required") {

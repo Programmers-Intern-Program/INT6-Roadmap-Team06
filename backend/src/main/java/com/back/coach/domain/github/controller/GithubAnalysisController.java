@@ -1,16 +1,19 @@
 package com.back.coach.domain.github.controller;
 
+import com.back.coach.domain.github.dto.GithubAnalysisAsyncResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisCorrectionRequest;
 import com.back.coach.domain.github.dto.GithubAnalysisCorrectionResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisDetailResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisRequest;
 import com.back.coach.domain.github.dto.GithubAnalysisResponse;
 import com.back.coach.domain.github.dto.GithubAnalysisSummaryResponse;
+import com.back.coach.domain.github.service.GithubAnalysisAsyncOrchestrator;
 import com.back.coach.domain.github.service.GithubAnalysisDetailService;
 import com.back.coach.domain.github.service.GithubAnalysisService;
 import com.back.coach.global.response.ApiResponse;
 import com.back.coach.global.security.AuthenticatedUser;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,11 +33,14 @@ public class GithubAnalysisController {
 
     private final GithubAnalysisDetailService githubAnalysisDetailService;
     private final GithubAnalysisService analysisService;
+    private final GithubAnalysisAsyncOrchestrator asyncOrchestrator;
 
     public GithubAnalysisController(GithubAnalysisDetailService githubAnalysisDetailService,
-                                    GithubAnalysisService analysisService) {
+                                    GithubAnalysisService analysisService,
+                                    GithubAnalysisAsyncOrchestrator asyncOrchestrator) {
         this.githubAnalysisDetailService = githubAnalysisDetailService;
         this.analysisService = analysisService;
+        this.asyncOrchestrator = asyncOrchestrator;
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -50,6 +57,22 @@ public class GithubAnalysisController {
                 request.coreRepositoryIds()
         );
         return ApiResponse.success(GithubAnalysisResponse.from(result));
+    }
+
+    @PostMapping(path = "/async", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<GithubAnalysisAsyncResponse> submitAnalysisAsync(
+            Authentication authentication,
+            @Valid @RequestBody GithubAnalysisRequest request
+    ) {
+        AuthenticatedUser authenticatedUser = (AuthenticatedUser) authentication.getPrincipal();
+        String jobId = asyncOrchestrator.submit(
+                authenticatedUser.userId(),
+                request.githubConnectionId(),
+                request.selectedRepositoryIds(),
+                request.coreRepositoryIds()
+        );
+        return ApiResponse.success(new GithubAnalysisAsyncResponse(jobId));
     }
 
     @GetMapping

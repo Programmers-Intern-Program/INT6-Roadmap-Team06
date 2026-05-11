@@ -32,12 +32,17 @@ public class JobStatusService {
 
     public JobStatusSnapshot save(Long userId, String jobId, JobStatus status, String currentStep) {
         validateRequired(userId, jobId, status);
-        return saveSnapshot(userId, new JobStatusSnapshot(jobId, status, currentStep, null));
+        return saveSnapshot(userId, new JobStatusSnapshot(jobId, status, currentStep, null, null));
     }
 
     public JobStatusSnapshot saveFailure(Long userId, String jobId, String currentStep, String error) {
         validateRequired(userId, jobId, JobStatus.FAILED);
-        return saveSnapshot(userId, new JobStatusSnapshot(jobId, JobStatus.FAILED, currentStep, error));
+        return saveSnapshot(userId, new JobStatusSnapshot(jobId, JobStatus.FAILED, currentStep, error, null));
+    }
+
+    public JobStatusSnapshot saveSuccess(Long userId, String jobId, String currentStep, String resultId) {
+        validateRequired(userId, jobId, JobStatus.SUCCEEDED);
+        return saveSnapshot(userId, new JobStatusSnapshot(jobId, JobStatus.SUCCEEDED, currentStep, null, resultId));
     }
 
     public Optional<JobStatusSnapshot> find(Long userId, String jobId) {
