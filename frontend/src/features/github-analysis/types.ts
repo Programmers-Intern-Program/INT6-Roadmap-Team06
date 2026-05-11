@@ -88,3 +88,10 @@ export type GithubAnalysisCorrectionResponse = {
   githubAnalysisId: string;
   savedAt: string;
 };
+
+export type GithubAnalysisSummary = {
+  githubAnalysisId: string;
+  version: number;
+  summary: string;
+  createdAt: string;
+};

@@ -55,6 +55,12 @@ public class GithubConnectionService {
         return new ConnectResult(connection.getId(), connection.getGithubLogin(), connection.getConnectedAt());
     }
 
+    @Transactional(readOnly = true)
+    public GithubConnection findLatestConnection(Long userId) {
+        return connectionRepo.findFirstByUserIdOrderByConnectedAtDesc(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
     public List<GithubProject> listRepositories(Long userId, Long connectionId) {
         connectionRepo.findByIdAndUserId(connectionId, userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));

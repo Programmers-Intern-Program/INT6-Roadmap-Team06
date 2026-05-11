@@ -68,3 +68,12 @@ export type RoadmapProgressResponse = {
   savedAt: string;
   status: ProgressStatus;
 };
+
+export type RoadmapSummary = {
+  roadmapId: string;
+  version: number;
+  totalWeeks: number;
+  summary: string;
+  diagnosisId: string;
+  createdAt: string;
+};

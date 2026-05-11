@@ -5,25 +5,24 @@ import { useEffect, useState } from "react";
 
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
-import { listDiagnoses } from "@/features/diagnosis/api";
-import { currentLevelLabels } from "@/features/diagnosis/labels";
-import type { DiagnosisSummary } from "@/features/diagnosis/types";
+import { listGithubAnalyses } from "@/features/github-analysis/api";
+import type { GithubAnalysisSummary } from "@/features/github-analysis/types";
 import { ApiError } from "@/lib/api";
 import { isUnauthorizedError } from "@/lib/auth";
 
 type State =
   | { status: "loading" }
   | { status: "auth-required" }
-  | { status: "ready"; items: DiagnosisSummary[] }
+  | { status: "ready"; items: GithubAnalysisSummary[] }
   | { status: "error"; message: string };
 
-export default function DiagnosesPage() {
+export function GithubAnalysisListView() {
   const [state, setState] = useState<State>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
 
-    listDiagnoses()
+    listGithubAnalyses()
       .then((items) => {
         if (cancelled) return;
         setState({ status: "ready", items });
@@ -43,11 +42,11 @@ export default function DiagnosesPage() {
   }, []);
 
   if (state.status === "loading") {
-    return <StatePanel message="진단 결과를 불러오는 중입니다." />;
+    return <StatePanel message="GitHub 분석 목록을 불러오는 중입니다." />;
   }
 
   if (state.status === "auth-required") {
-    return <AuthRequiredPanel redirectPath="/diagnoses" />;
+    return <AuthRequiredPanel redirectPath="/github/analysis" />;
   }
 
   if (state.status === "error") {
@@ -57,13 +56,10 @@ export default function DiagnosesPage() {
   if (state.items.length === 0) {
     return (
       <section className="screen-shell">
-        <StatePanel message="아직 생성된 진단 결과가 없습니다." />
-        <div className="action-row" aria-label="진단 다음 행동">
-          <Link className="action-link primary" href="/diagnoses/new">
-            진단 생성
-          </Link>
-          <Link className="action-link" href="/github/analysis">
-            분석 보정
+        <StatePanel message="아직 생성된 GitHub 분석 결과가 없습니다." />
+        <div className="action-row" aria-label="GitHub 분석 다음 행동">
+          <Link className="action-link primary" href="/github">
+            GitHub 연동
           </Link>
         </div>
       </section>
@@ -73,39 +69,36 @@ export default function DiagnosesPage() {
   return (
     <section className="screen-shell">
       <header className="screen-header">
-        <h2 className="screen-title">역량 진단 결과</h2>
+        <h2 className="screen-title">GitHub 분석</h2>
         <p className="screen-description">
-          시점별 진단 결과를 모아 봅니다. 최신 분석을 기반으로 다시 진단할 수 있어요.
+          저장소 분석 결과를 시점별로 모아 봅니다. 보정 작업은 카드 상세에서 진행해요.
         </p>
       </header>
       <ul className="card-grid">
         {state.items.map((item) => (
-          <li key={item.diagnosisId} className="result-card">
+          <li key={item.githubAnalysisId} className="result-card">
             <header className="result-card-header">
               <span className="result-card-meta">
-                {formatDate(item.createdAt)} · v{item.version}
+                {formatDate(item.createdAt)}
               </span>
               <span className="result-card-badge" data-tone="accent">
-                {currentLevelLabels[item.currentLevel] ?? item.currentLevel}
+                v{item.version}
               </span>
             </header>
             <p className="result-card-body">{item.summary}</p>
             <footer className="result-card-footer">
-              <Link
-                className="result-card-link"
-                href={`/github/analysis?githubAnalysisId=${item.githubAnalysisId}`}
-              >
-                ↳ GitHub 분석 #{item.githubAnalysisId} 기반
-              </Link>
               <div className="result-card-actions">
-                <Link className="action-link" href={`/diagnoses/${item.diagnosisId}`}>
+                <Link
+                  className="action-link primary"
+                  href={`/github/analysis?githubAnalysisId=${item.githubAnalysisId}`}
+                >
                   상세 보기
                 </Link>
                 <Link
-                  className="action-link primary"
+                  className="action-link"
                   href={`/diagnoses/new?githubAnalysisId=${item.githubAnalysisId}`}
                 >
-                  재진단
+                  진단 생성
                 </Link>
               </div>
             </footer>
@@ -133,5 +126,5 @@ function formatDate(iso: string) {
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message;
-  return "진단 목록을 불러오지 못했습니다.";
+  return "GitHub 분석 목록을 불러오지 못했습니다.";
 }

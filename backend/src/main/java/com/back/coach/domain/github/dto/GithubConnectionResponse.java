@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.dto;
 
+import com.back.coach.domain.github.entity.GithubConnection;
 import com.back.coach.domain.github.service.GithubConnectionService;
 
 import java.time.Instant;
@@ -14,6 +15,14 @@ public record GithubConnectionResponse(
                 String.valueOf(result.connectionId()),
                 result.githubLogin(),
                 result.connectedAt()
+        );
+    }
+
+    public static GithubConnectionResponse from(GithubConnection connection) {
+        return new GithubConnectionResponse(
+                String.valueOf(connection.getId()),
+                connection.getGithubLogin(),
+                connection.getConnectedAt()
         );
     }
 }
