@@ -14,6 +14,8 @@
 - backend: `local,oauth` profile, `http://localhost:8080`
 - frontend: `http://localhost:3000`
 - DB/Redis: `docker compose -f docker/docker-compose.yml up -d`
+- 후속 재검증 코드: `fix/llm-synthesis-evidence-type-288` 로컬 실행본
+- 후속 재검증 PR: #289
 
 ## 사전 확인
 
@@ -44,11 +46,11 @@
 | 로그인 / OAuth | PASS | GitHub 로그인 화면 진입 후 사용자 인증 완료, `/me`로 복귀 |
 | 프로필 저장 / 조회 | PASS | 프로필 저장 성공, 새로고침 후 기술/관심 분야/학습 시간이 유지됨 |
 | GitHub 연결 / 저장소 선택 | PASS | 전용 OAuth App 설정 후 승인 화면 진입, callback 성공, 저장소 36개 목록 표시 |
-| GitHub 분석 생성 / 결과 조회 | BLOCKED | `qkrqhdtn3/project-2-backend` 1개 선택 후 분석 실행. AI Gateway 응답은 약 35.6초 후 도착했지만 LLM schema 위반으로 실패 |
-| GitHub 분석 보정 저장 | 미실행 | GitHub 분석 미생성 |
-| 진단 생성 / 상세 조회 | 미실행 | GitHub 분석 미생성 |
-| 로드맵 생성 / 상세 조회 | 미실행 | 진단 미생성 |
-| 진도 저장 / 대시보드 snapshot | 미실행 | 로드맵 미생성 |
+| GitHub 분석 생성 / 결과 조회 | PASS | #288 fix 적용 후 `githubAnalysisId=2` 결과 화면 도달. AI Gateway 응답 약 45.0초 |
+| GitHub 분석 보정 저장 | PASS | `Spring Boot` 사용자 보정 1개 저장, 화면 재조회에서 보정 개수 1개 표시 |
+| 진단 생성 / 상세 조회 | PASS | `diagnosisId=3` 생성 및 상세 화면 도달. AI Gateway 응답 약 71.7초 |
+| 로드맵 생성 / 상세 조회 | PASS | `roadmapId=2` 생성 및 8주차 상세 화면 도달. AI Gateway 응답 약 233.0초 |
+| 진도 저장 / 대시보드 snapshot | PASS | 1주차 상태를 `진행 중`으로 저장, 대시보드에서 예정 7주 / 진행 1주 / 완료 0주 표시 |
 
 ## Blocker
 
@@ -87,13 +89,25 @@ AI Gateway latency: 약 35.6초
 
 관련 이슈:
 
+- #288: GitHub 분석 synthesis evidence type schema 위반 수정
 - #182: GitHub 연결 단계 metadata fetch 제거
 - #254: AI Gateway latency 원인 분석
 - #215: Redis 기반 비동기 polling
 - #282: 실제 OAuth와 AI Gateway 포함 수동 v1 리허설
 
+상태: #288 수정 로컬 실행본으로 재검증하여 해소됨. 최종 저장/응답 payload에서 evidence type은 기존 enum 값으로 유지됨.
+
+## 후속 관찰
+
+- GitHub 분석, 진단, 로드맵 생성은 모두 완료됐지만 AI Gateway 응답 시간이 길다.
+- 관찰된 LLM 응답 시간은 GitHub synthesis 약 45.0초, 진단 약 71.7초, 로드맵 약 233.0초다.
+- 진행 불가 blocker는 아니지만 시연 UX 리스크이므로 #254, #215와 연결해 추적한다.
+- Codex in-app browser 자동 텍스트 입력은 virtual clipboard 문제로 실패했다. 앱 기능 blocker로 보지 않고, 보정/로드맵 입력값은 사용자가 직접 입력해 검증했다.
+
 ## 결론
 
-로그인, 프로필 저장/재조회, GitHub 저장소 연결/저장소 목록 조회는 실제 브라우저 smoke 기준으로 PASS다.
+로그인, 프로필 저장/재조회, GitHub 저장소 연결/저장소 목록 조회, GitHub 분석 생성/조회, 보정 저장/재조회, 진단 생성/조회, 로드맵 생성/조회, 진도 저장, 대시보드 확인까지 실제 브라우저 smoke 기준으로 PASS다.
 
-GitHub 분석은 실제 AI Gateway 응답까지 도달했지만, synthesis 응답 schema 위반으로 실패했다. 진단, 로드맵, 진도, 대시보드 구간은 GitHub 분석 미생성 때문에 아직 검증하지 못했다.
+기존 GitHub 분석 synthesis schema blocker는 #288로 분리해 수정했고, 로컬 재검증에서 해소됐다.
+
+남은 리스크는 기능 중단이 아니라 긴 동기 대기 시간이다. GitHub 분석/진단/로드맵 생성 중 브라우저가 장시간 대기 상태로 보이는 문제는 #254, #215 범위에서 계속 추적한다.
