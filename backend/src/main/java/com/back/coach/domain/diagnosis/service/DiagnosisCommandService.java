@@ -1,5 +1,6 @@
 package com.back.coach.domain.diagnosis.service;
 
+import com.back.coach.domain.context.service.ContextSnapshotPublisher;
 import com.back.coach.domain.diagnosis.dto.DiagnosisDetailResponse;
 import com.back.coach.domain.diagnosis.dto.DiagnosisPayload;
 import com.back.coach.domain.diagnosis.dto.DiagnosisRequest;
@@ -45,6 +46,7 @@ public class DiagnosisCommandService {
     private final DiagnosisResponseParser diagnosisResponseParser;
     private final LlmClient llmClient;
     private final ObjectMapper objectMapper;
+    private final ContextSnapshotPublisher contextSnapshotPublisher;
 
     public DiagnosisCommandService(
             UserProfileRepository userProfileRepository,
@@ -58,7 +60,8 @@ public class DiagnosisCommandService {
             DiagnosisPromptBuilder diagnosisPromptBuilder,
             DiagnosisResponseParser diagnosisResponseParser,
             LlmClient llmClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            ContextSnapshotPublisher contextSnapshotPublisher
     ) {
         this.userProfileRepository = userProfileRepository;
         this.userSkillRepository = userSkillRepository;
@@ -72,6 +75,7 @@ public class DiagnosisCommandService {
         this.diagnosisResponseParser = diagnosisResponseParser;
         this.llmClient = llmClient;
         this.objectMapper = objectMapper;
+        this.contextSnapshotPublisher = contextSnapshotPublisher;
     }
 
     @Transactional
@@ -114,6 +118,8 @@ public class DiagnosisCommandService {
                         toJson(diagnosisPayload)
                 )
         );
+
+        contextSnapshotPublisher.publishProfile(userId);
 
         return toResponse(savedDiagnosis, jobRole, diagnosisPayload);
     }

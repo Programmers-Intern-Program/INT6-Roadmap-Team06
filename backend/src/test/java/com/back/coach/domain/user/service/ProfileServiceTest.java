@@ -63,7 +63,8 @@ class ProfileServiceTest {
                 userProfileRepository,
                 userSkillRepository,
                 jobRoleRepository,
-                objectMapper
+                objectMapper,
+                org.mockito.Mockito.mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class)
         );
     }
 

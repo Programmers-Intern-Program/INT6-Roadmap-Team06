@@ -102,7 +102,8 @@ class DiagnosisCommandServiceTest {
                 new DiagnosisPromptBuilder(),
                 new DiagnosisResponseParser(),
                 llmClient,
-                objectMapper
+                objectMapper,
+                org.mockito.Mockito.mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class)
         );
     }
 

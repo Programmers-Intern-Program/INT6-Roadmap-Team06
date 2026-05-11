@@ -67,7 +67,8 @@ class GithubAnalysisServiceTest {
                 new SynthesisPromptBuilder(),
                 new SynthesisResponseParser(),
                 new GithubAnalysisPayloadJson(),
-                llmClient
+                llmClient,
+                mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class)
         );
 
         triageJson = """
