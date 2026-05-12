@@ -7,13 +7,14 @@ import com.back.coach.domain.job.service.JobStatusSnapshot;
 import com.back.coach.global.code.JobStatus;
 import com.back.coach.global.config.AsyncExecutorConfig;
 import com.back.coach.global.exception.ServiceException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 /**
  * GitHub 분석 파이프라인을 비동기 잡으로 감싼다.
@@ -37,25 +38,27 @@ public class GithubAnalysisAsyncOrchestrator {
     private final GithubAnalysisService analysisService;
     private final JobStatusService jobStatusService;
     private final JobHistoryService jobHistoryService;
+    private final Executor analysisTaskExecutor;
 
     public GithubAnalysisAsyncOrchestrator(
             GithubAnalysisService analysisService,
             JobStatusService jobStatusService,
-            JobHistoryService jobHistoryService
+            JobHistoryService jobHistoryService,
+            @Qualifier(AsyncExecutorConfig.ANALYSIS_TASK_EXECUTOR) Executor analysisTaskExecutor
     ) {
         this.analysisService = analysisService;
         this.jobStatusService = jobStatusService;
         this.jobHistoryService = jobHistoryService;
+        this.analysisTaskExecutor = analysisTaskExecutor;
     }
 
     public String submit(Long userId, Long githubConnectionId, List<Long> selectedRepoIds, List<Long> coreRepoIds) {
         String jobId = UUID.randomUUID().toString();
         jobStatusService.save(userId, jobId, JobStatus.REQUESTED, STEP_REQUESTED);
-        runAnalysisAsync(userId, jobId, githubConnectionId, selectedRepoIds, coreRepoIds);
+        analysisTaskExecutor.execute(() -> runAnalysisAsync(userId, jobId, githubConnectionId, selectedRepoIds, coreRepoIds));
         return jobId;
     }
 
-    @Async(AsyncExecutorConfig.ANALYSIS_TASK_EXECUTOR)
     public void runAnalysisAsync(
             Long userId,
             String jobId,
