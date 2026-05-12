@@ -1,10 +1,13 @@
 package com.back.coach.domain.github.service;
 
 import com.back.coach.domain.github.entity.GithubAnalysis;
+import com.back.coach.domain.github.entity.GithubConnection;
 import com.back.coach.domain.github.entity.GithubProject;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.github.repository.GithubConnectionRepository;
 import com.back.coach.domain.github.repository.GithubProjectRepository;
+import com.back.coach.domain.github.service.fetcher.GithubMetadataFetcher;
+import com.back.coach.global.code.GithubAccessType;
 import com.back.coach.external.llm.LlmClient;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
@@ -28,6 +31,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,6 +49,7 @@ class GithubAnalysisServiceTest {
     GithubProjectRepository projectRepo;
     GithubAnalysisRepository analysisRepo;
     LlmClient llmClient;
+    GithubMetadataFetcher metadataFetcher;
 
     GithubAnalysisService service;
 
@@ -58,6 +63,7 @@ class GithubAnalysisServiceTest {
         projectRepo = mock(GithubProjectRepository.class);
         analysisRepo = mock(GithubAnalysisRepository.class);
         llmClient = mock(LlmClient.class);
+        metadataFetcher = mock(GithubMetadataFetcher.class);
 
         ChampionTriageService triageService = new ChampionTriageService(
                 llmClient, new ChampionTriagePromptBuilder(), new ChampionTriageResponseParser());
@@ -74,7 +80,8 @@ class GithubAnalysisServiceTest {
                 new GithubAnalysisPayloadJson(),
                 llmClient,
                 transactionTemplate(),
-                mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class)
+                mock(com.back.coach.domain.context.service.ContextSnapshotPublisher.class),
+                metadataFetcher
         );
 
         triageJson = """
@@ -96,7 +103,7 @@ class GithubAnalysisServiceTest {
     @Test
     @DisplayName("연결 소유권이 없으면 FORBIDDEN")
     void run_connectionNotOwned_throwsForbidden() {
-        given(connectionRepo.existsByIdAndUserId(CONNECTION_ID, USER_ID)).willReturn(false);
+        given(connectionRepo.findByIdAndUserId(CONNECTION_ID, USER_ID)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.run(USER_ID, CONNECTION_ID, List.of(1L), List.of(1L)))
                 .isInstanceOf(ServiceException.class)
@@ -169,19 +176,29 @@ class GithubAnalysisServiceTest {
     @Test
     @DisplayName("coreRepoIds가 selectedRepoIds의 부분집합이 아니면 INVALID_INPUT")
     void run_coreNotSubsetOfSelected_throws() {
-        given(connectionRepo.existsByIdAndUserId(CONNECTION_ID, USER_ID)).willReturn(true);
-
         assertThatThrownBy(() -> service.run(USER_ID, CONNECTION_ID, List.of(1L), List.of(2L)))
                 .isInstanceOf(ServiceException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
 
     private void primeRepos() {
+        GithubConnection connection = GithubConnection.connect(
+                USER_ID, "42", "user", GithubAccessType.OAUTH, "token-abc");
+        ReflectionTestUtils.setField(connection, "id", CONNECTION_ID);
+        given(connectionRepo.findByIdAndUserId(CONNECTION_ID, USER_ID)).willReturn(Optional.of(connection));
         given(connectionRepo.existsByIdAndUserId(CONNECTION_ID, USER_ID)).willReturn(true);
-        GithubProject project = makeProject(1L, "user/a", "Java",
-                "{\"languageBytes\":{\"Java\":1000},\"commits\":[{\"sha\":\"abc\",\"subject\":\"feat: OAuth\",\"bodyExcerpt\":\"\",\"paths\":[\"X.java\"],\"additions\":10,\"deletions\":0,\"diffExcerpt\":\"diff body\"}],\"pullRequests\":[],\"issues\":[]}");
+        GithubProject project = makeProject(1L, "user/a", "Java", "{}");
         given(projectRepo.findByUserIdAndGithubConnectionId(USER_ID, CONNECTION_ID))
                 .willReturn(List.of(project));
+        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(sampleMetadata());
+    }
+
+    private static RepoMetadata sampleMetadata() {
+        RepoMetadata.CommitItem commit = new RepoMetadata.CommitItem(
+                "abc", "feat: OAuth", "", List.of("X.java"), 10, 0, "diff body");
+        return new RepoMetadata(null, Map.of("Java", 1000L), List.of(),
+                List.of(commit), List.of(), List.of());
     }
 
     private void primeLlm() {

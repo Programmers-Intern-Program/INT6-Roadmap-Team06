@@ -4,19 +4,16 @@ import com.back.coach.domain.github.entity.GithubConnection;
 import com.back.coach.domain.github.entity.GithubProject;
 import com.back.coach.domain.github.repository.GithubConnectionRepository;
 import com.back.coach.domain.github.repository.GithubProjectRepository;
-import com.back.coach.domain.github.service.fetcher.GithubMetadataFetcher;
 import com.back.coach.external.github.GithubApiClient;
 import com.back.coach.external.github.dto.GithubRepoDto;
 import com.back.coach.external.github.dto.GithubUserInfoDto;
 import com.back.coach.global.code.GithubAccessType;
-import com.back.coach.domain.github.service.RepoMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,7 +26,6 @@ class GithubConnectionServiceTest {
     GithubApiClient apiClient;
     GithubConnectionRepository connectionRepo;
     GithubProjectRepository projectRepo;
-    GithubMetadataFetcher metadataFetcher;
     GithubConnectionService service;
 
     static final Long USER_ID = 1L;
@@ -39,12 +35,11 @@ class GithubConnectionServiceTest {
         apiClient = mock(GithubApiClient.class);
         connectionRepo = mock(GithubConnectionRepository.class);
         projectRepo = mock(GithubProjectRepository.class);
-        metadataFetcher = mock(GithubMetadataFetcher.class);
-        service = new GithubConnectionService(apiClient, connectionRepo, projectRepo, metadataFetcher);
+        service = new GithubConnectionService(apiClient, connectionRepo, projectRepo);
     }
 
     @Test
-    @DisplayName("신규 연결: GithubConnection + GithubProject 행 생성 + metadata fetch")
+    @DisplayName("신규 연결: GithubConnection + GithubProject 행 생성 (metadata fetch 없음)")
     void connect_newConnection_createsConnectionAndProjects() {
         given(apiClient.exchangeCode("code-abc")).willReturn("ghp_token");
         given(apiClient.getUserInfo("ghp_token")).willReturn(new GithubUserInfoDto(42L, "testuser"));
@@ -62,20 +57,16 @@ class GithubConnectionServiceTest {
         GithubProject savedProject = GithubProject.create(USER_ID, 10L, "N1", "testuser/repo-a",
                 "https://github.com/testuser/repo-a", "Java", "main", "owner");
         ReflectionTestUtils.setField(savedProject, "id", 100L);
-        given(projectRepo.save(any())).willReturn(savedProject);
         given(projectRepo.saveAndFlush(any())).willReturn(savedProject);
-        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
-                .willReturn(sampleMetadata());
 
         GithubConnectionService.ConnectResult result = service.connect(USER_ID, "code-abc");
 
         assertThat(result.connectionId()).isEqualTo(10L);
         assertThat(result.githubLogin()).isEqualTo("testuser");
         verify(connectionRepo).save(any(GithubConnection.class));
-        verify(metadataFetcher, times(2)).fetch(eq("ghp_token"), eq("testuser"), anyString(), eq("testuser"));
-        // 2 repos: saveAndFlush(create) + save(metadata update) each
+        // Slice 6: 연결 단계에서 metadata 수집하지 않으므로 metadataFetcher 의존성 없음
         verify(projectRepo, times(2)).saveAndFlush(any(GithubProject.class));
-        verify(projectRepo, times(2)).save(any(GithubProject.class));
+        verify(projectRepo, never()).save(any(GithubProject.class));
     }
 
     @Test
@@ -111,16 +102,10 @@ class GithubConnectionServiceTest {
         assertThat(repos.get(0).getRepoFullName()).isEqualTo("testuser/repo");
     }
 
-    // ── helpers ──
-
     private static GithubConnection savedConnection(Long id, Long userId, String githubUserId,
                                                      String login, String token) {
         GithubConnection c = GithubConnection.connect(userId, githubUserId, login, GithubAccessType.OAUTH, token);
         ReflectionTestUtils.setField(c, "id", id);
         return c;
-    }
-
-    private static RepoMetadata sampleMetadata() {
-        return new RepoMetadata("# readme", Map.of("Java", 1000L), List.of(), List.of(), List.of(), List.of());
     }
 }
