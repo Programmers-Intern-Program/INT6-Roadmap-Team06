@@ -171,6 +171,8 @@ GitHub Actions secret/variable을 새 Elastic IP 기준으로 갱신한 뒤 CD w
 - EC2 active color는 `green`
 - `backend-green`, `frontend-green`, `postgres`, `redis` 모두 healthy
 - 현재 Nginx는 인증서가 없어 HTTP server block만 생성된 상태
+- EC2에 `certbot`, `python3-certbot-nginx` 설치 완료
+- `certbot --version` 결과: `certbot 2.9.0`
 
 ### 2차 중 발생한 문제와 조치
 
