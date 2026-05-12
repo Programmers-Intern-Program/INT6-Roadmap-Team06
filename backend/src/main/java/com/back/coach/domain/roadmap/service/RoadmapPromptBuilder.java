@@ -8,10 +8,17 @@ import com.back.coach.domain.user.entity.UserProfile;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RoadmapPromptBuilder {
+
+    private final int maxWeeks;
+
+    public RoadmapPromptBuilder(@Value("${roadmap.max-weeks}") int maxWeeks) {
+        this.maxWeeks = maxWeeks;
+    }
 
     public String build(Input input) {
         Integer weeklyStudyHours = input.weeklyStudyHours() == null
@@ -46,7 +53,7 @@ public class RoadmapPromptBuilder {
                 - tasks[].type must be one of READ_DOCS, BUILD_EXAMPLE, WRITE_NOTE, APPLY_PROJECT, REVIEW.
                 - materials[].type must be one of DOCS, ARTICLE, REPOSITORY, VIDEO, TEMPLATE.
                 - Do not include progress status.
-                - Generate at most 8 weeks total.
+                - Generate at most %d weeks total.
                 - Your output budget is 8192 tokens. Complete the entire JSON within this limit — do not truncate mid-object.
 
                 User context:
@@ -61,6 +68,7 @@ public class RoadmapPromptBuilder {
                 - strengths: %s
                 - recommendations: %s
                 """.formatted(
+                maxWeeks,
                 input.jobRole().getRoleCode(),
                 input.diagnosis().getCurrentLevel(),
                 valueOrUnknown(weeklyStudyHours),

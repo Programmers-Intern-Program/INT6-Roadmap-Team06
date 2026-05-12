@@ -67,6 +67,9 @@ ai:
     max-concurrent-calls: 4
     queue-timeout-seconds: 180
 
+roadmap:
+  max-weeks: 8
+
 coach:
   async:
     analysis:

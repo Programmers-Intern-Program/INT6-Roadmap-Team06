@@ -48,10 +48,18 @@ class RoadmapDetailControllerTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new RoadmapDetailController(roadmapDetailSnapshotService, objectMapper))
+                .standaloneSetup(new RoadmapDetailController(roadmapDetailSnapshotService, objectMapper, 8))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
+    }
+
+    @Test
+    void getConstraints_returnsMaxWeeksFromConfig() throws Exception {
+        mockMvc.perform(get("/api/roadmaps/constraints")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.maxWeeks").value(8));
     }
 
     @Test
