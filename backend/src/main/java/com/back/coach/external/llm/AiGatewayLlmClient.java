@@ -46,9 +46,33 @@ public class AiGatewayLlmClient implements LlmClient {
         if (prompt == null || prompt.isBlank()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "prompt is empty");
         }
+        return callApi(java.util.List.of(new Message("user", prompt)), prompt.getBytes().length);
+    }
+
+    @Override
+    public String complete(String systemPrompt, String userPrompt) {
+        if (userPrompt == null || userPrompt.isBlank()) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT, "user prompt is empty");
+        }
+        java.util.List<Message> messages;
+        int promptBytes;
+        if (systemPrompt == null || systemPrompt.isBlank()) {
+            messages = java.util.List.of(new Message("user", userPrompt));
+            promptBytes = userPrompt.getBytes().length;
+        } else {
+            messages = java.util.List.of(
+                    new Message("system", systemPrompt),
+                    new Message("user", userPrompt)
+            );
+            promptBytes = systemPrompt.getBytes().length + userPrompt.getBytes().length;
+        }
+        return callApi(messages, promptBytes);
+    }
+
+    private String callApi(java.util.List<Message> messages, int promptBytes) {
         long startNs = System.nanoTime();
-        int promptBytes = prompt.getBytes().length;
-        log.debug("LLM request starting: model={}, promptBytes={}", properties.model(), promptBytes);
+        log.debug("LLM request starting: model={}, promptBytes={}, messages={}",
+                properties.model(), promptBytes, messages.size());
         try {
             ChatCompletionResponse response = restClient.post()
                     .uri("/v1/chat/completions")
@@ -57,7 +81,7 @@ public class AiGatewayLlmClient implements LlmClient {
                     .headers(headers -> setAuthorization(headers, properties.apiKey()))
                     .body(new ChatCompletionRequest(
                             properties.model(),
-                            java.util.List.of(new Message("user", prompt)),
+                            messages,
                             16384,
                             false
                     ))

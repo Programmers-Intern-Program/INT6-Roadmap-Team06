@@ -1,6 +1,7 @@
 package com.back.coach.domain.github.service.triage;
 
 import com.back.coach.external.llm.LlmClient;
+import com.back.coach.external.llm.PromptDirectives;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.back.coach.domain.github.service.Champion;
@@ -35,7 +36,7 @@ public class ChampionTriageService {
     public TriageResult triage(String repoName, String repoUrl, RepoMetadata metadata) {
         String prompt = promptBuilder.build(repoName, repoUrl, metadata);
         try {
-            String llmResponse = llmClient.complete(prompt);
+            String llmResponse = llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, prompt);
             List<Champion> champions = responseParser.parse(llmResponse);
             return new TriageResult(champions, false);
         } catch (ServiceException e) {

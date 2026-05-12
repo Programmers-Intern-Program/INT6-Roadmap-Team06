@@ -239,7 +239,7 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
   const handleConfirmReplan = useCallback(
     async (proposal: ReplanProposal, confirmed: boolean) => {
       try {
-        const result = await confirmReplan(proposal.proposalId, confirmed);
+        const result = await confirmReplan(sessionId, proposal.proposalId, confirmed);
         toast.success(result.message ?? (confirmed ? "재계획이 적용되었습니다." : "제안을 보류했어요."));
         if (confirmed && !result.dismissed) {
           await handleNewSession();
@@ -253,7 +253,7 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
         toast.error(info.title, { description: info.detail });
       }
     },
-    [handleNewSession]
+    [handleNewSession, sessionId]
   );
 
   const handleKeyDown = useCallback(

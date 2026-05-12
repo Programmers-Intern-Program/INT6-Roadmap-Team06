@@ -55,12 +55,13 @@ export function sendMessage(
 }
 
 export function confirmReplan(
+  sessionId: string,
   proposalId: string,
   confirmed: boolean,
   signal?: AbortSignal
 ) {
   return apiClient.post<ReplanResult>(
-    "/api/coach/replan",
+    `/api/coach/sessions/${sessionId}/replan`,
     {
       proposalId: Number(proposalId),
       confirmed

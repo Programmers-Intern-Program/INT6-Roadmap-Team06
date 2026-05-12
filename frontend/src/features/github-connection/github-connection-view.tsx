@@ -11,6 +11,7 @@ import {
   submitAnalysisAsync
 } from "@/features/github-connection/api";
 import type { Repository } from "@/features/github-connection/types";
+import { AnalysisProgressView } from "@/features/github-connection/analysis-progress-view";
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 
@@ -20,11 +21,17 @@ type ViewState =
   | { status: "loading-repos" }
   | { status: "auth-required" }
   | { status: "ready"; repos: Repository[] }
-  | { status: "analyzing"; currentStep: string | null }
+  | {
+      status: "analyzing";
+      currentStep: string | null;
+      selectedCount: number;
+      startedAtMs: number;
+    }
   | { status: "error"; message: string };
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+// e2e 실측: 2 repos ≈ 9분, 5 repos ≈ 20분 추정. 사용자가 페이지 닫아도 백그라운드 진행됨.
+const POLL_TIMEOUT_MS = 20 * 60 * 1000;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
@@ -103,7 +110,9 @@ export function GithubConnectionView() {
 
   async function handleAnalyze() {
     if (!connectionId || selected.size === 0) return;
-    setState({ status: "analyzing", currentStep: null });
+    const startedAtMs = Date.now();
+    const selectedCount = selected.size;
+    setState({ status: "analyzing", currentStep: null, selectedCount, startedAtMs });
     try {
       const ids = Array.from(selected);
       const { jobId } = await submitAnalysisAsync(connectionId, ids, ids);
@@ -123,11 +132,17 @@ export function GithubConnectionView() {
           });
           return;
         }
-        setState({ status: "analyzing", currentStep: snapshot.currentStep });
+        setState({
+          status: "analyzing",
+          currentStep: snapshot.currentStep,
+          selectedCount,
+          startedAtMs
+        });
       }
       setState({
         status: "error",
-        message: "분석이 너무 오래 걸려 대기를 중단했습니다. 잠시 후 결과를 확인해주세요."
+        message:
+          "분석이 예상보다 오래 걸려 대기를 중단했습니다. 잠시 후 분석 목록에서 결과를 확인해주세요."
       });
     } catch (err) {
       if (isUnauthorizedError(err)) {
@@ -161,10 +176,11 @@ export function GithubConnectionView() {
   }
 
   if (state.status === "analyzing") {
-    const stepLabel = state.currentStep ? ` (${state.currentStep})` : "";
     return (
-      <StatePanel
-        message={`GitHub 분석 중입니다. 잠시 기다려주세요...${stepLabel}`}
+      <AnalysisProgressView
+        selectedCount={state.selectedCount}
+        currentStep={state.currentStep}
+        startedAtMs={state.startedAtMs}
       />
     );
   }

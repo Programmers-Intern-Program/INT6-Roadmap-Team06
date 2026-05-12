@@ -175,6 +175,51 @@ class CoachSessionServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("self-heal: PROFILE snapshot이 placeholder면 startSession이 publisher를 강제 호출해 새 version을 만든다")
+    void selfHealRefreshesPlaceholderProfileSnapshot() {
+        // placeholder payload(< 500 bytes) — SQL seed / migration 흔적 가정
+        seedSnapshot(ContextType.PROFILE, 1, "{}");
+        seedSnapshot(ContextType.PLAN, 1);
+
+        ChatSession session = coachSessionService.startSession(userId);
+
+        // self-heal 호출이 PROFILE을 새 version으로 발행했으므로, 세션은 v2 이상에 pin된다
+        assertThat(session.getProfileVersion()).isGreaterThan(1);
+        // PLAN은 padded(>=500 bytes)이므로 self-heal 안 됨 → v1 유지
+        assertThat(session.getRoadmapVersion()).isEqualTo(1);
+        // 새 PROFILE active snapshot이 placeholder가 아니어야 함 (이번 환경에선 publisher가 채워줌)
+        UserContextSnapshot active = contextSnapshotRepository
+                .findActiveByUserIdAndContextType(userId, ContextType.PROFILE)
+                .orElseThrow();
+        assertThat(active.getVersion()).isEqualTo(session.getProfileVersion());
+    }
+
+    @Test
+    @DisplayName("self-heal: PLAN snapshot이 placeholder면 startSession이 publisher를 강제 호출해 새 version을 만든다")
+    void selfHealRefreshesPlaceholderPlanSnapshot() {
+        seedSnapshot(ContextType.PROFILE, 1);
+        seedSnapshot(ContextType.PLAN, 1, "{}");
+
+        ChatSession session = coachSessionService.startSession(userId);
+
+        assertThat(session.getProfileVersion()).isEqualTo(1);
+        assertThat(session.getRoadmapVersion()).isGreaterThan(1);
+    }
+
+    @Test
+    @DisplayName("self-heal: 두 snapshot 모두 풍부하면 publisher가 호출되지 않고 기존 version에 pin")
+    void noSelfHealWhenSnapshotsAlreadyRich() {
+        seedSnapshot(ContextType.PROFILE, 7);
+        seedSnapshot(ContextType.PLAN, 5);
+
+        ChatSession session = coachSessionService.startSession(userId);
+
+        // 풍부한 payload → publisher 안 돔 → seed한 version 그대로
+        assertThat(session.getProfileVersion()).isEqualTo(7);
+        assertThat(session.getRoadmapVersion()).isEqualTo(5);
+    }
+
+    @Test
     @DisplayName("getActiveSession: ACTIVE 세션이 없으면 SESSION_NOT_FOUND")
     void getActiveSessionThrowsWhenNoActive() {
         assertThatThrownBy(() -> coachSessionService.getActiveSession(userId))
@@ -208,9 +253,20 @@ class CoachSessionServiceIntegrationTest {
     }
 
     private void seedSnapshot(ContextType type, int version) {
+        // CoachSessionService.startSession은 payload < 500 bytes를 placeholder로 보고 self-heal publish를 트리거한다.
+        // 기존 테스트들은 "이 seed version으로 세션이 시작된다"를 검증하므로, 실데이터 사이즈를 흉내내는 padding payload를 사용한다.
+        seedSnapshot(type, version, paddedPayload(type));
+    }
+
+    private void seedSnapshot(ContextType type, int version, String payload) {
         UserContextSnapshot snapshot = UserContextSnapshot.create(
-                userId, type, version, "{}", Instant.now()
+                userId, type, version, payload, Instant.now()
         );
         contextSnapshotRepository.save(snapshot);
+    }
+
+    private static String paddedPayload(ContextType type) {
+        // 500 bytes 이상이면 publisher self-heal이 트리거되지 않는다 (PLACEHOLDER_PAYLOAD_BYTES_THRESHOLD).
+        return "{\"contextType\":\"" + type.name() + "\",\"_padding\":\"" + "x".repeat(600) + "\"}";
     }
 }

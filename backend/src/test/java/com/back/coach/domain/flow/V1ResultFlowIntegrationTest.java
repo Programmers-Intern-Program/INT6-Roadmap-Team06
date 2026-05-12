@@ -109,7 +109,7 @@ class V1ResultFlowIntegrationTest {
     @Test
     @DisplayName("v1 결과 흐름이 DB 원본 기준으로 진단, 로드맵, 진도, 대시보드까지 이어진다")
     void v1ResultFlow_persistsVersionedResultsAndDashboardSnapshot() {
-        given(llmClient.complete(anyString())).willReturn(diagnosisResponse(), roadmapResponse());
+        given(llmClient.complete(anyString(), anyString())).willReturn(diagnosisResponse(), roadmapResponse());
 
         User user = userRepository.save(User.signupFromOAuth(
                 AuthProvider.GITHUB,
@@ -239,7 +239,7 @@ class V1ResultFlowIntegrationTest {
         assertThat(otherDashboard.githubAnalysis()).isNull();
         assertThat(otherDashboard.diagnosis()).isNull();
         assertThat(otherDashboard.roadmap()).isNull();
-        verify(llmClient, times(2)).complete(anyString());
+        verify(llmClient, times(2)).complete(anyString(), anyString());
     }
 
     private ProfileSaveResult saveProfile(Long userId) {

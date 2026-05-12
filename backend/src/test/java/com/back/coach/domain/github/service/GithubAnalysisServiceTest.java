@@ -147,7 +147,7 @@ class GithubAnalysisServiceTest {
         given(analysisRepo.findMaxVersionByUserId(USER_ID)).willReturn(null);
         given(analysisRepo.save(any(GithubAnalysis.class))).willAnswer(inv -> withId(inv.getArgument(0), 9L));
         // triage 호출(첫 호출) → timeout, summary 호출(두 번째) → 정상, synthesis 호출(세 번째) → 정상
-        given(llmClient.complete(anyString()))
+        given(llmClient.complete(anyString(), anyString()))
                 .willThrow(new ServiceException(ErrorCode.LLM_TIMEOUT))
                 .willReturn(repoSummaryJson)
                 .willReturn(synthesisJson);
@@ -164,7 +164,7 @@ class GithubAnalysisServiceTest {
     void run_stage2LlmError_propagates() {
         primeRepos();
         given(analysisRepo.findMaxVersionByUserId(USER_ID)).willReturn(null);
-        given(llmClient.complete(anyString()))
+        given(llmClient.complete(anyString(), anyString()))
                 .willReturn(triageJson)
                 .willThrow(new ServiceException(ErrorCode.LLM_TIMEOUT));
 
@@ -202,7 +202,7 @@ class GithubAnalysisServiceTest {
     }
 
     private void primeLlm() {
-        given(llmClient.complete(anyString()))
+        given(llmClient.complete(anyString(), anyString()))
                 .willReturn(triageJson)
                 .willReturn(repoSummaryJson)
                 .willReturn(synthesisJson);

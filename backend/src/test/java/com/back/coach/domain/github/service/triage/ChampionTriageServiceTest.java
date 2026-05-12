@@ -36,7 +36,7 @@ class ChampionTriageServiceTest {
     @Test
     @DisplayName("정상 LLM 응답 → champion 그대로 반환, fallback=false")
     void triage_validResponse_returnsChampions() {
-        given(llmClient.complete(anyString())).willReturn("""
+        given(llmClient.complete(anyString(), anyString())).willReturn("""
                 {"champions":[
                   {"kind":"COMMIT","ref":"abc","reason":"OAuth"},
                   {"kind":"PR","ref":"42","reason":"라우팅"}
@@ -53,7 +53,7 @@ class ChampionTriageServiceTest {
     @Test
     @DisplayName("LLM 호출이 LLM_TIMEOUT throw → 최신 6개 commit으로 fallback, fallback=true")
     void triage_timeout_fallsBackToLatest6Commits() {
-        given(llmClient.complete(anyString()))
+        given(llmClient.complete(anyString(), anyString()))
                 .willThrow(new ServiceException(ErrorCode.LLM_TIMEOUT));
 
         ChampionTriageService.TriageResult result = service.triage("r", "u", metadataWithCommits(10));
@@ -69,7 +69,7 @@ class ChampionTriageServiceTest {
     @Test
     @DisplayName("스키마 위반 응답 → fallback")
     void triage_schemaViolation_fallsBack() {
-        given(llmClient.complete(anyString())).willReturn("""
+        given(llmClient.complete(anyString(), anyString())).willReturn("""
                 {"champions":[]}
                 """);
 
@@ -82,7 +82,7 @@ class ChampionTriageServiceTest {
     @Test
     @DisplayName("commit이 6개 미만이면 있는 만큼만 fallback")
     void triage_fallback_withFewerThanSixCommits() {
-        given(llmClient.complete(anyString()))
+        given(llmClient.complete(anyString(), anyString()))
                 .willThrow(new ServiceException(ErrorCode.LLM_RATE_LIMITED));
 
         ChampionTriageService.TriageResult result = service.triage("r", "u", metadataWithCommits(3));
@@ -94,7 +94,7 @@ class ChampionTriageServiceTest {
     @Test
     @DisplayName("commit이 0개이고 LLM도 실패하면 LLM_TRIAGE_FAILED throw")
     void triage_noCommitsAndLlmFails_throws() {
-        given(llmClient.complete(anyString()))
+        given(llmClient.complete(anyString(), anyString()))
                 .willThrow(new ServiceException(ErrorCode.LLM_TIMEOUT));
 
         RepoMetadata empty = new RepoMetadata(null, Map.of(), List.of(), List.of(), List.of(), List.of());
