@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { getSessions } from "@/features/coach/api";
+import { createSession, getSessions } from "@/features/coach/api";
 import { classifyCoachError } from "@/features/coach/coach-errors";
 import type { CoachSessionSummary } from "@/features/coach/types";
 import { isUnauthorizedError } from "@/lib/auth";
@@ -17,6 +17,7 @@ export function CoachSessionsSidebar({ activeSessionId }: SidebarProps) {
   const router = useRouter();
   const [sessions, setSessions] = useState<CoachSessionSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -47,9 +48,19 @@ export function CoachSessionsSidebar({ activeSessionId }: SidebarProps) {
         <button
           type="button"
           className="coach-sidebar-new"
-          onClick={() => router.push("/coach")}
+          disabled={creating}
+          onClick={async () => {
+            setCreating(true);
+            try {
+              const created = await createSession();
+              router.push(`/coach/sessions/${created.sessionId}`);
+            } catch (err) {
+              setError(classifyCoachError(err).title);
+              setCreating(false);
+            }
+          }}
         >
-          + 새 세션
+          {creating ? "생성 중…" : "+ 새 세션"}
         </button>
       </header>
 
