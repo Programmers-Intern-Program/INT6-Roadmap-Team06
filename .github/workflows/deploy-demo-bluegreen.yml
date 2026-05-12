@@ -200,6 +200,7 @@ jobs:
           retry 3 docker_login
           ./scripts/deploy/set-compose-images.sh "$BACKEND_IMAGE" "$FRONTEND_IMAGE"
           docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d postgres redis
+          docker container prune -f --filter "label=com.docker.compose.project=coach-deploy"
           retry 3 docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml pull "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
           docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
           docker image prune -f
