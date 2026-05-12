@@ -74,6 +74,16 @@ class GithubAnalysisE2eTest extends ApiTestBase {
         String unique = UUID.randomUUID().toString().substring(0, 8);
         user = userRepository.save(User.signupFromOAuth(AuthProvider.GITHUB, "gh-" + unique, "e2e-" + unique + "@test.com"));
         authHeader = JwtAuthHelper.bearerToken(jwtTokenProvider, user.getId());
+
+        // WireMock stubs from previous test bleed into the next via static singleton.
+        // Reset + register a low-priority catch-all so an unmatched prompt fails loudly.
+        wireMock.resetAll();
+        wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post("/v1/chat/completions")
+                .atPriority(10)
+                .willReturn(aResponse()
+                        .withStatus(500)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"error\":\"E2E: no stubLlm() matched the prompt — update GithubAnalysisE2eTest stubs\"}")));
     }
 
     @Test
@@ -213,6 +223,7 @@ class GithubAnalysisE2eTest extends ApiTestBase {
 
     private void stubLlm(String promptContains, String content) {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post("/v1/chat/completions")
+                .atPriority(5)
                 .withRequestBody(matchingJsonPath("$.messages[0].content",
                         new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*" + promptContains + ".*")))
                 .willReturn(aResponse()
