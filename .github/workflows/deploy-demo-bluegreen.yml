@@ -178,10 +178,29 @@ jobs:
             "GITHUB_ACTOR='$GITHUB_ACTOR' GHCR_TOKEN='$GHCR_TOKEN' BACKEND_IMAGE='$BACKEND_IMAGE' FRONTEND_IMAGE='$FRONTEND_IMAGE' TARGET_COLOR='$TARGET_COLOR' REMOTE_DIR='$REMOTE_DIR' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$REMOTE_DIR"
-          printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+          retry() {
+            local attempts="$1"
+            shift
+            local attempt
+            for attempt in $(seq 1 "$attempts"); do
+              if "$@"; then
+                return 0
+              fi
+              echo "command failed, retrying... attempt ${attempt}/${attempts}" >&2
+              sleep $((attempt * 10))
+            done
+            "$@"
+          }
+
+          docker_login() {
+            printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          }
+
+          retry 3 docker_login
           ./scripts/deploy/set-compose-images.sh "$BACKEND_IMAGE" "$FRONTEND_IMAGE"
           docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d postgres redis
-          docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml pull "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
+          retry 3 docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml pull "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
           docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
           docker image prune -f
           REMOTE
