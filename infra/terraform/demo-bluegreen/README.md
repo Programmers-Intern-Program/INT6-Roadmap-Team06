@@ -69,6 +69,7 @@ terraform apply -var-file="terraform.tfvars"
 기본 포트는 #302 deploy compose와 #303 Nginx active switch 기준에 맞춘다.
 
 - nginx active endpoint: `80`
+- nginx HTTPS active endpoint: `443`
 - frontend blue: `3001`
 - frontend green: `3002`
 - backend blue: `8081`
@@ -82,6 +83,8 @@ terraform apply -var-file="terraform.tfvars"
 - 저장소 연결 OAuth App: `https://APP_DOMAIN/github/callback`
 
 Elastic IP만 사용하는 1차 검증에서는 GitHub OAuth callback이 HTTPS 도메인을 요구하는지 먼저 확인한다. #303은 HTTP Nginx active switch까지만 다루고, HTTPS 인증서 자동화는 도메인 확정 후 후속 작업으로 붙인다.
+
+단일 도메인 HTTPS 리허설에서는 DNS A record를 `elastic_ip`로 연결한 뒤 EC2에서 Let’s Encrypt 인증서를 발급한다. `docker/.env.deploy`의 `APP_DOMAIN`에는 scheme 없는 도메인을 넣는다. `scripts/deploy/switch-active-color.sh`는 `/etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem`과 `privkey.pem`이 있으면 HTTP 설정과 함께 443 HTTPS server block을 생성한다. 별도 인증서 경로를 쓰는 경우 `TLS_CERT_PATH`, `TLS_KEY_PATH`를 지정한다.
 
 ## 배포 파일
 
