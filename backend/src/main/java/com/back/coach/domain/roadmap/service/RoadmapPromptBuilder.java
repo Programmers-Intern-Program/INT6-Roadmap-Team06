@@ -8,11 +8,17 @@ import com.back.coach.domain.user.entity.UserProfile;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RoadmapPromptBuilder {
+
+    public static final String VERSION = "roadmap-v1.0";
+
+    private static final Logger log = LoggerFactory.getLogger(RoadmapPromptBuilder.class);
 
     private final int maxWeeks;
 
@@ -21,6 +27,13 @@ public class RoadmapPromptBuilder {
     }
 
     public String build(Input input) {
+        String prompt = renderPrompt(input);
+        log.debug("Roadmap prompt built: builder=RoadmapPromptBuilder, version={}, bytes={}",
+                VERSION, prompt.getBytes().length);
+        return prompt;
+    }
+
+    private String renderPrompt(Input input) {
         Integer weeklyStudyHours = input.weeklyStudyHours() == null
                 ? input.profile().getWeeklyStudyHours()
                 : input.weeklyStudyHours();

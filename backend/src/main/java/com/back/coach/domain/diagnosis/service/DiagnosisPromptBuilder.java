@@ -6,6 +6,8 @@ import com.back.coach.domain.jobrole.entity.SkillRequirement;
 import com.back.coach.domain.user.entity.UserProfile;
 import com.back.coach.domain.user.entity.UserSkill;
 import com.back.coach.global.code.DiagnosisSeverity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
@@ -14,6 +16,10 @@ import java.util.stream.Collectors;
 
 @Component
 public class DiagnosisPromptBuilder {
+
+    public static final String VERSION = "diagnosis-v1.0";
+
+    private static final Logger log = LoggerFactory.getLogger(DiagnosisPromptBuilder.class);
 
     private static final String SEVERITY_VALUES = Arrays.stream(DiagnosisSeverity.values())
             .map(Enum::name)
@@ -86,7 +92,9 @@ public class DiagnosisPromptBuilder {
         prompt.append("strengths should include skills supported by user input or GitHub confirmed skills.\n");
         prompt.append("recommendations should be concrete next learning priorities.\n");
         prompt.append("Do not wrap JSON in Markdown code fences.\n");
-        return prompt.toString();
+        String result = prompt.toString();
+        log.debug("Prompt built: builder=DiagnosisPromptBuilder, version={}, bytes={}", VERSION, result.getBytes().length);
+        return result;
     }
 
     private String nullToEmpty(String value) {
