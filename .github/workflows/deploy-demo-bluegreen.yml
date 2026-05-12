@@ -142,6 +142,7 @@ jobs:
 
           cp docker/docker-compose.deploy.yml "$bundle_dir/docker/docker-compose.deploy.yml"
           printf '%s\n' "$DEPLOY_ENV_FILE" > "$bundle_dir/docker/.env.deploy"
+          sed -i 's/\r$//' "$bundle_dir/docker/.env.deploy"
           cp scripts/smoke/deploy-smoke.ps1 "$bundle_dir/scripts/smoke/deploy-smoke.ps1"
           cp scripts/deploy/*.sh "$bundle_dir/scripts/deploy/"
 
