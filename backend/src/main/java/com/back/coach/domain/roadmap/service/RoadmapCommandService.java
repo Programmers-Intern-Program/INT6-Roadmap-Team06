@@ -19,6 +19,7 @@ import com.back.coach.domain.roadmap.repository.RoadmapWeekRepository;
 import com.back.coach.domain.user.entity.UserProfile;
 import com.back.coach.domain.user.repository.UserProfileRepository;
 import com.back.coach.external.llm.LlmClient;
+import com.back.coach.external.llm.PromptDirectives;
 import com.back.coach.global.code.ProgressStatus;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
@@ -99,7 +100,8 @@ public class RoadmapCommandService {
                 request.weeklyStudyHours(), request.targetDate()
         ));
         RoadmapResponseParser.RoadmapResult roadmapResult =
-                roadmapResponseParser.parse(llmClient.complete(prompt));
+                roadmapResponseParser.parse(
+                        llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, prompt));
 
         // 3. DB 저장 (새 트랜잭션)
         RoadmapDetailResponse response = transactionTemplate.execute(status -> {

@@ -117,7 +117,7 @@ class DiagnosisCommandServiceTest {
     void createDiagnosis_whenInputsAreValid_savesVersionedDiagnosisPayload() throws Exception {
         primeValidInputs();
         given(resultVersionService.nextCapabilityDiagnosisVersion(USER_ID)).willReturn(4);
-        given(llmClient.complete(anyString())).willReturn(validLlmResponse());
+        given(llmClient.complete(anyString(), anyString())).willReturn(validLlmResponse());
         given(capabilityDiagnosisRepository.save(any(CapabilityDiagnosis.class)))
                 .willAnswer(invocation -> withIdAndCreatedAt(invocation.getArgument(0), 30L));
 
@@ -156,9 +156,11 @@ class DiagnosisCommandServiceTest {
         assertThat(storedPayload.strengths()).containsExactly("Spring Boot");
         assertThat(storedPayload.recommendations()).containsExactly("Redis 캐시와 TTL 기반 설계를 먼저 학습");
 
-        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
-        verify(llmClient).complete(promptCaptor.capture());
-        assertThat(promptCaptor.getValue()).contains("Spring Boot", "Redis", "BACKEND_DEVELOPER");
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).complete(systemCaptor.capture(), userCaptor.capture());
+        assertThat(systemCaptor.getValue()).contains("JSON-only");
+        assertThat(userCaptor.getValue()).contains("Spring Boot", "Redis", "BACKEND_DEVELOPER");
     }
 
     @Test
@@ -220,7 +222,7 @@ class DiagnosisCommandServiceTest {
     @Test
     void createDiagnosis_whenLlmResponseIsInvalid_throwsLlmInvalidResponseAndDoesNotSave() {
         primeValidInputs();
-        given(llmClient.complete(anyString())).willReturn("{}");
+        given(llmClient.complete(anyString(), anyString())).willReturn("{}");
 
         assertThatThrownBy(() -> diagnosisCommandService.createDiagnosis(
                 USER_ID,

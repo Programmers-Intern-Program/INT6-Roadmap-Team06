@@ -20,6 +20,7 @@ import com.back.coach.domain.user.entity.UserSkill;
 import com.back.coach.domain.user.repository.UserProfileRepository;
 import com.back.coach.domain.user.repository.UserSkillRepository;
 import com.back.coach.external.llm.LlmClient;
+import com.back.coach.external.llm.PromptDirectives;
 import com.back.coach.global.code.SkillSourceType;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
@@ -105,7 +106,8 @@ public class DiagnosisCommandService {
                 inputs.githubAnalysisPayload().finalTechProfile()
         ));
         DiagnosisResponseParser.DiagnosisResult diagnosisResult =
-                diagnosisResponseParser.parse(llmClient.complete(prompt));
+                diagnosisResponseParser.parse(
+                        llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, prompt));
         DiagnosisPayload diagnosisPayload = new DiagnosisPayload(
                 diagnosisResult.missingSkills(),
                 diagnosisResult.strengths(),
