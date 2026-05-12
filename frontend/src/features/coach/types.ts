@@ -39,3 +39,25 @@ export type ChatBubble = {
   replanProposal?: ReplanProposal | null;
   pending?: boolean;
 };
+
+export type ChatSessionStatus = "ACTIVE" | "CLOSED";
+
+export type CoachSessionSummary = {
+  sessionId: string;
+  profileVersion: number;
+  roadmapVersion: number;
+  status: ChatSessionStatus;
+  startedAt: string;
+  endedAt: string | null;
+};
+
+export type CoachMessageRole = "USER" | "COACH";
+
+export type CoachMessageHistory = {
+  messageId: string;
+  role: CoachMessageRole;
+  messageText: string;
+  route: CoachRoute | null;
+  detectedIntent: string | null;
+  createdAt: string;
+};

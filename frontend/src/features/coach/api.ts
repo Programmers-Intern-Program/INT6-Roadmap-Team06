@@ -1,12 +1,25 @@
 import { apiClient } from "@/lib/api";
 import type {
+  CoachMessageHistory,
   CoachMessageResponse,
   CoachSession,
+  CoachSessionSummary,
   ReplanResult
 } from "@/features/coach/types";
 
 export function getActiveSession(signal?: AbortSignal) {
   return apiClient.get<CoachSession>("/api/coach/sessions/active", { signal });
+}
+
+export function getSessions(signal?: AbortSignal) {
+  return apiClient.get<CoachSessionSummary[]>("/api/coach/sessions", { signal });
+}
+
+export function getSessionMessages(sessionId: string, signal?: AbortSignal) {
+  return apiClient.get<CoachMessageHistory[]>(
+    `/api/coach/sessions/${sessionId}/messages`,
+    { signal }
+  );
 }
 
 export function createSession(signal?: AbortSignal) {

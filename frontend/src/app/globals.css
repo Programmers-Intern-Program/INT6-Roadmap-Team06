@@ -2222,3 +2222,149 @@ a {
   color: var(--muted);
   font-size: 11px;
 }
+
+/* ===== Coach Slice 10 — sessions sidebar + history layout ===== */
+
+.coach-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  height: calc(100vh - 56px);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px 24px 24px;
+}
+
+.coach-layout .coach-screen {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  padding: 0;
+}
+
+.coach-sidebar {
+  width: 260px;
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.coach-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.coach-sidebar-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.coach-sidebar-new {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--foreground);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.coach-sidebar-new:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.coach-sidebar-empty {
+  padding: 16px 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.coach-sidebar-empty[data-tone="danger"] {
+  color: var(--danger, #b54545);
+}
+
+.coach-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.coach-sidebar-item {
+  margin-bottom: 4px;
+}
+
+.coach-sidebar-link {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.coach-sidebar-link:hover {
+  background: var(--accent-soft);
+}
+
+.coach-sidebar-item[data-active="true"] .coach-sidebar-link {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.coach-sidebar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.coach-sidebar-label {
+  font-weight: 600;
+}
+
+.coach-sidebar-item[data-status="closed"] .coach-sidebar-label {
+  color: var(--muted);
+}
+
+.coach-sidebar-version {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.coach-sidebar-date {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+@media (max-width: 720px) {
+  .coach-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 56px);
+  }
+
+  .coach-sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    max-height: 160px;
+  }
+
+  .coach-layout .coach-screen {
+    min-height: 60vh;
+  }
+}
+
