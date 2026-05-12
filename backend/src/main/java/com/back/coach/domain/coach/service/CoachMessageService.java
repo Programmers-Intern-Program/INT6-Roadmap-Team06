@@ -24,6 +24,32 @@ public class CoachMessageService {
 
     private static final int PROPOSAL_TTL_HOURS = 24;
 
+    // Coach 역할 + 출력 형식 규칙을 system role로 분리.
+    // GLM-4.5 reasoning 모델에서 system role 분리는 chain-of-thought 길이를 크게 줄임 (docs/32 § 3).
+    // 데이터 컨텍스트(profile/plan/activeSignals/사용자 메시지)는 ContextManagerService가 user role 텍스트로 조립.
+    private static final String SYSTEM_PROMPT = """
+            당신은 학습 코치입니다. 사용자의 질문에 짧고 실용적인 답변을 한국어로 제공합니다.
+
+            ## 응답 형식 (반드시 JSON만 출력)
+            {
+              "route": "SIMPLE_GUIDE | REPLAN_SUGGEST | DISMISS",
+              "responseText": "<사용자에게 보여줄 메시지>",
+              "replanReason": "<REPLAN_SUGGEST일 때만, 재계획 필요 이유>",
+              "detectedIntent": "<감지된 의도 (선택)>"
+            }
+
+            규칙:
+            - activeSignals가 없거나 단순 질문이면 route=SIMPLE_GUIDE
+            - activeSignals가 있고 재계획이 필요하다고 판단되면 route=REPLAN_SUGGEST
+            - 신호가 있어도 처리 불필요하면 route=DISMISS
+            - replanReason은 REPLAN_SUGGEST일 때만 작성, 나머지는 null
+
+            출력 제약:
+            - JSON 외 텍스트(설명, 추론, 코드펜스 ```) 절대 출력 금지
+            - markdown으로 JSON을 감싸지 마세요
+            - 모든 필드명은 위 스키마와 정확히 일치해야 함
+            """;
+
     private final ChatSessionRepository chatSessionRepository;
     private final CoachConversationRepository coachConversationRepository;
     private final ReplanProposalRepository replanProposalRepository;
@@ -77,7 +103,7 @@ public class CoachMessageService {
         coachConversationRepository.save(CoachConversation.user(sessionId, userId, userMessage));
 
         AssembledContext context = contextManagerService.assembleAuto(session, userMessage);
-        String llmRaw = llmClient.complete(buildPrompt(context, userMessage));
+        String llmRaw = llmClient.complete(SYSTEM_PROMPT, context.systemPrompt());
         CoachResponseParser.ParsedCoachResponse parsed = responseParser.parse(llmRaw);
 
         CoachConversation coachMessage = CoachConversation.coach(
@@ -97,22 +123,4 @@ public class CoachMessageService {
         return new MessageResult(coachMessage, proposal);
     }
 
-    private String buildPrompt(AssembledContext context, String userMessage) {
-        return context.systemPrompt() + """
-
-                ## 응답 형식 (반드시 JSON만 출력)
-                {
-                  "route": "SIMPLE_GUIDE | REPLAN_SUGGEST | DISMISS",
-                  "responseText": "<사용자에게 보여줄 메시지>",
-                  "replanReason": "<REPLAN_SUGGEST일 때만, 재계획 필요 이유>",
-                  "detectedIntent": "<감지된 의도 (선택)>"
-                }
-
-                규칙:
-                - activeSignals가 없거나 단순 질문이면 route=SIMPLE_GUIDE
-                - activeSignals가 있고 재계획이 필요하다고 판단되면 route=REPLAN_SUGGEST
-                - 신호가 있어도 처리 불필요하면 route=DISMISS
-                - replanReason은 REPLAN_SUGGEST일 때만 작성, 나머지는 null
-                """;
-    }
 }
