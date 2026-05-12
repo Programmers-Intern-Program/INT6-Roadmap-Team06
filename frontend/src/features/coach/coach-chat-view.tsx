@@ -19,14 +19,17 @@ import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import {
   closeSession,
   confirmReplan,
+  getSessionMessages,
   sendMessage
 } from "@/features/coach/api";
 import {
   classifyCoachError,
   isAbortError
 } from "@/features/coach/coach-errors";
+import { CoachSessionsSidebar } from "@/features/coach/coach-sessions-sidebar";
 import type {
   ChatBubble,
+  CoachMessageHistory,
   CoachMessageResponse,
   ReplanProposal
 } from "@/features/coach/types";
@@ -47,6 +50,16 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
   const [authRequired, setAuthRequired] = useState(false);
   const [sessionClosed, setSessionClosed] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [trackedSessionId, setTrackedSessionId] = useState(sessionId);
+
+  if (trackedSessionId !== sessionId) {
+    setTrackedSessionId(sessionId);
+    setBubbles([]);
+    setHistoryLoading(true);
+    setHistoryError(null);
+  }
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -80,6 +93,42 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
       abortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+
+    getSessionMessages(sessionId, controller.signal)
+      .then((messages) => {
+        if (cancelled) return;
+        setBubbles(messages.map(historyMessageToBubble));
+      })
+      .catch((error) => {
+        if (cancelled || isAbortError(error)) return;
+        if (isUnauthorizedError(error)) {
+          setAuthRequired(true);
+          return;
+        }
+        if (error instanceof ApiError && error.code === "SESSION_NOT_FOUND") {
+          setHistoryError("이 세션을 찾을 수 없습니다. 세션 목록에서 다시 선택해 주세요.");
+          return;
+        }
+        if (error instanceof ApiError && error.code === "FORBIDDEN") {
+          setHistoryError("이 세션에 접근할 권한이 없습니다.");
+          return;
+        }
+        const info = classifyCoachError(error);
+        setHistoryError(info.title);
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [sessionId]);
 
   const handleAbort = useCallback(() => {
     abortRef.current?.abort();
@@ -234,25 +283,30 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
 
   if (sessionClosed) {
     return (
-      <section className="screen-shell coach-screen">
-        <div className="panel" data-tone="danger">
-          <p>이미 종료된 세션입니다. 새 세션을 시작해 주세요.</p>
-        </div>
-        <div className="action-row">
-          <button
-            className="action-link primary"
-            type="button"
-            onClick={() => router.replace("/coach")}
-          >
-            새 세션 시작
-          </button>
-        </div>
-      </section>
+      <div className="coach-layout">
+        <CoachSessionsSidebar activeSessionId={sessionId} />
+        <section className="screen-shell coach-screen">
+          <div className="panel" data-tone="danger">
+            <p>이미 종료된 세션입니다. 새 세션을 시작해 주세요.</p>
+          </div>
+          <div className="action-row">
+            <button
+              className="action-link primary"
+              type="button"
+              onClick={() => router.replace("/coach")}
+            >
+              새 세션 시작
+            </button>
+          </div>
+        </section>
+      </div>
     );
   }
 
   return (
-    <section className="coach-screen">
+    <div className="coach-layout">
+      <CoachSessionsSidebar activeSessionId={sessionId} />
+      <section className="coach-screen">
       <header className="coach-header">
         <h2 className="coach-title">코치</h2>
         <button
@@ -269,7 +323,15 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
         ref={scrollerRef}
         onScroll={handleScroll}
       >
-        {bubbles.length === 0 ? (
+        {historyLoading ? (
+          <div className="coach-empty">
+            <p>이전 대화를 불러오는 중…</p>
+          </div>
+        ) : historyError ? (
+          <div className="coach-empty" data-tone="danger">
+            <p>{historyError}</p>
+          </div>
+        ) : bubbles.length === 0 ? (
           <div className="coach-empty">
             <p>무엇이 궁금한가요? 학습 진행 상황·로드맵 조정·막힌 부분을 자유롭게 말해 보세요.</p>
           </div>
@@ -361,8 +423,18 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
           </button>
         )}
       </form>
-    </section>
+      </section>
+    </div>
   );
+}
+
+function historyMessageToBubble(message: CoachMessageHistory): ChatBubble {
+  return {
+    id: `h-${message.messageId}`,
+    role: message.role,
+    text: message.messageText,
+    route: message.route ?? undefined
+  };
 }
 
 type ReplanCardProps = {
