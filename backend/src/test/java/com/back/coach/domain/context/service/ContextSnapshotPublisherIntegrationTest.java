@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Optional;
 
@@ -28,6 +29,9 @@ class ContextSnapshotPublisherIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     private Long userId;
 
@@ -68,6 +72,18 @@ class ContextSnapshotPublisherIntegrationTest {
 
         Optional<UserContextSnapshot> active =
                 snapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PLAN);
+        assertThat(active).isPresent();
+        assertThat(active.get().getVersion()).isEqualTo(1);
+        assertThat(active.get().getValidTo()).isNull();
+    }
+
+    @Test
+    @DisplayName("publishProfile: 활성 트랜잭션 afterCommit 이후에도 PROFILE snapshot이 저장된다")
+    void publishProfileInsideTransactionCreatesSnapshotAfterCommit() {
+        transactionTemplate.executeWithoutResult(status -> publisher.publishProfile(userId));
+
+        Optional<UserContextSnapshot> active =
+                snapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PROFILE);
         assertThat(active).isPresent();
         assertThat(active.get().getVersion()).isEqualTo(1);
         assertThat(active.get().getValidTo()).isNull();

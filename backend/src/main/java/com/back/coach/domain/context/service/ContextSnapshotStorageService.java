@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -23,7 +24,7 @@ public class ContextSnapshotStorageService {
     private final UserContextSnapshotRepository userContextSnapshotRepository;
     private final ObjectMapper objectMapper;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public UserContextSnapshot createSnapshot(Long userId, ContextType contextType, String payload) {
         validateRequest(userId, contextType, payload);
 
