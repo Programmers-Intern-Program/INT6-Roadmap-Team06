@@ -2,6 +2,7 @@ name: coach-deploy
 
 x-backend-env: &backend-env
   SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod,oauth}
+  SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}
   DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://postgres:5432/coachdb}
   DATABASE_USERNAME: ${DATABASE_USERNAME:-coach}
   DATABASE_PASSWORD: ${DATABASE_PASSWORD:-coach}
