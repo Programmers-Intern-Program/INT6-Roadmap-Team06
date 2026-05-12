@@ -120,7 +120,7 @@ class RoadmapCommandServiceTest {
         primeValidInputs();
         given(githubAnalysisRepository.existsByIdAndUserId(GITHUB_ANALYSIS_ID, USER_ID)).willReturn(true);
         given(resultVersionService.nextLearningRoadmapVersion(USER_ID)).willReturn(2);
-        given(llmClient.complete(anyString())).willReturn(validLlmResponse());
+        given(llmClient.complete(anyString(), anyString())).willReturn(validLlmResponse());
         given(learningRoadmapRepository.save(any(LearningRoadmap.class)))
                 .willAnswer(invocation -> withIdAndCreatedAt(invocation.getArgument(0), 40L));
         given(roadmapWeekRepository.saveAll(any()))
@@ -153,9 +153,11 @@ class RoadmapCommandServiceTest {
         assertThat(storedPayload.weeks()).hasSize(2);
         assertThat(storedPayload.weeks().get(0).topic()).isEqualTo("Redis 기초");
 
-        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
-        verify(llmClient).complete(promptCaptor.capture());
-        assertThat(promptCaptor.getValue()).contains("BACKEND_DEVELOPER", "Redis", "weeklyStudyHours: 8");
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).complete(systemCaptor.capture(), userCaptor.capture());
+        assertThat(systemCaptor.getValue()).contains("JSON-only");
+        assertThat(userCaptor.getValue()).contains("BACKEND_DEVELOPER", "Redis", "weeklyStudyHours: 8");
     }
 
     @Test
@@ -193,7 +195,7 @@ class RoadmapCommandServiceTest {
     @Test
     void createRoadmap_whenLlmResponseIsInvalid_throwsLlmInvalidResponseAndDoesNotSave() {
         primeValidInputs();
-        given(llmClient.complete(anyString())).willReturn("{}");
+        given(llmClient.complete(anyString(), anyString())).willReturn("{}");
 
         assertThatThrownBy(() -> roadmapCommandService.createRoadmap(
                 USER_ID,

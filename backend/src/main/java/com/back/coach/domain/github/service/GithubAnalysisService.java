@@ -17,6 +17,7 @@ import com.back.coach.domain.github.service.synthesis.SynthesisPromptBuilder;
 import com.back.coach.domain.github.service.synthesis.SynthesisResponseParser;
 import com.back.coach.domain.github.service.triage.ChampionTriageService;
 import com.back.coach.external.llm.LlmClient;
+import com.back.coach.external.llm.PromptDirectives;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -134,7 +135,7 @@ public class GithubAnalysisService {
                     core.primaryLanguage(), resolved);
             summaryPromptBytes += summaryPrompt.getBytes().length;
             long summaryStartMs = System.currentTimeMillis();
-            String summaryResponse = llmClient.complete(summaryPrompt);
+            String summaryResponse = llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, summaryPrompt);
             summaryElapsedMs += System.currentTimeMillis() - summaryStartMs;
             repoSummaries.add(summaryResponseParser.parse(summaryResponse));
             long repoElapsedMs = System.currentTimeMillis() - repoStartMs;
@@ -146,7 +147,7 @@ public class GithubAnalysisService {
         String synthesisPrompt = synthesisPromptBuilder.build(inputs.signals(), repoSummaries);
         int synthesisPromptBytes = synthesisPrompt.getBytes().length;
         log.debug("Synthesis prompt built: bytes={}", synthesisPromptBytes);
-        String synthesisResponse = llmClient.complete(synthesisPrompt);
+        String synthesisResponse = llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, synthesisPrompt);
         SynthesisResponseParser.SynthesisResult synthesis = synthesisResponseParser.parse(synthesisResponse);
         long synthesisElapsedMs = System.currentTimeMillis() - synthesisStartMs;
         log.debug("Synthesis completed: elapsedMs={}", synthesisElapsedMs);
