@@ -67,6 +67,7 @@ services:
   backend-blue:
     image: ${BACKEND_IMAGE:-coach-backend:local}
     container_name: coach-deploy-backend-blue
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-768m}
     environment:
       <<: *backend-env
       DEPLOY_COLOR: blue
@@ -78,6 +79,7 @@ services:
   backend-green:
     image: ${BACKEND_IMAGE:-coach-backend:local}
     container_name: coach-deploy-backend-green
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-768m}
     environment:
       <<: *backend-env
       DEPLOY_COLOR: green
