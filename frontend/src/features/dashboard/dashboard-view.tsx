@@ -80,33 +80,59 @@ export function DashboardView() {
   }
 
   const { dashboard } = state;
+  const nextStep = getNextStep(dashboard);
 
   return (
     <section className="screen-shell">
-      <div className="screen-hero">
-        <p className="eyebrow">사용자 {dashboard.userId}</p>
-        <div className="screen-heading">
-          <h1>대시보드</h1>
-          <p>프로필, GitHub 분석, 진단, 로드맵의 최신 상태를 확인합니다.</p>
+      <div className="dashboard-hero">
+        <div className="dashboard-hero-content">
+          <p className="eyebrow">대시보드</p>
+          <h1 className="dashboard-hero-title">현재 상태 한눈에 보기</h1>
+          <p className="dashboard-hero-subtitle">
+            프로필 · GitHub 분석 · 역량 진단 · 학습 로드맵의 진행 상황을 확인하세요.
+          </p>
         </div>
-        <div className="action-row" aria-label="주요 화면 이동">
-          <Link className="action-link primary" href="/profile">
-            프로필 입력
+        <div className="dashboard-hero-cta" aria-label="다음 추천 작업">
+          <span className="dashboard-hero-cta-label">다음에 할 일</span>
+          <Link className="dashboard-hero-cta-button" href={nextStep.href}>
+            {nextStep.label} →
           </Link>
-          {dashboard.roadmap ? (
-            <Link
-              className="action-link"
-              href={`/roadmaps/${dashboard.roadmap.roadmapId}`}
-            >
-              최근 로드맵
-            </Link>
-          ) : null}
         </div>
       </div>
 
+      <ol className="dashboard-workflow-steps" aria-label="진행 단계">
+        <WorkflowStep
+          index={1}
+          label="프로필"
+          done={Boolean(dashboard.profile)}
+          active={!dashboard.profile}
+        />
+        <WorkflowStep
+          index={2}
+          label="GitHub 분석"
+          done={Boolean(dashboard.githubAnalysis)}
+          active={Boolean(dashboard.profile) && !dashboard.githubAnalysis}
+        />
+        <WorkflowStep
+          index={3}
+          label="역량 진단"
+          done={Boolean(dashboard.diagnosis)}
+          active={Boolean(dashboard.githubAnalysis) && !dashboard.diagnosis}
+        />
+        <WorkflowStep
+          index={4}
+          label="학습 로드맵"
+          done={Boolean(dashboard.roadmap)}
+          active={Boolean(dashboard.diagnosis) && !dashboard.roadmap}
+        />
+      </ol>
+
       <div className="dashboard-summary-grid">
-        <section className="panel dashboard-summary-card">
-          <h2>프로필</h2>
+        <section className="panel dashboard-summary-card" data-tone="profile">
+          <div className="dashboard-card-header">
+            <span className="dashboard-card-icon" aria-hidden="true">👤</span>
+            <h2>프로필</h2>
+          </div>
           {dashboard.profile ? (
             <>
               <dl className="dashboard-metric-list">
@@ -143,8 +169,11 @@ export function DashboardView() {
           )}
         </section>
 
-        <section className="panel dashboard-summary-card">
-          <h2>GitHub 분석</h2>
+        <section className="panel dashboard-summary-card" data-tone="github">
+          <div className="dashboard-card-header">
+            <span className="dashboard-card-icon" aria-hidden="true">🐙</span>
+            <h2>GitHub 분석</h2>
+          </div>
           {dashboard.githubAnalysis ? (
             <>
               <p className="dashboard-card-summary">
@@ -178,8 +207,11 @@ export function DashboardView() {
           )}
         </section>
 
-        <section className="panel dashboard-summary-card">
-          <h2>진단</h2>
+        <section className="panel dashboard-summary-card" data-tone="diagnosis">
+          <div className="dashboard-card-header">
+            <span className="dashboard-card-icon" aria-hidden="true">🎯</span>
+            <h2>진단</h2>
+          </div>
           {dashboard.diagnosis ? (
             <>
               <p className="dashboard-card-summary">
@@ -205,8 +237,11 @@ export function DashboardView() {
           )}
         </section>
 
-        <section className="panel dashboard-summary-card">
-          <h2>로드맵</h2>
+        <section className="panel dashboard-summary-card" data-tone="roadmap">
+          <div className="dashboard-card-header">
+            <span className="dashboard-card-icon" aria-hidden="true">🗺️</span>
+            <h2>로드맵</h2>
+          </div>
           {dashboard.roadmap ? (
             <>
               <p className="dashboard-card-summary">{dashboard.roadmap.summary}</p>
@@ -232,6 +267,49 @@ export function DashboardView() {
         </section>
       </div>
     </section>
+  );
+}
+
+function getNextStep(dashboard: Dashboard): { href: string; label: string } {
+  if (!dashboard.profile) return { href: "/profile", label: "프로필 입력하기" };
+  if (!dashboard.githubAnalysis) return { href: "/github", label: "GitHub 연동하기" };
+  if (!dashboard.diagnosis) {
+    return {
+      href: `/diagnoses/new?githubAnalysisId=${dashboard.githubAnalysis.githubAnalysisId}`,
+      label: "역량 진단 만들기"
+    };
+  }
+  if (!dashboard.roadmap) {
+    return {
+      href: `/roadmaps/new?diagnosisId=${dashboard.diagnosis.diagnosisId}`,
+      label: "학습 로드맵 만들기"
+    };
+  }
+  return {
+    href: `/roadmaps/${dashboard.roadmap.roadmapId}`,
+    label: "내 로드맵 이어가기"
+  };
+}
+
+function WorkflowStep({
+  index,
+  label,
+  done,
+  active
+}: {
+  index: number;
+  label: string;
+  done: boolean;
+  active: boolean;
+}) {
+  const tone = done ? "done" : active ? "active" : "todo";
+  return (
+    <li className="dashboard-workflow-step" data-tone={tone}>
+      <span className="dashboard-workflow-step-marker" aria-hidden="true">
+        {done ? "✓" : index}
+      </span>
+      <span className="dashboard-workflow-step-label">{label}</span>
+    </li>
   );
 }
 

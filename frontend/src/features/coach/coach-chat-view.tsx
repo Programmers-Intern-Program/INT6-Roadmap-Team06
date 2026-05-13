@@ -38,11 +38,20 @@ import { isUnauthorizedError } from "@/lib/auth";
 
 type ChatViewProps = {
   sessionId: string;
+  /**
+   * 'page' (기본): 좌측 세션 사이드바 포함, 전체 페이지 레이아웃
+   * 'widget': 사이드바 숨김, 컴팩트 레이아웃 (AppShell의 floating widget용)
+   */
+  mode?: "page" | "widget";
+  /** widget mode에서 닫기 버튼 클릭 콜백 */
+  onClose?: () => void;
 };
 
 const SCROLL_STICK_THRESHOLD_PX = 80;
 
-export function CoachChatView({ sessionId }: ChatViewProps) {
+export function CoachChatView({ sessionId, mode = "page", onClose }: ChatViewProps) {
+  const isWidget = mode === "widget";
+  const layoutClass = isWidget ? "coach-layout coach-layout--widget" : "coach-layout";
   const router = useRouter();
   const [bubbles, setBubbles] = useState<ChatBubble[]>([]);
   const [input, setInput] = useState("");
@@ -253,7 +262,7 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
         toast.error(info.title, { description: info.detail });
       }
     },
-    [handleNewSession, sessionId]
+    [handleNewSession]
   );
 
   const handleKeyDown = useCallback(
@@ -283,8 +292,8 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
 
   if (sessionClosed) {
     return (
-      <div className="coach-layout">
-        <CoachSessionsSidebar activeSessionId={sessionId} />
+      <div className={layoutClass}>
+        {!isWidget && <CoachSessionsSidebar activeSessionId={sessionId} />}
         <section className="screen-shell coach-screen">
           <div className="panel" data-tone="danger">
             <p>이미 종료된 세션입니다. 새 세션을 시작해 주세요.</p>
@@ -304,18 +313,30 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
   }
 
   return (
-    <div className="coach-layout">
-      <CoachSessionsSidebar activeSessionId={sessionId} />
+    <div className={layoutClass}>
+      {!isWidget && <CoachSessionsSidebar activeSessionId={sessionId} />}
       <section className="coach-screen">
       <header className="coach-header">
         <h2 className="coach-title">코치</h2>
-        <button
-          type="button"
-          className="coach-secondary-button"
-          onClick={handleNewSession}
-        >
-          새 세션 시작
-        </button>
+        <div className="coach-header-actions">
+          <button
+            type="button"
+            className="coach-secondary-button"
+            onClick={handleNewSession}
+          >
+            새 세션
+          </button>
+          {isWidget && onClose && (
+            <button
+              type="button"
+              className="coach-secondary-button coach-widget-close"
+              onClick={onClose}
+              aria-label="코치 위젯 닫기"
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </header>
 
       <div
@@ -333,7 +354,10 @@ export function CoachChatView({ sessionId }: ChatViewProps) {
           </div>
         ) : bubbles.length === 0 ? (
           <div className="coach-empty">
-            <p>무엇이 궁금한가요? 학습 진행 상황·로드맵 조정·막힌 부분을 자유롭게 말해 보세요.</p>
+            <p>
+              현재 로드맵 진행 상황을 참고해 답해 드려요. 학습 진척이나 막힌 부분을 자유롭게 말해 보세요.
+              필요하면 코치가 로드맵 재계획을 제안할 수 있습니다.
+            </p>
           </div>
         ) : null}
 

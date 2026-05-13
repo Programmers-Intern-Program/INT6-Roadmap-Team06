@@ -45,6 +45,7 @@ export function githubConnectionOAuthUrl(): string {
     client_id: clientId,
     scope: "repo read:user",
     redirect_uri: redirectUri,
+    allow_signup: "false",
   });
 
   return `https://github.com/login/oauth/authorize?${params.toString()}`;

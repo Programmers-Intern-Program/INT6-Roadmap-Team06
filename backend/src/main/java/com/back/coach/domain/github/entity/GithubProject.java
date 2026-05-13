@@ -81,4 +81,8 @@ public class GithubProject extends BaseEntity {
     public void updateMetadataPayload(String json) {
         this.metadataPayload = json;
     }
+
+    public void setOwnerType(String ownerType) {
+        this.ownerType = ownerType;
+    }
 }

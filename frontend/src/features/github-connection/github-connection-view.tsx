@@ -5,13 +5,11 @@ import { useRouter } from "next/navigation";
 import { ApiError, githubConnectionOAuthUrl } from "@/lib/api";
 import { isUnauthorizedError } from "@/lib/auth";
 import {
-  getJobStatus,
   getLatestGithubConnection,
-  getRepositories,
-  submitAnalysisAsync
+  getRepositories
 } from "@/features/github-connection/api";
+import { useGithubAnalysisJob } from "@/features/github-connection/github-analysis-job-context";
 import type { Repository } from "@/features/github-connection/types";
-import { AnalysisProgressView } from "@/features/github-connection/analysis-progress-view";
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 
@@ -21,17 +19,7 @@ type ViewState =
   | { status: "loading-repos" }
   | { status: "auth-required" }
   | { status: "ready"; repos: Repository[] }
-  | {
-      status: "analyzing";
-      currentStep: string | null;
-      selectedCount: number;
-      startedAtMs: number;
-    }
   | { status: "error"; message: string };
-
-const POLL_INTERVAL_MS = 2000;
-// e2e 실측: 2 repos ≈ 9분, 5 repos ≈ 20분 추정. 사용자가 페이지 닫아도 백그라운드 진행됨.
-const POLL_TIMEOUT_MS = 20 * 60 * 1000;
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message;
@@ -40,6 +28,7 @@ function getErrorMessage(error: unknown): string {
 
 export function GithubConnectionView() {
   const router = useRouter();
+  const { submitAnalysisJob } = useGithubAnalysisJob();
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [state, setState] = useState<ViewState>({ status: "loading-connection" });
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -108,49 +97,12 @@ export function GithubConnectionView() {
     setState({ status: "disconnected" });
   }
 
-  async function handleAnalyze() {
+  function handleAnalyze() {
     if (!connectionId || selected.size === 0) return;
-    const startedAtMs = Date.now();
-    const selectedCount = selected.size;
-    setState({ status: "analyzing", currentStep: null, selectedCount, startedAtMs });
-    try {
-      const ids = Array.from(selected);
-      const { jobId } = await submitAnalysisAsync(connectionId, ids, ids);
-
-      const deadline = Date.now() + POLL_TIMEOUT_MS;
-      while (Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-        const snapshot = await getJobStatus(jobId);
-        if (snapshot.status === "SUCCEEDED" && snapshot.resultId) {
-          router.push(`/github/analysis?githubAnalysisId=${snapshot.resultId}`);
-          return;
-        }
-        if (snapshot.status === "FAILED") {
-          setState({
-            status: "error",
-            message: snapshot.error ?? "분석에 실패했습니다. 다시 시도해주세요."
-          });
-          return;
-        }
-        setState({
-          status: "analyzing",
-          currentStep: snapshot.currentStep,
-          selectedCount,
-          startedAtMs
-        });
-      }
-      setState({
-        status: "error",
-        message:
-          "분석이 예상보다 오래 걸려 대기를 중단했습니다. 잠시 후 분석 목록에서 결과를 확인해주세요."
-      });
-    } catch (err) {
-      if (isUnauthorizedError(err)) {
-        setState({ status: "auth-required" });
-        return;
-      }
-      setState({ status: "error", message: getErrorMessage(err) });
-    }
+    const ids = Array.from(selected);
+    // 즉시 페이지 이동 — Context가 백그라운드에서 submission 처리
+    void submitAnalysisJob(connectionId, ids, ids);
+    router.push('/github/analysis');
   }
 
   if (state.status === "loading-connection") {
@@ -159,30 +111,86 @@ export function GithubConnectionView() {
 
   if (!connectionId || state.status === "disconnected") {
     return (
-      <div>
-        <h1>GitHub 연동</h1>
-        <p>GitHub 저장소를 연결하고 분석을 시작하세요.</p>
-        <a href={connectUrl}>
-          <button className="btn-primary" disabled={!connectUrl}>
-            GitHub 연결하기
-          </button>
-        </a>
+      <div className="github-connection-hero-page">
+        <div className="github-connection-hero-container">
+          <div className="github-connection-hero-visual">
+            <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="60" cy="60" r="58" fill="url(#heroGradient)" opacity="0.1" />
+              <defs>
+                <linearGradient id="heroGradient" x1="0" y1="0" x2="120" y2="120">
+                  <stop offset="0%" stopColor="#2563eb" />
+                  <stop offset="100%" stopColor="#1e40af" />
+                </linearGradient>
+              </defs>
+              <g transform="translate(30 30)">
+                <path d="M30 0C13.4 0 0 13.4 0 30c0 13.3 8.6 24.6 20.6 28.6 1.5.3 2.1-.7 2.1-1.5 0-.8 0-2.8 0-5.5-8.4 1.8-10.2-4-10.2-4-1.4-3.5-3.4-4.4-3.4-4.4-2.8-1.9.2-1.9.2-1.9 3.1.2 4.7 3.2 4.7 3.2 2.7 4.7 7.1 3.3 8.9 2.6.3-2 1.1-3.3 2-4.1-7-0.8-14.3-3.5-14.3-15.3 0-3.4 1.2-6.1 3.2-8.3-.3-0.8-1.4-4 .3-8.3 0 0 2.6-.8 8.5 3.1 2.5-.7 5.1-1 7.7-1 2.6 0 5.2.3 7.7 1 5.9-3.9 8.5-3.1 8.5-3.1 1.7 4.3.6 7.5.3 8.3 2 2.2 3.2 4.9 3.2 8.3 0 11.8-7.3 14.5-14.3 15.3 1.1 1 2.1 2.9 2.1 5.9 0 4.1 0 7.5 0 8.5 0 .8.6 1.8 2.1 1.5 12-4 20.6-15.3 20.6-28.6C60 13.4 46.6 0 30 0z" fill="#1e40af" />
+              </g>
+            </svg>
+          </div>
+
+          <div className="github-connection-hero-content">
+            <h1 className="github-connection-hero-title">GitHub와 연결하기</h1>
+            <p className="github-connection-hero-subtitle">
+              당신의 GitHub 저장소를 분석하고 개발 성과를 한눈에 파악하세요.
+            </p>
+
+            <div className="github-connection-hero-benefits">
+              <div className="benefit-item">
+                <span className="benefit-icon">📊</span>
+                <span className="benefit-text">저장소 분석</span>
+              </div>
+              <div className="benefit-item">
+                <span className="benefit-icon">📈</span>
+                <span className="benefit-text">성장 지표</span>
+              </div>
+              <div className="benefit-item">
+                <span className="benefit-icon">🔍</span>
+                <span className="benefit-text">깊이 있는 인사이트</span>
+              </div>
+            </div>
+
+            <div className="github-connection-account-warning">
+              <p className="github-connection-account-warning-title">
+                ⚠️ 연결할 GitHub 계정을 먼저 확인하세요
+              </p>
+              <p className="github-connection-account-warning-body">
+                아래 버튼을 누르면 <strong>현재 브라우저에 로그인된 GitHub 계정</strong>이 자동으로 연결됩니다.
+                다른 계정을 연결하려면 먼저{" "}
+                <a
+                  href="https://github.com/login"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="github-connection-account-warning-link"
+                >
+                  GitHub에서 계정을 전환
+                </a>
+                한 후 아래 버튼을 눌러주세요.
+              </p>
+            </div>
+
+            <a href={connectUrl} className="github-connection-cta-link">
+              <button
+                className="github-connection-cta-button"
+                disabled={!connectUrl}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+                GitHub 연결하기
+              </button>
+            </a>
+
+            <p className="github-connection-hero-note">
+              GitHub OAuth를 통해 안전하게 연결됩니다. public repository만 조회됩니다.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (state.status === "loading-repos") {
     return <StatePanel message="저장소 목록을 불러오는 중..." />;
-  }
-
-  if (state.status === "analyzing") {
-    return (
-      <AnalysisProgressView
-        selectedCount={state.selectedCount}
-        currentStep={state.currentStep}
-        startedAtMs={state.startedAtMs}
-      />
-    );
   }
 
   if (state.status === "auth-required") {
@@ -326,8 +334,9 @@ export function GithubConnectionView() {
         <button
           className="action-link"
           onClick={reconnect}
+          title="현재 GitHub 계정을 변경하려면 클릭하세요"
         >
-          다른 계정으로 연결
+          계정 변경
         </button>
       </div>
     </div>

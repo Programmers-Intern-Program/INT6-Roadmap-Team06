@@ -21,6 +21,9 @@ import java.util.regex.Pattern;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class RestGithubApiClient implements GithubApiClient {
@@ -199,6 +202,118 @@ public class RestGithubApiClient implements GithubApiClient {
                 .build().toUri();
         return getList(uri, accessToken, new ParameterizedTypeReference<>() {});
     }
+
+    private static final String CONTRIBUTED_REPOS_QUERY = """
+            query($from: DateTime!, $to: DateTime!) {
+              viewer {
+                contributionsCollection(from: $from, to: $to) {
+                  commitContributionsByRepository {
+                    repository {
+                      nameWithOwner
+                      url
+                      isPrivate
+                      databaseId
+                      primaryLanguage { name }
+                    }
+                    contributions { totalCount }
+                  }
+                }
+              }
+            }
+            """;
+
+    @Override
+    public List<GithubContributedRepoDto> getContributedRepos(String accessToken, int yearsOffset) {
+        // GitHub GraphQL contributionsCollection: from~to 범위는 최대 1년 (365일)
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+        ZonedDateTime to = now.minusYears(yearsOffset);
+        ZonedDateTime from = now.minusYears(yearsOffset + 1L);
+
+        String fromStr = from.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String toStr = to.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+        try {
+            GraphQLResponse response = apiClient.post()
+                    .uri("/graphql")
+                    .headers(h -> h.setBearerAuth(accessToken))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of(
+                            "query", CONTRIBUTED_REPOS_QUERY,
+                            "variables", Map.of("from", fromStr, "to", toStr)
+                    ))
+                    .retrieve()
+                    .onStatus(s -> s.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
+                            (req, res) -> { throw new ServiceException(ErrorCode.GITHUB_RATE_LIMITED); })
+                    .onStatus(s -> s.isError(),
+                            (req, res) -> { throw new ServiceException(ErrorCode.GITHUB_API_ERROR); })
+                    .body(GraphQLResponse.class);
+
+            if (response == null
+                    || response.data() == null
+                    || response.data().viewer() == null
+                    || response.data().viewer().contributionsCollection() == null) {
+                return List.of();
+            }
+
+            List<GraphQLRepoContribution> contributions =
+                    response.data().viewer().contributionsCollection().commitContributionsByRepository();
+            if (contributions == null) return List.of();
+
+            return contributions.stream()
+                    .filter(c -> c.repository() != null && !c.repository().isPrivate())
+                    .map(c -> new GithubContributedRepoDto(
+                            c.repository().databaseId(),
+                            c.repository().nameWithOwner(),
+                            c.repository().url(),
+                            c.repository().primaryLanguage() != null
+                                    ? c.repository().primaryLanguage().name() : null,
+                            c.contributions() != null ? c.contributions().totalCount() : 0
+                    ))
+                    .toList();
+        } catch (ServiceException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            log.warn("GraphQL contributionsCollection call failed (yearsOffset={}): {}",
+                    yearsOffset, e.getMessage());
+            throw new ServiceException(classify(e), e.getMessage());
+        }
+    }
+
+    // GraphQL contributionsCollection 응답 파싱용 내부 record
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLResponse(GraphQLData data) {}
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLData(GraphQLViewer viewer) {}
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLViewer(GraphQLContributions contributionsCollection) {}
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLContributions(
+            List<GraphQLRepoContribution> commitContributionsByRepository
+    ) {}
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLRepoContribution(
+            GraphQLRepository repository,
+            GraphQLContributionCount contributions
+    ) {}
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLRepository(
+            String nameWithOwner,
+            String url,
+            boolean isPrivate,
+            Long databaseId,
+            GraphQLLanguage primaryLanguage
+    ) {}
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLLanguage(String name) {}
+
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+    private record GraphQLContributionCount(int totalCount) {}
 
     private <T> T get(String path, String accessToken, Class<T> type) {
         try {

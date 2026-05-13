@@ -52,8 +52,23 @@ public class GithubAnalysisDetailService {
     @Transactional(readOnly = true)
     public List<GithubAnalysisSummaryResponse> listByUser(Long userId) {
         return githubAnalysisRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(GithubAnalysisSummaryResponse::from)
+                .map(analysis -> GithubAnalysisSummaryResponse.from(analysis, extractRepoNames(analysis)))
                 .toList();
+    }
+
+    private List<String> extractRepoNames(GithubAnalysis analysis) {
+        try {
+            GithubAnalysisPayload payload = parsePayload(analysis.getAnalysisPayload());
+            if (payload.repoSummaries() == null) return List.of();
+            return payload.repoSummaries().stream()
+                    .map(GithubAnalysisPayload.RepoSummary::repoName)
+                    .filter(name -> name != null && !name.isBlank())
+                    .distinct()
+                    .toList();
+        } catch (RuntimeException ex) {
+            // payload 파싱 실패 시 list 전체 호출이 깨지지 않도록 빈 목록 반환
+            return List.of();
+        }
     }
 
     @Transactional(readOnly = true)

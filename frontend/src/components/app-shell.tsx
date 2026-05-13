@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { authNavigationItem, isNavigationItemActive, navigationItems } from "@/config/routes";
+import { CoachWidget } from "@/features/coach/coach-widget";
 
 type AppShellProps = {
   children: ReactNode;
@@ -53,6 +54,7 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </header>
       <main className="page">{children}</main>
+      <CoachWidget />
     </div>
   );
 }
