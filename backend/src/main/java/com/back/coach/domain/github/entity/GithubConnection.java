@@ -2,7 +2,9 @@ package com.back.coach.domain.github.entity;
 
 import com.back.coach.global.code.GithubAccessType;
 import com.back.coach.global.jpa.entity.BaseEntity;
+import com.back.coach.global.security.crypto.AccessTokenEncryptor;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -36,6 +38,7 @@ public class GithubConnection extends BaseEntity {
     @Column(name = "access_type", nullable = false, length = 30)
     private GithubAccessType accessType;
 
+    @Convert(converter = AccessTokenEncryptor.class)
     @Column(name = "access_token", length = 500)
     private String accessToken;
 

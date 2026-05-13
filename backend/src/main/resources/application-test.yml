@@ -12,3 +12,8 @@ ai:
     api-key: test-key
     base-url: http://localhost:0
     model: test-model
+
+security:
+  # 테스트 전용 고정 AES-256 키 (정확히 32 bytes, Base64 인코딩). 운영용 아님.
+  access-token-encryption:
+    key: dW5pdC10ZXN0LTMyYnl0ZS1hZXMta2V5LXBhZGRpbjA=
