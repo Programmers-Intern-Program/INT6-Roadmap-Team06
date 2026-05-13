@@ -44,6 +44,16 @@ read_env_value() {
   printf '%s\n' "$value"
 }
 
+validate_nginx_timeout() {
+  local key="$1"
+  local value="$2"
+
+  if ! [[ "$value" =~ ^[0-9]+(ms|s|m|h)?$ ]]; then
+    echo "${key} must be an nginx time value such as 10s, 330s, or 5m. value=${value}" >&2
+    exit 1
+  fi
+}
+
 app_domain="$(read_env_value APP_DOMAIN "")"
 server_name="_"
 if [ -n "$app_domain" ]; then
@@ -66,6 +76,14 @@ if [ -n "$tls_cert_path" ] && [ -n "$tls_key_path" ] && [ -f "$tls_cert_path" ] 
   tls_enabled=true
 fi
 
+api_proxy_connect_timeout="$(read_env_value API_PROXY_CONNECT_TIMEOUT "10s")"
+api_proxy_send_timeout="$(read_env_value API_PROXY_SEND_TIMEOUT "330s")"
+api_proxy_read_timeout="$(read_env_value API_PROXY_READ_TIMEOUT "330s")"
+
+validate_nginx_timeout API_PROXY_CONNECT_TIMEOUT "$api_proxy_connect_timeout"
+validate_nginx_timeout API_PROXY_SEND_TIMEOUT "$api_proxy_send_timeout"
+validate_nginx_timeout API_PROXY_READ_TIMEOUT "$api_proxy_read_timeout"
+
 cat > "$nginx_config" <<NGINX
 server {
     listen 80 default_server;
@@ -82,10 +100,16 @@ server {
     proxy_set_header X-Forwarded-Port \$server_port;
 
     location = /api {
+        proxy_connect_timeout ${api_proxy_connect_timeout};
+        proxy_send_timeout ${api_proxy_send_timeout};
+        proxy_read_timeout ${api_proxy_read_timeout};
         proxy_pass http://127.0.0.1:${backend_port};
     }
 
     location /api/ {
+        proxy_connect_timeout ${api_proxy_connect_timeout};
+        proxy_send_timeout ${api_proxy_send_timeout};
+        proxy_read_timeout ${api_proxy_read_timeout};
         proxy_pass http://127.0.0.1:${backend_port};
     }
 
@@ -128,10 +152,16 @@ server {
     proxy_set_header X-Forwarded-Port \$server_port;
 
     location = /api {
+        proxy_connect_timeout ${api_proxy_connect_timeout};
+        proxy_send_timeout ${api_proxy_send_timeout};
+        proxy_read_timeout ${api_proxy_read_timeout};
         proxy_pass http://127.0.0.1:${backend_port};
     }
 
     location /api/ {
+        proxy_connect_timeout ${api_proxy_connect_timeout};
+        proxy_send_timeout ${api_proxy_send_timeout};
+        proxy_read_timeout ${api_proxy_read_timeout};
         proxy_pass http://127.0.0.1:${backend_port};
     }
 
