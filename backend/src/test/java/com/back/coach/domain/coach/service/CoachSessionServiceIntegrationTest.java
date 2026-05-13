@@ -4,6 +4,7 @@ import com.back.coach.domain.coach.entity.ChatSession;
 import com.back.coach.domain.coach.repository.ChatSessionRepository;
 import com.back.coach.domain.context.entity.UserContextSnapshot;
 import com.back.coach.domain.context.repository.UserContextSnapshotRepository;
+import com.back.coach.domain.context.service.ContextSnapshotStorageService;
 import com.back.coach.domain.user.entity.User;
 import com.back.coach.domain.user.repository.UserRepository;
 import com.back.coach.global.code.AuthProvider;
@@ -35,6 +36,9 @@ class CoachSessionServiceIntegrationTest {
 
     @Autowired
     private UserContextSnapshotRepository contextSnapshotRepository;
+
+    @Autowired
+    private ContextSnapshotStorageService contextSnapshotStorageService;
 
     @Autowired
     private UserRepository userRepository;
@@ -74,6 +78,24 @@ class CoachSessionServiceIntegrationTest {
         assertThat(session.getStatus()).isEqualTo(ChatSessionStatus.ACTIVE);
         assertThat(session.getStartedAt()).isNotNull();
         assertThat(session.getEndedAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("startSession은 현재 active PROFILE/PLAN snapshot version을 세션에 고정한다")
+    void startSessionPinsCurrentActiveSnapshotVersions() {
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PROFILE, contextPayload(ContextType.PROFILE, "profile-old"));
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PROFILE, contextPayload(ContextType.PROFILE, "profile-current"));
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PLAN, contextPayload(ContextType.PLAN, "plan-old"));
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PLAN, contextPayload(ContextType.PLAN, "plan-current"));
+
+        ChatSession session = coachSessionService.startSession(userId);
+
+        assertThat(session.getProfileVersion()).isEqualTo(2);
+        assertThat(session.getRoadmapVersion()).isEqualTo(2);
+        assertThat(contextSnapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PROFILE))
+                .hasValueSatisfying(snapshot -> assertThat(snapshot.getVersion()).isEqualTo(2));
+        assertThat(contextSnapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PLAN))
+                .hasValueSatisfying(snapshot -> assertThat(snapshot.getVersion()).isEqualTo(2));
     }
 
     @Test
@@ -268,5 +290,20 @@ class CoachSessionServiceIntegrationTest {
     private static String paddedPayload(ContextType type) {
         // 500 bytes 이상이면 publisher self-heal이 트리거되지 않는다 (PLACEHOLDER_PAYLOAD_BYTES_THRESHOLD).
         return "{\"contextType\":\"" + type.name() + "\",\"_padding\":\"" + "x".repeat(600) + "\"}";
+    }
+
+    private static String contextPayload(ContextType type, String marker) {
+        return """
+                {
+                  "contextType": "%s",
+                  "sourceRefs": {
+                    "marker": "%s"
+                  },
+                  "payload": {
+                    "marker": "%s",
+                    "padding": "%s"
+                  }
+                }
+                """.formatted(type.code(), marker, marker, "x".repeat(600));
     }
 }

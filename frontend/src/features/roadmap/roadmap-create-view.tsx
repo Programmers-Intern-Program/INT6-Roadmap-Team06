@@ -25,12 +25,12 @@ function getErrorMessage(error: unknown): string {
 
 const FALLBACK_MAX_WEEKS = 8;
 
-function getTomorrowDateValue() {
-  return new Date(Date.now() + 86400000).toISOString().split("T")[0];
+function getTomorrowDateValue(baseTimeMs: number = Date.now()) {
+  return new Date(baseTimeMs + 86400000).toISOString().split("T")[0];
 }
 
-function getMaxDateValue(maxWeeks: number) {
-  return new Date(Date.now() + maxWeeks * 7 * 86400000)
+function getMaxDateValue(maxWeeks: number, baseTimeMs: number = Date.now()) {
+  return new Date(baseTimeMs + maxWeeks * 7 * 86400000)
     .toISOString()
     .split("T")[0];
 }
@@ -47,13 +47,14 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
   const [weeklyStudyHours, setWeeklyStudyHours] = useState("");
   const [targetDate, setTargetDate] = useState("");
   const [maxWeeks, setMaxWeeks] = useState<number>(FALLBACK_MAX_WEEKS);
+  const [baseTimeMs] = useState(() => Date.now());
   const loaded = useRef(false);
   const targetDateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (loaded.current) return;
     loaded.current = true;
-    targetDateInputRef.current?.setAttribute("min", getTomorrowDateValue());
+    targetDateInputRef.current?.setAttribute("min", getTomorrowDateValue(baseTimeMs));
 
     getRoadmapConstraints()
       .then((constraints) => setMaxWeeks(constraints.maxWeeks))
@@ -105,7 +106,7 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
           }
         });
     }
-  }, [initialDiagnosisId]);
+  }, [baseTimeMs, initialDiagnosisId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -187,7 +188,7 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
     ? Math.max(
         1,
         Math.ceil(
-          (new Date(targetDate).getTime() - Date.now()) / (7 * 86400000)
+          (new Date(targetDate).getTime() - baseTimeMs) / (7 * 86400000)
         )
       )
     : null;
@@ -315,7 +316,7 @@ export function RoadmapCreateView({ initialDiagnosisId }: Props) {
             <input
               type="date"
               ref={targetDateInputRef}
-              max={getMaxDateValue(maxWeeks)}
+              max={getMaxDateValue(maxWeeks, baseTimeMs)}
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
               disabled={isSubmitting}

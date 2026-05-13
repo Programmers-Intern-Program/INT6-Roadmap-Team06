@@ -35,6 +35,9 @@ class ContextManagerServiceIntegrationTest {
     private ContextManagerService contextManagerService;
 
     @Autowired
+    private ContextSnapshotStorageService contextSnapshotStorageService;
+
+    @Autowired
     private ChatSessionRepository chatSessionRepository;
 
     @Autowired
@@ -242,18 +245,24 @@ class ContextManagerServiceIntegrationTest {
     @Test
     @DisplayName("세션 고정 version 기준으로 조립 — active와 다른 version도 정확히 로드")
     void assemblesByPinnedVersionNotActive() {
-        // version 1, 2가 모두 존재. active는 v2지만 세션은 v1으로 고정.
-        seedSnapshot(ContextType.PROFILE, 1, "{\"v\":\"old\"}");
-        seedSnapshot(ContextType.PROFILE, 2, "{\"v\":\"new\"}");
-        seedSnapshot(ContextType.PLAN, 1, "{\"weeks\":4}");
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PROFILE, contextPayload(ContextType.PROFILE, "profile-old"));
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PROFILE, contextPayload(ContextType.PROFILE, "profile-current"));
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PLAN, contextPayload(ContextType.PLAN, "plan-old"));
+        contextSnapshotStorageService.createSnapshot(userId, ContextType.PLAN, contextPayload(ContextType.PLAN, "plan-current"));
         ChatSession session = startSession(1, 1);
 
         AssembledContext ctx = contextManagerService.assemble(
                 session, CoachTemplate.COACH_LIGHTWEIGHT, "hello"
         );
 
-        assertThat(ctx.systemPrompt()).contains("\"old\"");
-        assertThat(ctx.systemPrompt()).doesNotContain("\"new\"");
+        assertThat(contextSnapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PROFILE))
+                .hasValueSatisfying(snapshot -> assertThat(snapshot.getVersion()).isEqualTo(2));
+        assertThat(contextSnapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PLAN))
+                .hasValueSatisfying(snapshot -> assertThat(snapshot.getVersion()).isEqualTo(2));
+        assertThat(ctx.systemPrompt()).contains("profile-old");
+        assertThat(ctx.systemPrompt()).contains("plan-old");
+        assertThat(ctx.systemPrompt()).doesNotContain("profile-current");
+        assertThat(ctx.systemPrompt()).doesNotContain("plan-current");
     }
 
     @Test
@@ -291,5 +300,19 @@ class ContextManagerServiceIntegrationTest {
 
     private ChatSession startSession(int profileVersion, int planVersion) {
         return chatSessionRepository.save(ChatSession.start(userId, profileVersion, planVersion));
+    }
+
+    private static String contextPayload(ContextType type, String marker) {
+        return """
+                {
+                  "contextType": "%s",
+                  "sourceRefs": {
+                    "marker": "%s"
+                  },
+                  "payload": {
+                    "marker": "%s"
+                  }
+                }
+                """.formatted(type.code(), marker, marker);
     }
 }
