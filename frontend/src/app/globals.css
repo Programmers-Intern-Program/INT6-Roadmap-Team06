@@ -995,6 +995,40 @@ a {
   font-weight: 700;
 }
 
+.profile-skill-presets,
+.profile-date-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-skill-presets button,
+.profile-date-shortcuts button {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: #344054;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-skill-presets button:hover:not(:disabled),
+.profile-date-shortcuts button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.profile-skill-presets button[aria-pressed="true"],
+.profile-skill-presets button:disabled,
+.profile-date-shortcuts button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .profile-inline-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -1940,6 +1974,7 @@ a {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   letter-spacing: -0.3px;
+  text-decoration: none;
 }
 
 .github-connection-cta-button:hover:not(:disabled) {

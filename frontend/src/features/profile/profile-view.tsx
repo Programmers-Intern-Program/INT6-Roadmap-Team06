@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
@@ -28,6 +28,33 @@ type ProfileState =
   | { status: "auth-required" }
   | { status: "error"; message: string }
   | { profile: ProfileDetail | null; status: "ready" };
+
+const roleSkillPresets: Record<string, string[]> = {
+  BACKEND_DEVELOPER: [
+    "Java",
+    "Spring Boot",
+    "REST API",
+    "JPA",
+    "SQL",
+    "PostgreSQL",
+    "Redis",
+    "JUnit",
+    "Docker",
+    "Git/GitHub"
+  ],
+  FULLSTACK_DEVELOPER: [
+    "TypeScript",
+    "React",
+    "Next.js",
+    "Java",
+    "Spring Boot",
+    "REST API",
+    "PostgreSQL",
+    "Docker",
+    "Git/GitHub",
+    "CI/CD"
+  ]
+};
 
 export function ProfileView() {
   const [state, setState] = useState<ProfileState>({ status: "loading" });
@@ -174,6 +201,43 @@ function ProfileForm({
   saveResult: ProfileSaveResponse | null;
   saving: boolean;
 }) {
+  const defaultTargetRole = profile?.targetRole ?? jobRoles[0]?.roleCode ?? "";
+  const defaultSkills = formatSkillLines(profile?.skills ?? []);
+  const defaultTargetDate = profile?.targetDate ?? addMonthsToDateInput(new Date(), 1);
+  const minTargetDate = getTomorrowDateInput();
+  const [targetRole, setTargetRole] = useState(defaultTargetRole);
+  const [skillsText, setSkillsText] = useState(defaultSkills);
+  const [targetDate, setTargetDate] = useState(defaultTargetDate);
+  const recommendedSkills = roleSkillPresets[targetRole] ?? [];
+  const skillNames = useMemo(
+    () =>
+      new Set(
+        splitLines(skillsText).map((line) => line.split("|")[0].trim().toLowerCase())
+      ),
+    [skillsText]
+  );
+  const canAddMoreSkills = skillNames.size < 20;
+  const canDecreaseTargetDate = canShiftTargetDate(targetDate, -1, minTargetDate);
+
+  function addRecommendedSkill(skillName: string) {
+    if (!canAddMoreSkills || skillNames.has(skillName.toLowerCase())) {
+      return;
+    }
+
+    setSkillsText((current) => {
+      const lines = splitLines(current);
+      return [...lines, `${skillName}|BASIC`].join("\n");
+    });
+  }
+
+  function shiftTargetDate(months: number) {
+    const baseDate = parseDateInput(targetDate) ?? new Date();
+    const shifted = addCalendarMonths(baseDate, months);
+    const shiftedValue = toDateInputValue(shifted);
+
+    setTargetDate(shiftedValue < minTargetDate ? minTargetDate : shiftedValue);
+  }
+
   return (
     <form
       className="profile-form"
@@ -190,7 +254,8 @@ function ProfileForm({
           <span>목표 직무</span>
           {jobRoles.length > 0 ? (
             <select
-              defaultValue={profile?.targetRole ?? jobRoles[0]?.roleCode ?? ""}
+              onChange={(event) => setTargetRole(event.target.value)}
+              value={targetRole}
               name="targetRole"
               required
             >
@@ -226,19 +291,40 @@ function ProfileForm({
         <div className="profile-section-heading">
           <h2>기술 스택</h2>
           <p>
-            한 줄에 하나씩 입력합니다. 숙련도를 함께 쓰려면
-            <code>기술명|숙련도</code> 형식을 사용합니다.
+            직무별 추천 기술을 눌러 추가하거나, 한 줄에 하나씩 직접
+            입력합니다. 숙련도는 <code>기술명|숙련도</code> 형식입니다.
           </p>
         </div>
+
+        {recommendedSkills.length > 0 ? (
+          <div className="profile-skill-presets" aria-label="직무별 추천 기술">
+            {recommendedSkills.map((skillName) => {
+              const isSelected = skillNames.has(skillName.toLowerCase());
+
+              return (
+                <button
+                  aria-pressed={isSelected}
+                  disabled={isSelected || !canAddMoreSkills}
+                  key={skillName}
+                  onClick={() => addRecommendedSkill(skillName)}
+                  type="button"
+                >
+                  {skillName}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
 
         <label>
           <span>기술 목록</span>
           <textarea
-            defaultValue={formatSkillLines(profile?.skills ?? [])}
             name="skills"
+            onChange={(event) => setSkillsText(event.target.value)}
             placeholder={`Spring Boot|BASIC\nPostgreSQL|WORKING`}
             required
             rows={6}
+            value={skillsText}
           />
         </label>
 
@@ -254,11 +340,14 @@ function ProfileForm({
       <section className="panel profile-form-section">
         <div className="profile-section-heading">
           <h2>학습 조건</h2>
-          <p>관심 분야와 주당 학습 가능 시간을 입력합니다.</p>
+          <p>
+            관심 분야는 선택 항목입니다. 비워도 목표 직무, 기술 스택,
+            GitHub 분석을 기준으로 진단과 로드맵을 만들 수 있습니다.
+          </p>
         </div>
 
         <label>
-          <span>관심 분야</span>
+          <span>관심 분야 (선택)</span>
           <textarea
             defaultValue={(profile?.interestAreas ?? []).join("\n")}
             maxLength={600}
@@ -284,10 +373,30 @@ function ProfileForm({
           <label>
             <span>목표 날짜</span>
             <input
-              defaultValue={profile?.targetDate ?? ""}
+              min={minTargetDate}
               name="targetDate"
+              onChange={(event) => setTargetDate(event.target.value)}
               type="date"
+              value={targetDate}
             />
+            <div className="profile-date-shortcuts" aria-label="목표 날짜 빠른 조정">
+              <button
+                disabled={!canDecreaseTargetDate}
+                onClick={() => shiftTargetDate(-1)}
+                type="button"
+              >
+                -1개월
+              </button>
+              <button onClick={() => shiftTargetDate(1)} type="button">
+                +1개월
+              </button>
+              <button onClick={() => shiftTargetDate(2)} type="button">
+                +2개월
+              </button>
+              <button onClick={() => shiftTargetDate(3)} type="button">
+                +3개월
+              </button>
+            </div>
           </label>
         </div>
       </section>
@@ -438,7 +547,7 @@ function parseTargetDate(value: string) {
     return null;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toDateInputValue(new Date());
 
   if (targetDate <= today) {
     throw new Error("목표 날짜는 내일 이후로 선택해 주세요.");
@@ -472,4 +581,56 @@ function formatDateTime(value: string) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
+}
+
+function addMonthsToDateInput(date: Date, months: number) {
+  return toDateInputValue(addCalendarMonths(date, months));
+}
+
+function addCalendarMonths(date: Date, months: number) {
+  const result = new Date(date.getFullYear(), date.getMonth() + months, date.getDate());
+
+  if (result.getDate() !== date.getDate()) {
+    result.setDate(0);
+  }
+
+  return result;
+}
+
+function getTomorrowDateInput() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return toDateInputValue(tomorrow);
+}
+
+function toDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(value: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+function canShiftTargetDate(value: string, months: number, minTargetDate: string) {
+  const parsed = parseDateInput(value);
+
+  if (!parsed) {
+    return false;
+  }
+
+  return addMonthsToDateInput(parsed, months) >= minTargetDate;
 }
