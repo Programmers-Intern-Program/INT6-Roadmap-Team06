@@ -7,13 +7,16 @@ import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.jobrole.entity.JobRole;
 import com.back.coach.domain.jobrole.repository.JobRoleRepository;
 import com.back.coach.domain.roadmap.entity.LearningRoadmap;
+import com.back.coach.domain.roadmap.entity.RoadmapWeek;
 import com.back.coach.domain.roadmap.repository.LearningRoadmapRepository;
+import com.back.coach.domain.roadmap.repository.RoadmapWeekRepository;
 import com.back.coach.domain.user.entity.UserProfile;
 import com.back.coach.domain.user.entity.UserSkill;
 import com.back.coach.domain.user.repository.UserProfileRepository;
 import com.back.coach.domain.user.repository.UserSkillRepository;
 import com.back.coach.global.code.ContextType;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -45,6 +48,7 @@ public class ContextSnapshotPublisher {
     private final GithubAnalysisRepository githubAnalysisRepository;
     private final CapabilityDiagnosisRepository capabilityDiagnosisRepository;
     private final LearningRoadmapRepository learningRoadmapRepository;
+    private final RoadmapWeekRepository roadmapWeekRepository;
     private final ObjectMapper objectMapper;
 
     public ContextSnapshotPublisher(
@@ -55,6 +59,7 @@ public class ContextSnapshotPublisher {
             GithubAnalysisRepository githubAnalysisRepository,
             CapabilityDiagnosisRepository capabilityDiagnosisRepository,
             LearningRoadmapRepository learningRoadmapRepository,
+            RoadmapWeekRepository roadmapWeekRepository,
             ObjectMapper objectMapper
     ) {
         this.storageService = storageService;
@@ -64,6 +69,7 @@ public class ContextSnapshotPublisher {
         this.githubAnalysisRepository = githubAnalysisRepository;
         this.capabilityDiagnosisRepository = capabilityDiagnosisRepository;
         this.learningRoadmapRepository = learningRoadmapRepository;
+        this.roadmapWeekRepository = roadmapWeekRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -195,12 +201,39 @@ public class ContextSnapshotPublisher {
         root.put("progressAsOf", now.toString());
 
         ObjectNode rmNode = root.putObject("roadmap");
+        ArrayNode weeksNode = rmNode.putArray("weeks");
         if (roadmap.isPresent()) {
             LearningRoadmap r = roadmap.get();
             rmNode.put("totalWeeks", r.getTotalWeeks());
             rmNode.put("summary", r.getSummary());
+            for (RoadmapWeek week : roadmapWeekRepository.findByRoadmapIdOrderByWeekNumberAsc(r.getId())) {
+                ObjectNode weekNode = weeksNode.addObject();
+                weekNode.put("weekNumber", week.getWeekNumber());
+                weekNode.put("topic", week.getTopic());
+                weekNode.put("reason", week.getReasonText());
+                if (week.getEstimatedHours() != null) {
+                    weekNode.put("estimatedHours", week.getEstimatedHours());
+                }
+                weekNode.set("tasks", readArrayOrEmpty(week.getTasksJson()));
+                weekNode.set("materials", readArrayOrEmpty(week.getMaterialsJson()));
+            }
         }
 
         return objectMapper.writeValueAsString(root);
+    }
+
+    private ArrayNode readArrayOrEmpty(String json) {
+        if (json == null || json.isBlank()) {
+            return objectMapper.createArrayNode();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            if (node.isArray()) {
+                return (ArrayNode) node;
+            }
+        } catch (Exception ignored) {
+            // malformed v1 payload should not block snapshot publication
+        }
+        return objectMapper.createArrayNode();
     }
 }
