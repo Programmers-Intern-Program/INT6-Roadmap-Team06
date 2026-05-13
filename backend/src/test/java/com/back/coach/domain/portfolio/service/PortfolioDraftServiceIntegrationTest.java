@@ -118,7 +118,9 @@ class PortfolioDraftServiceIntegrationTest {
         assertThat(systemCaptor.getValue()).contains("한국어 JSON만 출력");
         assertThat(systemCaptor.getValue()).contains("coachConversationCandidates.userMemos");
         assertThat(systemCaptor.getValue()).contains("입력에 없는 URL, 책, 강의, 프로젝트명, 수치 성과를 새로 만들지 않습니다");
-        assertThat(maxTokensCaptor.getValue()).isEqualTo(4000);
+        assertThat(systemCaptor.getValue()).contains("각 content는 700~1000자");
+        assertThat(systemCaptor.getValue()).contains("draftPayload/data wrapper를 출력하지 않습니다");
+        assertThat(maxTokensCaptor.getValue()).isEqualTo(6000);
 
         String prompt = userPromptCaptor.getValue();
         assertThat(prompt).contains("Redis 공식 문서 정리 완료");
@@ -163,6 +165,31 @@ class PortfolioDraftServiceIntegrationTest {
         assertThat(response.draftPayload().variants())
                 .extracting(PortfolioDraftVariant::content)
                 .contains("수정된 완료 내용", "수정된 진행 내용", "수정된 전체 내용");
+    }
+
+    @Test
+    @DisplayName("createDraft: LLM 응답이 깨져도 저장 근거 기반 fallback 초안을 저장한다")
+    void createDraftFallsBackWhenLlmResponseIsInvalid() {
+        Long userId = createUser();
+        seedPortfolioFixture(userId);
+        given(llmClient.complete(anyString(), anyString(), anyInt()))
+                .willThrow(new ServiceException(ErrorCode.LLM_INVALID_RESPONSE));
+
+        PortfolioDraftDetailResponse response = portfolioDraftService.createDraft(userId);
+
+        assertThat(response.title()).isEqualTo("로드맵 기반 포트폴리오 초안");
+        assertThat(response.draftPayload().variants())
+                .extracting(PortfolioDraftVariant::key)
+                .containsExactly("DONE", "DONE_IN_PROGRESS", "ALL");
+        assertThat(response.draftPayload().variants().get(0).content())
+                .contains("Redis 공식 문서 정리 완료")
+                .doesNotContain("캐시 예제 진행 중");
+        assertThat(response.draftPayload().variants().get(1).content())
+                .contains("캐시 예제 진행 중")
+                .doesNotContain("아직 시작하지 않은 모니터링 개선");
+        assertThat(response.draftPayload().variants().get(2).content())
+                .contains("아직 시작하지 않은 모니터링 개선")
+                .contains("Coach가 추천한 다음 프로젝트 후보");
     }
 
     @Test

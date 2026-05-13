@@ -51,7 +51,7 @@ public class PortfolioDraftService {
 
     private static final int RECENT_GITHUB_ANALYSIS_LIMIT = 5;
     private static final int RECENT_CONVERSATION_LIMIT = 20;
-    private static final int PORTFOLIO_DRAFT_MAX_TOKENS = 4000;
+    private static final int PORTFOLIO_DRAFT_MAX_TOKENS = 6000;
     private static final Set<String> REQUIRED_VARIANT_KEYS = Set.of("DONE", "DONE_IN_PROGRESS", "ALL");
 
     private static final String SYSTEM_PROMPT = """
@@ -75,6 +75,12 @@ public class PortfolioDraftService {
                 {"key": "ALL", "label": "전체 계획 포함", "content": "markdown"}
               ]
             }
+
+            출력 길이:
+            - variants는 정확히 3개만 출력합니다.
+            - 각 content는 700~1000자 안에서 작성합니다.
+            - 세 content 전체를 합쳐 3500자를 넘기지 않습니다.
+            - JSON 밖 설명, markdown fence, 중첩된 draftPayload/data wrapper를 출력하지 않습니다.
 
             각 content에는 개요, 문제/목표, 진행한 학습과 구현, 사용 기술, 배운 점,
             다음 개선, 학습 메모 후보, 추천/예정 후보, 사용 근거 섹션을 포함합니다.
@@ -114,12 +120,7 @@ public class PortfolioDraftService {
 
     public PortfolioDraftDetailResponse createDraft(Long userId) {
         PortfolioSource source = buildSource(userId);
-        String raw = llmClient.complete(
-                PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY + "\n\n" + SYSTEM_PROMPT,
-                buildUserPrompt(source.sourcePayload()),
-                PORTFOLIO_DRAFT_MAX_TOKENS
-        );
-        PortfolioDraftGenerationResult generated = parseGeneration(raw);
+        PortfolioDraftGenerationResult generated = generateDraft(source.sourcePayload());
         PortfolioDraft draft = portfolioDraftRepository.save(PortfolioDraft.create(
                 userId,
                 generated.title(),
@@ -127,6 +128,29 @@ public class PortfolioDraftService {
                 writeJson(source.sourceRefs())
         ));
         return toDetailResponse(draft);
+    }
+
+    private PortfolioDraftGenerationResult generateDraft(ObjectNode sourcePayload) {
+        try {
+            String raw = llmClient.complete(
+                    PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY + "\n\n" + SYSTEM_PROMPT,
+                    buildUserPrompt(sourcePayload),
+                    PORTFOLIO_DRAFT_MAX_TOKENS
+            );
+            return parseGeneration(raw);
+        } catch (ServiceException e) {
+            if (isFallbackAllowed(e.getErrorCode())) {
+                return buildFallbackDraft(sourcePayload);
+            }
+            throw e;
+        }
+    }
+
+    private boolean isFallbackAllowed(ErrorCode errorCode) {
+        return errorCode == ErrorCode.LLM_INVALID_RESPONSE
+                || errorCode == ErrorCode.LLM_TIMEOUT
+                || errorCode == ErrorCode.LLM_RATE_LIMITED
+                || errorCode == ErrorCode.ANALYSIS_FAILED;
     }
 
     @Transactional(readOnly = true)
@@ -413,6 +437,188 @@ public class PortfolioDraftService {
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
         }
         return new PortfolioDraftGenerationResult(title, new PortfolioDraftPayload("PROJECT_WRITEUP", variants));
+    }
+
+    private PortfolioDraftGenerationResult buildFallbackDraft(ObjectNode sourcePayload) {
+        List<PortfolioDraftVariant> variants = List.of(
+                new PortfolioDraftVariant(
+                        "DONE",
+                        "완료 기반",
+                        buildFallbackContent(sourcePayload, true, false, false)
+                ),
+                new PortfolioDraftVariant(
+                        "DONE_IN_PROGRESS",
+                        "완료 + 진행 중",
+                        buildFallbackContent(sourcePayload, true, true, false)
+                ),
+                new PortfolioDraftVariant(
+                        "ALL",
+                        "전체 계획 포함",
+                        buildFallbackContent(sourcePayload, true, true, true)
+                )
+        );
+        return new PortfolioDraftGenerationResult(
+                "로드맵 기반 포트폴리오 초안",
+                new PortfolioDraftPayload("PROJECT_WRITEUP", variants)
+        );
+    }
+
+    private String buildFallbackContent(
+            JsonNode sourcePayload,
+            boolean includeDone,
+            boolean includeInProgress,
+            boolean includePlanned
+    ) {
+        StringBuilder sb = new StringBuilder();
+        JsonNode official = sourcePayload.path("officialStudyRecords");
+        JsonNode github = sourcePayload.path("github");
+        JsonNode coach = sourcePayload.path("coachConversationCandidates");
+
+        appendSection(sb, "개요");
+        appendLine(sb, "저장된 로드맵 진도와 GitHub 분석 근거를 바탕으로 정리한 프로젝트 기술서 초안입니다.");
+
+        appendSection(sb, "문제/목표");
+        appendLine(sb, "학습 로드맵에서 확인된 보완 주제를 실제 구현 경험과 정리 가능한 산출물로 연결하는 것이 목표입니다.");
+
+        appendSection(sb, "진행한 학습과 구현");
+        if (includeDone) {
+            appendWeekList(sb, "완료", official.path("done"));
+        }
+        if (includeInProgress) {
+            appendWeekList(sb, "진행 중", official.path("inProgress"));
+        }
+        if (includePlanned) {
+            appendWeekList(sb, "예정", official.path("planned"));
+        }
+        if (sb.charAt(sb.length() - 1) == '\n' && sb.toString().endsWith("진행한 학습과 구현\n")) {
+            appendLine(sb, "- 아직 확정된 학습 진도 근거가 없습니다.");
+        }
+
+        appendSection(sb, "사용 기술");
+        appendTextValues(sb, github.path("skills"), "- ");
+
+        appendSection(sb, "배운 점");
+        appendGithubEvidence(sb, github);
+
+        appendSection(sb, "다음 개선");
+        if (includePlanned) {
+            appendWeekList(sb, "다음 계획", official.path("planned"));
+            appendConversationList(sb, coach.path("coachRecommendations"));
+        } else {
+            appendLine(sb, "- 이 버전에서는 완료 또는 진행 중으로 확인된 항목만 사용했습니다.");
+        }
+
+        appendSection(sb, "학습 메모 후보");
+        appendConversationList(sb, coach.path("userMemos"));
+
+        appendSection(sb, "추천/예정 후보");
+        if (includePlanned) {
+            appendConversationList(sb, coach.path("coachRecommendations"));
+        } else {
+            appendLine(sb, "- 완료 사실로 확정하지 않고 전체 계획 포함 버전에서만 예정 후보로 다룹니다.");
+        }
+
+        appendSection(sb, "사용 근거");
+        appendLine(sb, "- 로드맵 진도: progress_logs + roadmap_weeks");
+        appendLine(sb, "- GitHub 근거: 최근 github_analyses 병합 결과");
+        appendLine(sb, "- Coach 대화: 학습 메모와 추천 후보로만 사용");
+        return sb.toString().trim();
+    }
+
+    private void appendSection(StringBuilder sb, String title) {
+        if (!sb.isEmpty()) {
+            sb.append("\n\n");
+        }
+        sb.append("## ").append(title).append('\n');
+    }
+
+    private void appendWeekList(StringBuilder sb, String label, JsonNode weeks) {
+        if (!weeks.isArray() || weeks.isEmpty()) {
+            return;
+        }
+        for (JsonNode week : weeks) {
+            String topic = text(week, "topic");
+            String note = text(week, "progressNote");
+            appendLine(sb, "- %s: %s%s".formatted(
+                    label,
+                    topic == null ? "주차 학습" : topic,
+                    note == null ? "" : " - " + note
+            ));
+            appendTaskTitles(sb, week.path("tasks"));
+            appendMaterialTitles(sb, week.path("materials"));
+        }
+    }
+
+    private void appendTaskTitles(StringBuilder sb, JsonNode tasks) {
+        if (!tasks.isArray()) {
+            return;
+        }
+        for (JsonNode task : tasks) {
+            String title = text(task, "title");
+            if (title != null && !title.isBlank()) {
+                appendLine(sb, "  - 실행: " + title);
+            }
+        }
+    }
+
+    private void appendMaterialTitles(StringBuilder sb, JsonNode materials) {
+        if (!materials.isArray()) {
+            return;
+        }
+        for (JsonNode material : materials) {
+            String title = text(material, "title");
+            String url = text(material, "url");
+            if (title != null && !title.isBlank()) {
+                appendLine(sb, "  - 자료: " + title + (url == null ? "" : " (" + url + ")"));
+            }
+        }
+    }
+
+    private void appendGithubEvidence(StringBuilder sb, JsonNode github) {
+        JsonNode summaries = github.path("repoSummaries");
+        if (summaries.isArray() && !summaries.isEmpty()) {
+            for (JsonNode summary : summaries) {
+                appendLine(sb, "- " + fallbackText(text(summary, "repoName"), "GitHub repo")
+                        + ": " + fallbackText(text(summary, "summary"), "저장된 GitHub 분석 요약"));
+            }
+        }
+        JsonNode evidences = github.path("evidences");
+        if (evidences.isArray() && !evidences.isEmpty()) {
+            for (JsonNode evidence : evidences) {
+                appendLine(sb, "- 근거: " + fallbackText(text(evidence, "summary"), text(evidence, "source")));
+            }
+        }
+    }
+
+    private void appendTextValues(StringBuilder sb, JsonNode values, String prefix) {
+        if (!values.isArray() || values.isEmpty()) {
+            appendLine(sb, "- 저장된 기술 근거가 부족합니다.");
+            return;
+        }
+        for (JsonNode value : values) {
+            appendLine(sb, prefix + value.asText());
+        }
+    }
+
+    private void appendConversationList(StringBuilder sb, JsonNode conversations) {
+        if (!conversations.isArray() || conversations.isEmpty()) {
+            appendLine(sb, "- 후보로 사용할 Coach 대화가 없습니다.");
+            return;
+        }
+        for (JsonNode conversation : conversations) {
+            String message = text(conversation, "messageText");
+            if (message != null && !message.isBlank()) {
+                appendLine(sb, "- " + message);
+            }
+        }
+    }
+
+    private void appendLine(StringBuilder sb, String line) {
+        sb.append(line).append('\n');
+    }
+
+    private String fallbackText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
 
     private PortfolioDraftDetailResponse toDetailResponse(PortfolioDraft draft) {
