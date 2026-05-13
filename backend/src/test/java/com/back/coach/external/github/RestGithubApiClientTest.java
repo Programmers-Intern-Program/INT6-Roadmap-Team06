@@ -145,7 +145,7 @@ class RestGithubApiClientTest {
     // ── listUserRepos ──
 
     @Test
-    @DisplayName("listUserRepos — 저장소 목록 파싱")
+    @DisplayName("listUserRepos — 저장소 목록 파싱 + affiliation에 organization_member 포함")
     void listUserRepos_parsesRepoList() {
         wireMock.stubFor(get(urlPathEqualTo("/user/repos"))
                 .willReturn(aResponse()
@@ -162,6 +162,64 @@ class RestGithubApiClientTest {
         assertThat(repos).hasSize(2);
         assertThat(repos.get(0).fullName()).isEqualTo("user/repo-a");
         assertThat(repos.get(1).language()).isEqualTo("Python");
+        wireMock.verify(getRequestedFor(urlPathEqualTo("/user/repos"))
+                .withQueryParam("affiliation", equalTo("owner,collaborator,organization_member"))
+                .withQueryParam("per_page", equalTo("100")));
+    }
+
+    @Test
+    @DisplayName("listUserRepos — Link 헤더 rel=\"next\" 따라 모든 페이지 fetch")
+    void listUserRepos_followsLinkHeaderPagination() {
+        String base = "http://127.0.0.1:" + wireMock.port();
+        // page 1: 2 repos + Link to page 2
+        wireMock.stubFor(get(urlPathEqualTo("/user/repos"))
+                .withQueryParam("affiliation", equalTo("owner,collaborator,organization_member"))
+                .withQueryParam("per_page", equalTo("100"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withHeader("Link",
+                                "<" + base + "/user/repos?page=2&per_page=100>; rel=\"next\", "
+                                + "<" + base + "/user/repos?page=2&per_page=100>; rel=\"last\"")
+                        .withBody("""
+                                [
+                                  {"node_id":"N1","full_name":"user/repo-a","html_url":"https://github.com/user/repo-a","language":"Java","default_branch":"main","fork":false},
+                                  {"node_id":"N2","full_name":"user/repo-b","html_url":"https://github.com/user/repo-b","language":"Python","default_branch":"main","fork":false}
+                                ]
+                                """)));
+        // page 2: 1 repo + no Link rel="next" (마지막 페이지)
+        wireMock.stubFor(get(urlPathEqualTo("/user/repos"))
+                .withQueryParam("page", equalTo("2"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                [
+                                  {"node_id":"N3","full_name":"org/repo-c","html_url":"https://github.com/org/repo-c","language":"Go","default_branch":"main","fork":false}
+                                ]
+                                """)));
+
+        List<GithubRepoDto> repos = client.listUserRepos("ghp_token");
+
+        assertThat(repos).hasSize(3);
+        assertThat(repos).extracting(GithubRepoDto::fullName)
+                .containsExactly("user/repo-a", "user/repo-b", "org/repo-c");
+    }
+
+    @Test
+    @DisplayName("listUserRepos — Link 헤더 없으면 1 페이지로 종료")
+    void listUserRepos_noLinkHeader_stopsAtSinglePage() {
+        wireMock.stubFor(get(urlPathEqualTo("/user/repos"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                [
+                                  {"node_id":"N1","full_name":"user/repo-a","html_url":"https://github.com/user/repo-a","language":"Java","default_branch":"main","fork":false}
+                                ]
+                                """)));
+
+        List<GithubRepoDto> repos = client.listUserRepos("ghp_token");
+
+        assertThat(repos).hasSize(1);
+        wireMock.verify(1, getRequestedFor(urlPathEqualTo("/user/repos")));
     }
 
     // ── getReadme ──
