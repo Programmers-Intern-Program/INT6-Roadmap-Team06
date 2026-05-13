@@ -11,9 +11,13 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -78,11 +82,31 @@ public class RestGithubApiClient implements GithubApiClient {
 
     @Override
     public List<GithubRepoDto> listUserRepos(String accessToken) {
+        // affiliation에 organization_member 포함: collaborator로 명시 추가되지 않은 org repo도 노출.
+        // per_page=100 + Link header rel="next"로 페이지 순회. 사용자별 ~1000 repo까지 안전 처리.
         URI uri = UriComponentsBuilder.fromUriString("/user/repos")
-                .queryParam("affiliation", "owner,collaborator")
+                .queryParam("affiliation", "owner,collaborator,organization_member")
                 .queryParam("per_page", 100)
                 .build().toUri();
-        return getList(uri, accessToken, new ParameterizedTypeReference<>() {});
+        List<GithubRepoDto> all = new ArrayList<>();
+        for (int page = 0; page < MAX_REPO_PAGES && uri != null; page++) {
+            ResponseEntity<List<GithubRepoDto>> response = getListWithHeaders(
+                    uri, accessToken, new ParameterizedTypeReference<>() {});
+            List<GithubRepoDto> body = response.getBody();
+            if (body != null) all.addAll(body);
+            uri = nextPageUri(response.getHeaders().getFirst(HttpHeaders.LINK));
+        }
+        return all;
+    }
+
+    private static final int MAX_REPO_PAGES = 10;
+    private static final Pattern NEXT_LINK_PATTERN =
+            Pattern.compile("<([^>]+)>\\s*;\\s*rel=\"next\"");
+
+    private static URI nextPageUri(String linkHeader) {
+        if (linkHeader == null || linkHeader.isBlank()) return null;
+        Matcher m = NEXT_LINK_PATTERN.matcher(linkHeader);
+        return m.find() ? URI.create(m.group(1)) : null;
     }
 
     @Override
@@ -193,6 +217,30 @@ public class RestGithubApiClient implements GithubApiClient {
             throw e;
         } catch (RuntimeException e) {
             log.warn("GitHub API call failed path={} error={}", path, e.getMessage());
+            throw new ServiceException(classify(e), e.getMessage());
+        }
+    }
+
+    private <T> ResponseEntity<List<T>> getListWithHeaders(
+            URI uri, String accessToken, ParameterizedTypeReference<List<T>> type) {
+        try {
+            return apiClient.get()
+                    .uri(uri)
+                    .headers(h -> h.setBearerAuth(accessToken))
+                    .retrieve()
+                    .onStatus(s -> s.value() == HttpStatus.TOO_MANY_REQUESTS.value(),
+                            (req, res) -> { throw new ServiceException(ErrorCode.GITHUB_RATE_LIMITED); })
+                    .onStatus(s -> s.value() == NOT_FOUND,
+                            (req, res) -> { throw new ServiceException(ErrorCode.RESOURCE_NOT_FOUND); })
+                    .onStatus(s -> s.isError(), (req, res) -> {
+                        log.warn("GitHub API list error: status={} uri={}", res.getStatusCode(), uri);
+                        throw new ServiceException(ErrorCode.GITHUB_API_ERROR);
+                    })
+                    .toEntity(type);
+        } catch (ServiceException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            log.warn("GitHub API list call failed uri={} error={}", uri, e.getMessage());
             throw new ServiceException(classify(e), e.getMessage());
         }
     }
