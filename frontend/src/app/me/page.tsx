@@ -2,13 +2,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthRequiredPanel } from "@/components/auth-required-panel";
-import { api } from "@/lib/api";
-
-type Me = { userId: number; email: string; authProvider: string };
+import { ApiError } from "@/lib/api";
+import {
+  getCurrentUser,
+  logoutSession,
+  refreshSession,
+  type CurrentUser
+} from "@/features/auth/api";
 
 export default function MePage() {
   const router = useRouter();
-  const [me, setMe] = useState<Me | null>(null);
+  const [me, setMe] = useState<CurrentUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -20,16 +24,20 @@ export default function MePage() {
     }
     setError(null);
     setAuthRequired(false);
-    const res = await api<Me>("/api/v1/auth/me");
-    if (res.ok && res.data) {
-      setMe(res.data);
-    } else if (res.status === 401) {
+    try {
+      setMe(await getCurrentUser());
+    } catch (caught) {
       setMe(null);
-      setAuthRequired(true);
-    } else {
-      setError(`HTTP ${res.status}`);
+      if (caught instanceof ApiError && caught.status === 401) {
+        setAuthRequired(true);
+      } else if (caught instanceof ApiError) {
+        setError(`HTTP ${caught.status}`);
+      } else {
+        setError("계정 정보를 불러오지 못했습니다.");
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -42,20 +50,25 @@ export default function MePage() {
   }, [load]);
 
   const refresh = async () => {
-    const res = await api("/api/v1/auth/refresh", { method: "POST" });
-    if (res.ok) await load();
-    else if (res.status === 401) {
-      setError(null);
-      setAuthRequired(true);
-    }
-    else {
-      setAuthRequired(false);
-      setError(`refresh 실패: HTTP ${res.status}`);
+    try {
+      await refreshSession();
+      await load();
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        setError(null);
+        setAuthRequired(true);
+      } else if (caught instanceof ApiError) {
+        setAuthRequired(false);
+        setError(`refresh 실패: HTTP ${caught.status}`);
+      } else {
+        setAuthRequired(false);
+        setError("refresh 실패");
+      }
     }
   };
 
   const logout = async () => {
-    await api("/api/v1/auth/logout", { method: "POST" });
+    await logoutSession();
     router.push("/");
   };
 

@@ -23,5 +23,6 @@ export type ApiErrorBody = {
 
 export type ApiRequestOptions = Omit<RequestInit, "body" | "method"> & {
   body?: unknown;
+  skipAuthRefresh?: boolean;
   token?: string;
 };

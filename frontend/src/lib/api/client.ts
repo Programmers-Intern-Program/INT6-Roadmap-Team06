@@ -19,8 +19,11 @@ type ApiErrorParams = {
 };
 
 const JSON_CONTENT_TYPE = "application/json";
+const AUTH_REFRESH_PATH = "/api/v1/auth/refresh";
+const AUTH_LOGOUT_PATH = "/api/v1/auth/logout";
 
 let tokenProvider: ApiTokenProvider | null = null;
+let refreshPromise: Promise<void> | null = null;
 
 export class ApiError extends Error {
   readonly code?: string;
@@ -64,16 +67,42 @@ async function request<TData>(
   path: string,
   options: ApiRequestOptions = {}
 ) {
-  const { body, token, headers, credentials = "include", ...requestInit } = options;
-  const resolvedToken = token ?? (await tokenProvider?.()) ?? undefined;
-  const response = await fetch(resolveApiUrl(path), {
-    ...requestInit,
-    body: serializeBody(body),
-    credentials,
-    headers: buildHeaders(headers, body, resolvedToken),
-    method
-  });
-  const payload = await parseJson(response);
+  const {
+    body,
+    skipAuthRefresh = false,
+    token,
+    headers,
+    credentials = "include",
+    ...requestInit
+  } = options;
+  const requestBody = serializeBody(body);
+  const send = async () => {
+    const resolvedToken = token ?? (await tokenProvider?.()) ?? undefined;
+
+    return fetch(resolveApiUrl(path), {
+      ...requestInit,
+      body: requestBody,
+      credentials,
+      headers: buildHeaders(headers, body, resolvedToken),
+      method
+    });
+  };
+
+  let response = await send();
+  let payload = await parseJson(response);
+
+  if (
+    response.status === 401 &&
+    !skipAuthRefresh &&
+    shouldAttemptAuthRefresh(path, credentials)
+  ) {
+    const refreshed = await refreshAccessToken();
+
+    if (refreshed) {
+      response = await send();
+      payload = await parseJson(response);
+    }
+  }
 
   if (!response.ok) {
     throw new ApiError({
@@ -128,6 +157,43 @@ function isNativeBody(body: unknown): body is BodyInit {
     (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) ||
     (typeof ArrayBuffer !== "undefined" && body instanceof ArrayBuffer)
   );
+}
+
+function shouldAttemptAuthRefresh(path: string, credentials: RequestCredentials) {
+  const url = resolveApiUrl(path);
+
+  return (
+    credentials !== "omit" &&
+    !url.endsWith(AUTH_REFRESH_PATH) &&
+    !url.endsWith(AUTH_LOGOUT_PATH)
+  );
+}
+
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    refreshPromise = fetch(resolveApiUrl(AUTH_REFRESH_PATH), {
+      credentials: "include",
+      headers: {
+        Accept: JSON_CONTENT_TYPE
+      },
+      method: "POST"
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Auth refresh failed");
+        }
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  try {
+    await refreshPromise;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function parseJson(response: Response) {

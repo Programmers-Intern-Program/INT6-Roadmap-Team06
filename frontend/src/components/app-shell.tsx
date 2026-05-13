@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
-import { authNavigationItem, isNavigationItemActive, navigationItems } from "@/config/routes";
+import { isNavigationItemActive, navigationItems } from "@/config/routes";
+import { getCurrentUser } from "@/features/auth/api";
 import { CoachWidget } from "@/features/coach/coach-widget";
 
 type AppShellProps = {
@@ -14,6 +16,29 @@ type AppShellProps = {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const isLoginPage = pathname === "/login";
+  const [authState, setAuthState] = useState<"checking" | "authenticated" | "anonymous">(
+    "checking"
+  );
+
+  useEffect(() => {
+    let ignore = false;
+
+    getCurrentUser()
+      .then(() => {
+        if (!ignore) {
+          setAuthState("authenticated");
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setAuthState("anonymous");
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [pathname]);
 
   if (isLoginPage) {
     return <>{children}</>;
@@ -43,18 +68,35 @@ export function AppShell({ children }: AppShellProps) {
           })}
         </nav>
         <div className="topbar-actions">
-          <Link
-            aria-current={isNavigationItemActive(authNavigationItem, pathname) ? "page" : undefined}
-            className="nav-link"
-            data-active={isNavigationItemActive(authNavigationItem, pathname)}
-            href={authNavigationItem.href}
-          >
-            {authNavigationItem.label}
-          </Link>
+          <AuthStatusLink authState={authState} pathname={pathname} />
         </div>
       </header>
       <main className="page">{children}</main>
       <CoachWidget />
     </div>
+  );
+}
+
+type AuthStatusLinkProps = {
+  authState: "checking" | "authenticated" | "anonymous";
+  pathname: string;
+};
+
+function AuthStatusLink({ authState, pathname }: AuthStatusLinkProps) {
+  const item =
+    authState === "anonymous"
+      ? { exact: true, href: "/login", label: "로그인" }
+      : { exact: true, href: "/me", label: authState === "checking" ? "계정" : "내 계정" };
+  const isActive = isNavigationItemActive(item, pathname);
+
+  return (
+    <Link
+      aria-current={isActive ? "page" : undefined}
+      className="nav-link"
+      data-active={isActive}
+      href={item.href}
+    >
+      {item.label}
+    </Link>
   );
 }
