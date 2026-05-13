@@ -260,6 +260,20 @@ export function GithubAnalysisView({
             <dd>{formatDateTime(analysis.createdAt)}</dd>
           </div>
         </dl>
+        {analysis.repoSummaries.length > 0 && (
+          <div className="github-analysis-source-repos">
+            <p className="github-analysis-source-repos-label">
+              분석에 사용된 저장소 ({analysis.repoSummaries.length})
+            </p>
+            <div className="github-analysis-source-repos-chips">
+              {analysis.repoSummaries.map((repo) => (
+                <span key={repo.repoId} className="github-analysis-source-repo-chip">
+                  {repo.repoName}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="github-analysis-grid">

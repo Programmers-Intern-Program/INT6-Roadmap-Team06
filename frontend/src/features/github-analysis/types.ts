@@ -93,5 +93,6 @@ export type GithubAnalysisSummary = {
   githubAnalysisId: string;
   version: number;
   summary: string;
+  repoNames: string[];
   createdAt: string;
 };
