@@ -39,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @IntegrationTest
@@ -86,19 +87,23 @@ class PortfolioDraftServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("createDraft: 로드맵 진도, GitHub 분석, Coach 후보를 근거로 3개 초안을 저장한다")
-    void createDraftBuildsSourcesAndSavesThreeVariants() {
+    @DisplayName("createDraft: LLM 호출 없이 3개 빈 초안 틀과 sourceRefs를 저장한다")
+    void createDraftSavesEmptyVariantsWithoutLlmCall() {
         Long userId = createUser();
         PortfolioFixture fixture = seedPortfolioFixture(userId);
-        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(generationResponse());
 
         PortfolioDraftDetailResponse response = portfolioDraftService.createDraft(userId);
 
-        assertThat(response.title()).isEqualTo("백엔드 성장 포트폴리오 초안");
+        assertThat(response.title()).isEqualTo("포트폴리오 초안");
         assertThat(response.draftPayload().format()).isEqualTo("PROJECT_WRITEUP");
         assertThat(response.draftPayload().variants())
                 .extracting(PortfolioDraftVariant::key)
                 .containsExactly("DONE", "DONE_IN_PROGRESS", "ALL");
+        assertThat(response.draftPayload().variants())
+                .allSatisfy(variant -> {
+                    assertThat(variant.content()).isEmpty();
+                    assertThat(variant.generated()).isFalse();
+                });
 
         assertThat(portfolioDraftService.listDrafts(userId)).hasSize(1);
         assertThat(refObjects(response, "githubAnalyses"))
@@ -110,6 +115,22 @@ class PortfolioDraftServiceIntegrationTest {
                 .contains(String.valueOf(fixture.doneProgressLogId()), String.valueOf(fixture.inProgressProgressLogId()));
         assertThat(refStrings(response, "coachConversationIds"))
                 .contains(String.valueOf(fixture.userConversationId()), String.valueOf(fixture.coachConversationId()));
+        verify(llmClient, never()).complete(anyString(), anyString(), anyInt());
+    }
+
+    @Test
+    @DisplayName("generateVariant: DONE은 완료 근거만 prompt에 넣고 해당 탭만 생성한다")
+    void generateVariantDoneUsesOnlyDoneEvidence() {
+        Long userId = createUser();
+        seedPortfolioFixture(userId);
+        PortfolioDraftDetailResponse draft = portfolioDraftService.createDraft(userId);
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(singleVariantResponse(
+                "완료 기반 포트폴리오 초안",
+                "Redis 공식 문서 정리를 통해 캐시 적용 전 기준을 정리했습니다."
+        ));
+
+        PortfolioDraftDetailResponse response =
+                portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "DONE");
 
         ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> userPromptCaptor = ArgumentCaptor.forClass(String.class);
@@ -118,7 +139,7 @@ class PortfolioDraftServiceIntegrationTest {
         assertThat(systemCaptor.getValue()).contains("JSON-only output assistant for Korean users");
         assertThat(systemCaptor.getValue()).contains("coachConversationCandidates.userMemos");
         assertThat(systemCaptor.getValue()).contains("Do not invent URLs");
-        assertThat(systemCaptor.getValue()).contains("sectionsByVariant");
+        assertThat(systemCaptor.getValue()).contains("sections");
         assertThat(systemCaptor.getValue()).contains("Do not output fields named variants");
         assertThat(systemCaptor.getValue()).contains("project write-up");
         assertThat(systemCaptor.getValue()).contains("not a study checklist");
@@ -128,15 +149,14 @@ class PortfolioDraftServiceIntegrationTest {
         assertThat(maxTokensCaptor.getValue()).isEqualTo(6000);
 
         String prompt = userPromptCaptor.getValue();
-        assertThat(prompt).contains("sectionsByVariant");
+        assertThat(prompt).contains("Create only the DONE portfolio draft variant");
         assertThat(prompt).contains("project write-up draft");
         assertThat(prompt).contains("not a study checklist");
         assertThat(prompt).contains("Redis 공식 문서 정리 완료");
-        assertThat(prompt).contains("캐시 예제 진행 중");
-        assertThat(prompt).contains("장애 대응 회고 작성");
-        assertThat(prompt).contains("아직 시작하지 않은 모니터링 개선");
-        assertThat(prompt).contains("사용자가 직접 말한 학습 메모 후보");
-        assertThat(prompt).contains("Coach가 추천한 다음 프로젝트 후보");
+        assertThat(prompt).doesNotContain("캐시 예제 진행 중");
+        assertThat(prompt).doesNotContain("장애 대응 회고 작성");
+        assertThat(prompt).doesNotContain("아직 시작하지 않은 모니터링 개선");
+        assertThat(prompt).doesNotContain("Coach가 추천한 다음 프로젝트 후보");
         assertThat(prompt).contains("최신 Spring API 개선 요약");
         assertThat(prompt).doesNotContain("오래된 Spring API 요약");
 
@@ -144,17 +164,112 @@ class PortfolioDraftServiceIntegrationTest {
         String inProgressContent = response.draftPayload().variants().get(1).content();
         String allContent = response.draftPayload().variants().get(2).content();
         assertThat(doneContent)
-                .contains("## 개요\nRedis 공식 문서 정리를 통해", "## 구현 내용", "## 기술적 판단과 배운 점", "Redis 공식 문서 정리 완료")
-                .doesNotContain("## 개요\n-")
-                .doesNotContain("## 진행한 학습과 구현")
-                .doesNotContain("캐시 예제 진행 중")
-                .doesNotContain("아직 시작하지 않은 모니터링 개선");
-        assertThat(inProgressContent)
-                .contains("캐시 예제 진행 중")
-                .doesNotContain("아직 시작하지 않은 모니터링 개선");
-        assertThat(allContent)
-                .contains("아직 시작하지 않은 모니터링 개선")
-                .contains("Coach가 추천한 다음 프로젝트 후보");
+                .contains("## 개요\nRedis 공식 문서 정리를 통해", "## 구현 내용", "## 기술적 판단과 배운 점");
+        assertThat(response.draftPayload().variants().get(0).generated()).isTrue();
+        assertThat(inProgressContent).isEmpty();
+        assertThat(allContent).isEmpty();
+    }
+
+    @Test
+    @DisplayName("generateVariant: DONE_IN_PROGRESS는 완료와 진행 중 근거만 사용한다")
+    void generateVariantDoneInProgressExcludesPlannedAndCoachRecommendations() {
+        Long userId = createUser();
+        seedPortfolioFixture(userId);
+        PortfolioDraftDetailResponse draft = portfolioDraftService.createDraft(userId);
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(singleVariantResponse(
+                "진행 중 포함 포트폴리오 초안",
+                "완료한 Redis 정리와 캐시 예제 진행 중 기록을 연결했습니다."
+        ));
+
+        PortfolioDraftDetailResponse response =
+                portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "DONE_IN_PROGRESS");
+
+        ArgumentCaptor<String> userPromptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).complete(anyString(), userPromptCaptor.capture(), anyInt());
+        String prompt = userPromptCaptor.getValue();
+        assertThat(prompt).contains("Create only the DONE_IN_PROGRESS portfolio draft variant");
+        assertThat(prompt).contains("Redis 공식 문서 정리 완료");
+        assertThat(prompt).contains("캐시 예제 진행 중");
+        assertThat(prompt).doesNotContain("아직 시작하지 않은 모니터링 개선");
+        assertThat(prompt).doesNotContain("Coach가 추천한 다음 프로젝트 후보");
+
+        assertThat(response.draftPayload().variants().get(0).content()).isEmpty();
+        assertThat(response.draftPayload().variants().get(1).content())
+                .contains("## 개요\n완료한 Redis 정리와 캐시 예제 진행 중 기록");
+        assertThat(response.draftPayload().variants().get(1).generated()).isTrue();
+        assertThat(response.draftPayload().variants().get(2).content()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("generateVariant: ALL은 예정과 Coach 추천을 미래 계획 근거로 포함한다")
+    void generateVariantAllIncludesPlannedAndCoachRecommendationsAsFuturePlans() {
+        Long userId = createUser();
+        seedPortfolioFixture(userId);
+        PortfolioDraftDetailResponse draft = portfolioDraftService.createDraft(userId);
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(singleVariantResponse(
+                "전체 계획 포트폴리오 초안",
+                "완료, 진행 중, 예정 후보를 구분해 운영 백엔드 성장 흐름으로 정리했습니다."
+        ));
+
+        PortfolioDraftDetailResponse response =
+                portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "ALL");
+
+        ArgumentCaptor<String> userPromptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).complete(anyString(), userPromptCaptor.capture(), anyInt());
+        String prompt = userPromptCaptor.getValue();
+        assertThat(prompt).contains("Create only the ALL portfolio draft variant");
+        assertThat(prompt).contains("Planned and recommendation items must be future plans only");
+        assertThat(prompt).contains("Redis 공식 문서 정리 완료");
+        assertThat(prompt).contains("캐시 예제 진행 중");
+        assertThat(prompt).contains("아직 시작하지 않은 모니터링 개선");
+        assertThat(prompt).contains("Coach가 추천한 다음 프로젝트 후보");
+
+        assertThat(response.draftPayload().variants().get(0).content()).isEmpty();
+        assertThat(response.draftPayload().variants().get(1).content()).isEmpty();
+        assertThat(response.draftPayload().variants().get(2).content())
+                .contains("## 개요\n완료, 진행 중, 예정 후보를 구분");
+        assertThat(response.draftPayload().variants().get(2).generated()).isTrue();
+    }
+
+    @Test
+    @DisplayName("generateVariant: 이미 생성된 탭과 다른 탭의 편집 내용은 덮어쓰지 않는다")
+    void generateVariantDoesNotOverwriteExistingVariantContent() {
+        Long userId = createUser();
+        seedPortfolioFixture(userId);
+        PortfolioDraftDetailResponse draft = portfolioDraftService.createDraft(userId);
+        PortfolioDraftPayload editedPayload = new PortfolioDraftPayload(
+                "PROJECT_WRITEUP",
+                List.of(
+                        new PortfolioDraftVariant("DONE", "완료 기반", "사용자가 직접 쓴 완료 초안", true),
+                        new PortfolioDraftVariant("DONE_IN_PROGRESS", "완료 + 진행 중", "", false),
+                        new PortfolioDraftVariant("ALL", "전체 계획 포함", "전체 탭 편집 내용", true)
+                )
+        );
+        portfolioDraftService.updateDraft(userId, Long.valueOf(draft.draftId()),
+                new PortfolioDraftUpdateRequest(draft.title(), editedPayload));
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(singleVariantResponse(
+                "진행 중 포함 포트폴리오 초안",
+                "진행 중 탭 새 내용"
+        ));
+
+        PortfolioDraftDetailResponse response =
+                portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "DONE_IN_PROGRESS");
+
+        assertThat(response.draftPayload().variants())
+                .extracting(PortfolioDraftVariant::content)
+                .containsExactly(
+                        "사용자가 직접 쓴 완료 초안",
+                        response.draftPayload().variants().get(1).content(),
+                        "전체 탭 편집 내용"
+                );
+        assertThat(response.draftPayload().variants().get(1).content())
+                .contains("진행 중 탭 새 내용");
+
+        PortfolioDraftDetailResponse noOverwrite =
+                portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "DONE");
+        assertThat(noOverwrite.draftPayload().variants().get(0).content())
+                .isEqualTo("사용자가 직접 쓴 완료 초안");
+        verify(llmClient).complete(anyString(), anyString(), anyInt());
     }
 
     @Test
@@ -192,41 +307,43 @@ class PortfolioDraftServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("createDraft: LLM 응답이 깨져도 저장 근거 기반 fallback 초안을 저장한다")
-    void createDraftFallsBackWhenLlmResponseIsInvalid() {
+    @DisplayName("generateVariant: LLM 응답이 깨져도 해당 탭만 fallback 초안을 저장한다")
+    void generateVariantFallsBackWhenLlmResponseIsInvalid() {
         Long userId = createUser();
         seedPortfolioFixture(userId);
+        PortfolioDraftDetailResponse draft = portfolioDraftService.createDraft(userId);
         given(llmClient.complete(anyString(), anyString(), anyInt()))
                 .willThrow(new ServiceException(ErrorCode.LLM_INVALID_RESPONSE));
 
-        PortfolioDraftDetailResponse response = portfolioDraftService.createDraft(userId);
+        PortfolioDraftDetailResponse response =
+                portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "ALL");
 
         assertThat(response.title()).isEqualTo("로드맵 기반 포트폴리오 초안");
         assertThat(response.draftPayload().variants())
                 .extracting(PortfolioDraftVariant::key)
                 .containsExactly("DONE", "DONE_IN_PROGRESS", "ALL");
         assertThat(response.draftPayload().variants().get(0).content())
+                .isEmpty();
+        assertThat(response.draftPayload().variants().get(1).content())
+                .isEmpty();
+        assertThat(response.draftPayload().variants().get(2).content())
                 .contains("## 구현 내용", "## 기술적 판단과 배운 점")
                 .contains("Redis 공식 문서 정리 완료")
-                .doesNotContain("## 진행한 학습과 구현")
-                .doesNotContain("## 배운 점")
-                .doesNotContain("캐시 예제 진행 중");
-        assertThat(response.draftPayload().variants().get(1).content())
                 .contains("캐시 예제 진행 중")
-                .doesNotContain("아직 시작하지 않은 모니터링 개선");
-        assertThat(response.draftPayload().variants().get(2).content())
                 .contains("아직 시작하지 않은 모니터링 개선")
                 .contains("Coach가 추천한 다음 프로젝트 후보");
     }
 
     @Test
-    @DisplayName("createDraft: LLM section 일부가 비어도 markdown 섹션을 안전하게 조립한다")
-    void createDraftRendersEmptySectionsWithPlaceholder() {
+    @DisplayName("generateVariant: LLM section 일부가 비어도 markdown 섹션을 안전하게 조립한다")
+    void generateVariantRendersEmptySectionsWithPlaceholder() {
         Long userId = createUser();
         seedPortfolioFixture(userId);
+        PortfolioDraftDetailResponse draft = portfolioDraftService.createDraft(userId);
         given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(partialSectionsResponse());
 
-        PortfolioDraftDetailResponse response = portfolioDraftService.createDraft(userId);
+        PortfolioDraftDetailResponse response =
+                portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "DONE");
 
         assertThat(response.draftPayload().variants())
                 .extracting(PortfolioDraftVariant::key)
@@ -236,6 +353,19 @@ class PortfolioDraftServiceIntegrationTest {
                 .contains("## 문제/목표\n작성 가능한 근거가 없습니다.")
                 .contains("## 구현 내용\n- 작성 가능한 근거가 없습니다.")
                 .doesNotContain("## 개요\n-");
+        assertThat(response.draftPayload().variants().get(1).content()).isEmpty();
+        assertThat(response.draftPayload().variants().get(2).content()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("generateVariant: 지원하지 않는 variantKey는 INVALID_INPUT")
+    void generateVariantRejectsInvalidVariantKey() {
+        Long userId = createUser();
+        PortfolioDraftDetailResponse draft = portfolioDraftService.createDraft(userId);
+
+        assertThatThrownBy(() -> portfolioDraftService.generateVariant(userId, Long.valueOf(draft.draftId()), "UNKNOWN"))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
 
     @Test
@@ -254,6 +384,26 @@ class PortfolioDraftServiceIntegrationTest {
         ));
 
         assertThatThrownBy(() -> portfolioDraftService.getDraft(otherUserId, draft.getId()))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESOURCE_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("generateVariant: 다른 사용자의 초안은 생성할 수 없다")
+    void generateVariantRejectsOtherUser() throws Exception {
+        Long ownerId = createUser();
+        Long otherUserId = createUser();
+        PortfolioDraft draft = portfolioDraftRepository.save(PortfolioDraft.create(
+                ownerId,
+                "소유자 초안",
+                objectMapper.writeValueAsString(new PortfolioDraftPayload(
+                        "PROJECT_WRITEUP",
+                        List.of(new PortfolioDraftVariant("DONE", "완료 기반", "", false))
+                )),
+                "{}"
+        ));
+
+        assertThatThrownBy(() -> portfolioDraftService.generateVariant(otherUserId, draft.getId(), "DONE"))
                 .isInstanceOf(ServiceException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESOURCE_NOT_FOUND);
     }
@@ -480,6 +630,25 @@ class PortfolioDraftServiceIntegrationTest {
         return Timestamp.from(instant);
     }
 
+    private String singleVariantResponse(String title, String overview) {
+        return """
+                {
+                  "title": "%s",
+                  "sections": {
+                    "overview": ["%s"],
+                    "problemGoal": ["로드맵 진도를 프로젝트 기술서 맥락으로 재구성하는 것이 목표입니다."],
+                    "studyAndImplementation": ["선택한 초안 버전의 근거만 사용해 구현 경험 후보를 정리했습니다."],
+                    "techStack": ["Java", "Spring Boot"],
+                    "lessons": ["GitHub 분석 근거를 함께 보며 기술 선택과 다음 개선 지점을 분리했습니다."],
+                    "nextImprovements": ["아직 확정되지 않은 항목은 다음 개선 후보로 남깁니다."],
+                    "memoCandidates": ["학습 메모 후보는 완료 사실이 아닌 보조 자료로 둡니다."],
+                    "recommendationCandidates": ["추천 후보는 미래 계획으로만 정리합니다."],
+                    "sourceSummary": ["선택한 variant 범위의 근거만 사용했습니다."]
+                  }
+                }
+                """.formatted(title, overview);
+    }
+
     private String generationResponse() {
         return """
                 {
@@ -527,16 +696,8 @@ class PortfolioDraftServiceIntegrationTest {
         return """
                 {
                   "title": "부분 section 포트폴리오 초안",
-                  "sectionsByVariant": {
-                    "DONE": {
-                      "overview": ["완료한 Redis 문서 정리를 중심으로 기술합니다."]
-                    },
-                    "DONE_IN_PROGRESS": {
-                      "overview": ["진행 중인 캐시 예제를 함께 기술합니다."]
-                    },
-                    "ALL": {
-                      "overview": ["예정 후보까지 전체 계획으로 기술합니다."]
-                    }
+                  "sections": {
+                    "overview": ["완료한 Redis 문서 정리를 중심으로 기술합니다."]
                   }
                 }
                 """;

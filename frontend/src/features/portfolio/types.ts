@@ -4,6 +4,7 @@ export type PortfolioDraftVariant = {
   key: PortfolioDraftVariantKey | string;
   label: string;
   content: string;
+  generated?: boolean | null;
 };
 
 export type PortfolioDraftPayload = {

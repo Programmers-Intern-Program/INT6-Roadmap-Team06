@@ -49,15 +49,30 @@ class PortfolioDraftControllerTest extends ApiTestBase {
     @Test
     void createDraft_whenAuthenticated_returnsSavedDraft() throws Exception {
         User user = createUser();
-        given(portfolioDraftService.createDraft(user.getId())).willReturn(detailResponse("10"));
+        given(portfolioDraftService.createDraft(user.getId())).willReturn(emptyDetailResponse("10"));
 
         mockMvc.perform(post("/api/portfolio/drafts")
                         .cookie(accessTokenCookie(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.draftId").value("10"))
-                .andExpect(jsonPath("$.data.title").value("백엔드 성장 포트폴리오 초안"))
+                .andExpect(jsonPath("$.data.title").value("포트폴리오 초안"))
                 .andExpect(jsonPath("$.data.draftPayload.variants[0].key").value("DONE"))
+                .andExpect(jsonPath("$.data.draftPayload.variants[0].content").value(""))
+                .andExpect(jsonPath("$.data.draftPayload.variants[0].generated").value(false))
                 .andExpect(jsonPath("$.data.sourceRefs.progressLogIds[0]").value("1"));
+    }
+
+    @Test
+    void generateVariant_whenAuthenticated_returnsGeneratedDraft() throws Exception {
+        User user = createUser();
+        given(portfolioDraftService.generateVariant(user.getId(), 10L, "ALL")).willReturn(detailResponse("10"));
+
+        mockMvc.perform(post("/api/portfolio/drafts/{draftId}/variants/{variantKey}/generate", 10, "ALL")
+                        .cookie(accessTokenCookie(user)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.draftId").value("10"))
+                .andExpect(jsonPath("$.data.draftPayload.variants[2].key").value("ALL"))
+                .andExpect(jsonPath("$.data.draftPayload.variants[2].generated").value(true));
     }
 
     @Test
@@ -132,6 +147,24 @@ class PortfolioDraftControllerTest extends ApiTestBase {
                                 new PortfolioDraftVariant("DONE", "완료 기반", "완료 내용"),
                                 new PortfolioDraftVariant("DONE_IN_PROGRESS", "완료 + 진행 중", "진행 내용"),
                                 new PortfolioDraftVariant("ALL", "전체 계획 포함", "전체 내용")
+                        )
+                ),
+                Map.of("progressLogIds", List.of("1")),
+                Instant.parse("2026-05-13T00:00:00Z"),
+                Instant.parse("2026-05-13T01:00:00Z")
+        );
+    }
+
+    private PortfolioDraftDetailResponse emptyDetailResponse(String draftId) throws Exception {
+        return new PortfolioDraftDetailResponse(
+                draftId,
+                "포트폴리오 초안",
+                new PortfolioDraftPayload(
+                        "PROJECT_WRITEUP",
+                        List.of(
+                                new PortfolioDraftVariant("DONE", "완료 기반", "", false),
+                                new PortfolioDraftVariant("DONE_IN_PROGRESS", "완료 + 진행 중", "", false),
+                                new PortfolioDraftVariant("ALL", "전체 계획 포함", "", false)
                         )
                 ),
                 Map.of("progressLogIds", List.of("1")),

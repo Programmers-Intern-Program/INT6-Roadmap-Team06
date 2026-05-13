@@ -6,6 +6,7 @@ import { AuthRequiredPanel } from "@/components/auth-required-panel";
 import { StatePanel } from "@/components/state-panel";
 import {
   createPortfolioDraft,
+  generatePortfolioDraftVariant,
   getPortfolioDraft,
   listPortfolioDrafts,
   updatePortfolioDraft
@@ -42,14 +43,15 @@ export function PortfolioDraftsView() {
   const [activeVariantKey, setActiveVariantKey] = useState("DONE");
   const [loadingDraftId, setLoadingDraftId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingVariantKey, setGeneratingVariantKey] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const applyDetail = useCallback((draft: PortfolioDraftDetail) => {
+  const applyDetail = useCallback((draft: PortfolioDraftDetail, nextVariantKey?: string) => {
     setSelectedDraft(draft);
     setDraftPayload(draft.draftPayload);
     setTitle(draft.title);
-    setActiveVariantKey(firstVariantKey(draft.draftPayload));
+    setActiveVariantKey(nextVariantKey ?? firstVariantKey(draft.draftPayload));
   }, []);
 
   useEffect(() => {
@@ -93,6 +95,7 @@ export function PortfolioDraftsView() {
       ?? draftPayload?.variants[0]
       ?? null;
   }, [activeVariantKey, draftPayload]);
+  const activeVariantGenerated = activeVariant ? isVariantGenerated(activeVariant) : false;
 
   async function handleSelectDraft(draftId: string) {
     if (selectedDraft?.draftId === draftId || loadingDraftId === draftId) {
@@ -132,6 +135,31 @@ export function PortfolioDraftsView() {
       setActionError(getErrorMessage(error, "초안을 생성하지 못했습니다."));
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  async function handleGenerateVariant() {
+    if (!selectedDraft || !activeVariant) {
+      return;
+    }
+    setActionError(null);
+    setGeneratingVariantKey(activeVariant.key);
+    try {
+      const saved = await generatePortfolioDraftVariant(selectedDraft.draftId, activeVariant.key);
+      setDrafts((current) =>
+        current.map((item) =>
+          item.draftId === saved.draftId ? toSummary(saved) : item
+        )
+      );
+      applyDetail(saved, activeVariant.key);
+    } catch (error) {
+      if (isUnauthorizedError(error)) {
+        setState({ status: "auth-required" });
+        return;
+      }
+      setActionError(getErrorMessage(error, "초안 버전을 생성하지 못했습니다."));
+    } finally {
+      setGeneratingVariantKey(null);
     }
   }
 
@@ -177,7 +205,22 @@ export function PortfolioDraftsView() {
         ...current,
         variants: current.variants.map((variant) =>
           variant.key === activeVariant.key
-            ? { ...variant, content: nextContent }
+            ? { ...variant, content: nextContent, generated: true }
+            : variant
+        )
+      };
+    });
+  }
+
+  function handleStartManualInput() {
+    if (!activeVariant) return;
+    setDraftPayload((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        variants: current.variants.map((variant) =>
+          variant.key === activeVariant.key
+            ? { ...variant, generated: true }
             : variant
         )
       };
@@ -211,7 +254,7 @@ export function PortfolioDraftsView() {
       <section className="portfolio-draft-action-panel" aria-label="초안 생성">
         <div>
           <h2>최신 학습 기록으로 초안 생성</h2>
-          <p>생성된 초안은 3가지 버전으로 저장되고, 아래 편집 영역에서 바로 다듬을 수 있습니다.</p>
+          <p>빈 초안 틀을 만든 뒤 필요한 버전만 탭별로 생성하고 편집합니다.</p>
         </div>
         <button
           className="action-link primary"
@@ -219,7 +262,7 @@ export function PortfolioDraftsView() {
           type="button"
           onClick={handleGenerateDraft}
         >
-          {isGenerating ? "생성 중" : "초안 생성"}
+          {isGenerating ? "생성 중" : "빈 초안 생성"}
         </button>
       </section>
 
@@ -305,11 +348,36 @@ export function PortfolioDraftsView() {
                 ))}
               </div>
 
-              <textarea
-                className="portfolio-draft-textarea"
-                value={activeVariant.content}
-                onChange={(event) => handleVariantContentChange(event.target.value)}
-              />
+              {activeVariantGenerated ? (
+                <textarea
+                  className="portfolio-draft-textarea"
+                  value={activeVariant.content}
+                  onChange={(event) => handleVariantContentChange(event.target.value)}
+                />
+              ) : (
+                <div className="portfolio-draft-empty-variant">
+                  <p>아직 생성되지 않은 버전입니다.</p>
+                  <div className="portfolio-draft-empty-actions">
+                    <button
+                      className="action-link primary"
+                      disabled={generatingVariantKey === activeVariant.key}
+                      type="button"
+                      onClick={() => void handleGenerateVariant()}
+                    >
+                      {generatingVariantKey === activeVariant.key
+                        ? "생성 중"
+                        : `${variantLabels[activeVariant.key] ?? activeVariant.label} 생성`}
+                    </button>
+                    <button
+                      className="action-link"
+                      type="button"
+                      onClick={handleStartManualInput}
+                    >
+                      직접 입력
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="portfolio-draft-editor-footer">
                 <span>최근 저장 {formatDateTime(selectedDraft.updatedAt)}</span>
@@ -341,9 +409,19 @@ export function PortfolioDraftsView() {
 }
 
 function firstVariantKey(payload: PortfolioDraftPayload) {
+  const generatedKey = preferredVariantOrder.find((key) =>
+    payload.variants.some((variant) => variant.key === key && isVariantGenerated(variant))
+  );
+  if (generatedKey) {
+    return generatedKey;
+  }
   return preferredVariantOrder.find((key) =>
     payload.variants.some((variant) => variant.key === key)
   ) ?? payload.variants[0]?.key ?? "DONE";
+}
+
+function isVariantGenerated(variant: PortfolioDraftVariant) {
+  return variant.generated === true || variant.content.trim().length > 0;
 }
 
 function sortedVariants(variants: PortfolioDraftVariant[]) {

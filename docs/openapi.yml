@@ -377,12 +377,12 @@ paths:
     post:
       tags:
         - Portfolio
-      summary: Generate portfolio draft from current learning evidence
+      summary: Create empty portfolio draft shell from current learning evidence
       operationId: createPortfolioDraft
       x-implementation-status: implemented
       responses:
         '200':
-          description: Portfolio draft generated and saved
+          description: Empty portfolio draft shell saved
           content:
             application/json:
               schema:
@@ -456,6 +456,34 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/ResourceNotFound'
+
+  /api/portfolio/drafts/{draftId}/variants/{variantKey}/generate:
+    post:
+      tags:
+        - Portfolio
+      summary: Generate one portfolio draft variant
+      operationId: generatePortfolioDraftVariant
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/PortfolioDraftId'
+        - $ref: '#/components/parameters/PortfolioDraftVariantKey'
+      responses:
+        '200':
+          description: Portfolio draft detail with generated variant content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioDraftDetailApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 
   /api/jobs/{jobId}/status:
     get:
@@ -687,6 +715,17 @@ components:
       schema:
         type: string
       example: '9001'
+    PortfolioDraftVariantKey:
+      name: variantKey
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+          - DONE
+          - DONE_IN_PROGRESS
+          - ALL
+      example: ALL
     CoachSessionId:
       name: sessionId
       in: path
@@ -2169,6 +2208,11 @@ components:
         content:
           type: string
           description: Markdown project write-up draft content.
+        generated:
+          type: boolean
+          nullable: true
+          description: Whether this variant content has been generated or manually started.
+          example: true
 
     PortfolioDraftPayload:
       type: object

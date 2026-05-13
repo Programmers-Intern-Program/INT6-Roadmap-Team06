@@ -10,6 +10,12 @@ export function createPortfolioDraft() {
   return apiClient.post<PortfolioDraftDetail>("/api/portfolio/drafts");
 }
 
+export function generatePortfolioDraftVariant(draftId: string, variantKey: string) {
+  return apiClient.post<PortfolioDraftDetail>(
+    `/api/portfolio/drafts/${encodeURIComponent(draftId)}/variants/${encodeURIComponent(variantKey)}/generate`
+  );
+}
+
 export function listPortfolioDrafts() {
   return apiClient.get<PortfolioDraftSummary[]>("/api/portfolio/drafts");
 }

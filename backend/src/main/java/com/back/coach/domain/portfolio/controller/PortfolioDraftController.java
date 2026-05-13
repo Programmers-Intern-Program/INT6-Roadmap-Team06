@@ -35,6 +35,16 @@ public class PortfolioDraftController {
         return ApiResponse.success(portfolioDraftService.createDraft(user.userId()));
     }
 
+    @PostMapping("/{draftId}/variants/{variantKey}/generate")
+    public ApiResponse<PortfolioDraftDetailResponse> generateVariant(
+            Authentication authentication,
+            @PathVariable Long draftId,
+            @PathVariable String variantKey
+    ) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return ApiResponse.success(portfolioDraftService.generateVariant(user.userId(), draftId, variantKey));
+    }
+
     @GetMapping
     public ApiResponse<List<PortfolioDraftSummaryResponse>> listDrafts(Authentication authentication) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();

@@ -7,7 +7,6 @@ import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.github.service.GithubAnalysisPayloadJson;
 import com.back.coach.domain.portfolio.dto.PortfolioDraftDetailResponse;
-import com.back.coach.domain.portfolio.dto.PortfolioDraftGenerationResult;
 import com.back.coach.domain.portfolio.dto.PortfolioDraftPayload;
 import com.back.coach.domain.portfolio.dto.PortfolioDraftSummaryResponse;
 import com.back.coach.domain.portfolio.dto.PortfolioDraftUpdateRequest;
@@ -51,6 +50,8 @@ public class PortfolioDraftService {
     private static final int RECENT_GITHUB_ANALYSIS_LIMIT = 5;
     private static final int RECENT_CONVERSATION_LIMIT = 20;
     private static final int PORTFOLIO_DRAFT_MAX_TOKENS = 6000;
+    private static final String DEFAULT_DRAFT_TITLE = "포트폴리오 초안";
+    private static final List<String> VARIANT_KEYS = List.of("DONE", "DONE_IN_PROGRESS", "ALL");
     private static final List<SectionSpec> SECTION_SPECS = List.of(
             new SectionSpec("overview", "개요", SectionRenderMode.PARAGRAPH),
             new SectionSpec("problemGoal", "문제/목표", SectionRenderMode.PARAGRAPH),
@@ -90,17 +91,12 @@ public class PortfolioDraftService {
             Required JSON schema:
             {
               "title": "프로젝트 기술서 초안 제목",
-              "sectionsByVariant": {
-                "DONE": { "overview": [], "problemGoal": [], "studyAndImplementation": [], "techStack": [], "lessons": [], "nextImprovements": [], "memoCandidates": [], "recommendationCandidates": [], "sourceSummary": [] },
-                "DONE_IN_PROGRESS": { "overview": [], "problemGoal": [], "studyAndImplementation": [], "techStack": [], "lessons": [], "nextImprovements": [], "memoCandidates": [], "recommendationCandidates": [], "sourceSummary": [] },
-                "ALL": { "overview": [], "problemGoal": [], "studyAndImplementation": [], "techStack": [], "lessons": [], "nextImprovements": [], "memoCandidates": [], "recommendationCandidates": [], "sourceSummary": [] }
-              }
+              "sections": { "overview": [], "problemGoal": [], "studyAndImplementation": [], "techStack": [], "lessons": [], "nextImprovements": [], "memoCandidates": [], "recommendationCandidates": [], "sourceSummary": [] }
             }
 
             Hard output constraints:
-            - Top-level fields must be exactly title and sectionsByVariant.
+            - Top-level fields must be exactly title and sections.
             - Do not output fields named variants, content, draftPayload, data, markdown, or responseText.
-            - sectionsByVariant must contain exactly DONE, DONE_IN_PROGRESS, and ALL.
             - Every section field value must be an array of Korean strings. Never use objects or nested arrays.
             - Each array must contain 1 to 3 strings. Each string must be 260 Korean characters or fewer.
             - Do not include markdown headings such as ##. The server will render markdown later.
@@ -140,27 +136,63 @@ public class PortfolioDraftService {
 
     public PortfolioDraftDetailResponse createDraft(Long userId) {
         PortfolioSource source = buildSource(userId);
-        PortfolioDraftGenerationResult generated = generateDraft(source.sourcePayload());
         PortfolioDraft draft = portfolioDraftRepository.save(PortfolioDraft.create(
                 userId,
-                generated.title(),
-                writeJson(generated.draftPayload()),
+                DEFAULT_DRAFT_TITLE,
+                writeJson(emptyDraftPayload()),
                 writeJson(source.sourceRefs())
         ));
         return toDetailResponse(draft);
     }
 
-    private PortfolioDraftGenerationResult generateDraft(ObjectNode sourcePayload) {
+    @Transactional
+    public PortfolioDraftDetailResponse generateVariant(Long userId, Long draftId, String variantKey) {
+        VariantSpec spec = variantSpec(variantKey);
+        PortfolioDraft draft = findOwnedDraft(userId, draftId);
+        PortfolioDraftPayload currentPayload = parseDraftPayload(draft.getDraftPayload());
+        PortfolioDraftVariant currentVariant = findVariant(currentPayload, spec.key());
+        if (isGenerated(currentVariant)) {
+            return toDetailResponse(draft);
+        }
+
+        PortfolioSource source = buildSource(userId);
+        ObjectNode variantSource = filterSourceForVariant(source.sourcePayload(), spec);
+        GeneratedVariant generated = generateVariantContent(variantSource, spec);
+        PortfolioDraftPayload updatedPayload = mergeVariant(
+                currentPayload,
+                new PortfolioDraftVariant(spec.key(), spec.label(), generated.content(), true)
+        );
+        draft.updateGeneratedContent(
+                nextTitle(draft.getTitle(), generated.title()),
+                writeJson(updatedPayload),
+                writeJson(source.sourceRefs())
+        );
+        return toDetailResponse(draft);
+    }
+
+    private PortfolioDraftPayload emptyDraftPayload() {
+        return new PortfolioDraftPayload(
+                "PROJECT_WRITEUP",
+                VARIANT_KEYS.stream()
+                        .map(key -> new PortfolioDraftVariant(key, variantLabel(key), "", false))
+                        .toList()
+        );
+    }
+
+    private GeneratedVariant generateVariantContent(ObjectNode sourcePayload, VariantSpec spec) {
         try {
             String raw = llmClient.complete(
                     PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY + "\n\n" + SYSTEM_PROMPT,
-                    buildUserPrompt(sourcePayload),
+                    buildVariantUserPrompt(sourcePayload, spec),
                     PORTFOLIO_DRAFT_MAX_TOKENS
             );
-            return parseGeneration(raw);
+            return parseVariantGeneration(raw);
         } catch (ServiceException e) {
             if (isFallbackAllowed(e.getErrorCode())) {
-                return buildFallbackDraft(sourcePayload);
+                return new GeneratedVariant(
+                        "로드맵 기반 포트폴리오 초안",
+                        buildFallbackContent(sourcePayload, spec.includeDone(), spec.includeInProgress(), spec.includePlanned())
+                );
             }
             throw e;
         }
@@ -195,6 +227,101 @@ public class PortfolioDraftService {
     private PortfolioDraft findOwnedDraft(Long userId, Long draftId) {
         return portfolioDraftRepository.findByIdAndUserId(draftId, userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    private PortfolioDraftPayload parseDraftPayload(String draftPayload) {
+        try {
+            return objectMapper.readValue(draftPayload, PortfolioDraftPayload.class);
+        } catch (JsonProcessingException e) {
+            throw new ServiceException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    private PortfolioDraftVariant findVariant(PortfolioDraftPayload payload, String key) {
+        if (payload == null || payload.variants() == null) {
+            return null;
+        }
+        return payload.variants().stream()
+                .filter(variant -> key.equals(variant.key()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isGenerated(PortfolioDraftVariant variant) {
+        if (variant == null) {
+            return false;
+        }
+        return Boolean.TRUE.equals(variant.generated())
+                || (variant.content() != null && !variant.content().isBlank());
+    }
+
+    private PortfolioDraftPayload mergeVariant(PortfolioDraftPayload payload, PortfolioDraftVariant generatedVariant) {
+        LinkedHashMap<String, PortfolioDraftVariant> byKey = new LinkedHashMap<>();
+        if (payload != null && payload.variants() != null) {
+            for (PortfolioDraftVariant variant : payload.variants()) {
+                byKey.put(variant.key(), variant);
+            }
+        }
+        byKey.put(generatedVariant.key(), generatedVariant);
+
+        List<PortfolioDraftVariant> variants = new ArrayList<>();
+        for (String key : VARIANT_KEYS) {
+            variants.add(byKey.getOrDefault(key, new PortfolioDraftVariant(key, variantLabel(key), "", false)));
+        }
+        for (Map.Entry<String, PortfolioDraftVariant> entry : byKey.entrySet()) {
+            if (!VARIANT_KEYS.contains(entry.getKey())) {
+                variants.add(entry.getValue());
+            }
+        }
+        String format = payload == null || payload.format() == null || payload.format().isBlank()
+                ? "PROJECT_WRITEUP"
+                : payload.format();
+        return new PortfolioDraftPayload(format, variants);
+    }
+
+    private String nextTitle(String currentTitle, String generatedTitle) {
+        if (generatedTitle == null || generatedTitle.isBlank()) {
+            return currentTitle == null || currentTitle.isBlank() ? DEFAULT_DRAFT_TITLE : currentTitle;
+        }
+        if (currentTitle == null || currentTitle.isBlank()
+                || DEFAULT_DRAFT_TITLE.equals(currentTitle)
+                || "로드맵 기반 포트폴리오 초안".equals(currentTitle)) {
+            return generatedTitle;
+        }
+        return currentTitle;
+    }
+
+    private VariantSpec variantSpec(String key) {
+        return switch (key) {
+            case "DONE" -> new VariantSpec(
+                    "DONE",
+                    "완료 기반",
+                    true,
+                    false,
+                    false,
+                    false,
+                    "Use only DONE progress records as official study evidence. Exclude in-progress, planned, and coach recommendations."
+            );
+            case "DONE_IN_PROGRESS" -> new VariantSpec(
+                    "DONE_IN_PROGRESS",
+                    "완료 + 진행 중",
+                    true,
+                    true,
+                    false,
+                    false,
+                    "Use DONE and IN_PROGRESS records. Treat in-progress work as ongoing, never as completed. Exclude planned and coach recommendations."
+            );
+            case "ALL" -> new VariantSpec(
+                    "ALL",
+                    "전체 계획 포함",
+                    true,
+                    true,
+                    true,
+                    true,
+                    "Use done, in-progress, planned, and coach recommendations. Planned and recommendation items must be future plans only."
+            );
+            default -> throw new ServiceException(ErrorCode.INVALID_INPUT, "지원하지 않는 포트폴리오 초안 버전입니다.");
+        };
     }
 
     private PortfolioSource buildSource(Long userId) {
@@ -413,19 +540,43 @@ public class PortfolioDraftService {
         progressIds.forEach(id -> progressRefs.add(String.valueOf(id)));
     }
 
-    private String buildUserPrompt(ObjectNode sourcePayload) {
+    private ObjectNode filterSourceForVariant(ObjectNode sourcePayload, VariantSpec spec) {
+        ObjectNode filtered = sourcePayload.deepCopy();
+        ObjectNode official = (ObjectNode) filtered.path("officialStudyRecords");
+        official.set("done", spec.includeDone()
+                ? sourcePayload.path("officialStudyRecords").path("done").deepCopy()
+                : objectMapper.createArrayNode());
+        official.set("inProgress", spec.includeInProgress()
+                ? sourcePayload.path("officialStudyRecords").path("inProgress").deepCopy()
+                : objectMapper.createArrayNode());
+        official.set("planned", spec.includePlanned()
+                ? sourcePayload.path("officialStudyRecords").path("planned").deepCopy()
+                : objectMapper.createArrayNode());
+
+        ObjectNode coach = (ObjectNode) filtered.path("coachConversationCandidates");
+        coach.set("coachRecommendations", spec.includeCoachRecommendations()
+                ? sourcePayload.path("coachConversationCandidates").path("coachRecommendations").deepCopy()
+                : objectMapper.createArrayNode());
+        filtered.put("targetVariant", spec.key());
+        filtered.put("targetVariantLabel", spec.label());
+        return filtered;
+    }
+
+    private String buildVariantUserPrompt(ObjectNode sourcePayload, VariantSpec spec) {
         return """
-                Create the required sectionsByVariant JSON from this source JSON only.
+                Create only the %s portfolio draft variant.
+                Variant label: %s
+                Allowed evidence policy: %s
                 Write for a Korean project write-up draft, not a study checklist.
                 The server renders markdown later, so return section arrays only.
-                Repeat: do not return variants[].content and do not write markdown.
+                Repeat: do not return sectionsByVariant, variants[].content, or markdown.
 
                 Source JSON:
                 %s
-                """.formatted(sourcePayload.toPrettyString());
+                """.formatted(spec.key(), spec.label(), spec.policy(), sourcePayload.toPrettyString());
     }
 
-    private PortfolioDraftGenerationResult parseGeneration(String llmRaw) {
+    private GeneratedVariant parseVariantGeneration(String llmRaw) {
         JsonNode root;
         try {
             root = objectMapper.readTree(LlmJsonResponseExtractor.extractJson(llmRaw));
@@ -437,19 +588,11 @@ public class PortfolioDraftService {
             title = "포트폴리오 기술서 초안";
         }
 
-        JsonNode sectionsByVariant = root.path("sectionsByVariant");
-        if (!sectionsByVariant.isObject()) {
+        JsonNode sections = root.path("sections");
+        if (!sections.isObject()) {
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
         }
-        List<PortfolioDraftVariant> variants = new ArrayList<>();
-        for (String key : List.of("DONE", "DONE_IN_PROGRESS", "ALL")) {
-            JsonNode sectionNode = sectionsByVariant.path(key);
-            if (!sectionNode.isObject()) {
-                throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
-            }
-            variants.add(new PortfolioDraftVariant(key, variantLabel(key), renderSections(sectionNode)));
-        }
-        return new PortfolioDraftGenerationResult(title, new PortfolioDraftPayload("PROJECT_WRITEUP", variants));
+        return new GeneratedVariant(title, renderSections(sections));
     }
 
     private String renderSections(JsonNode sectionNode) {
@@ -511,30 +654,6 @@ public class PortfolioDraftService {
             case "ALL" -> "전체 계획 포함";
             default -> key;
         };
-    }
-
-    private PortfolioDraftGenerationResult buildFallbackDraft(ObjectNode sourcePayload) {
-        List<PortfolioDraftVariant> variants = List.of(
-                new PortfolioDraftVariant(
-                        "DONE",
-                        "완료 기반",
-                        buildFallbackContent(sourcePayload, true, false, false)
-                ),
-                new PortfolioDraftVariant(
-                        "DONE_IN_PROGRESS",
-                        "완료 + 진행 중",
-                        buildFallbackContent(sourcePayload, true, true, false)
-                ),
-                new PortfolioDraftVariant(
-                        "ALL",
-                        "전체 계획 포함",
-                        buildFallbackContent(sourcePayload, true, true, true)
-                )
-        );
-        return new PortfolioDraftGenerationResult(
-                "로드맵 기반 포트폴리오 초안",
-                new PortfolioDraftPayload("PROJECT_WRITEUP", variants)
-        );
     }
 
     private String buildFallbackContent(
@@ -751,6 +870,20 @@ public class PortfolioDraftService {
     }
 
     private record PortfolioSource(ObjectNode sourcePayload, ObjectNode sourceRefs) {
+    }
+
+    private record GeneratedVariant(String title, String content) {
+    }
+
+    private record VariantSpec(
+            String key,
+            String label,
+            boolean includeDone,
+            boolean includeInProgress,
+            boolean includePlanned,
+            boolean includeCoachRecommendations,
+            String policy
+    ) {
     }
 
     private enum SectionRenderMode {
