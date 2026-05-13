@@ -115,14 +115,15 @@ class PortfolioDraftServiceIntegrationTest {
         ArgumentCaptor<String> userPromptCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Integer> maxTokensCaptor = ArgumentCaptor.forClass(Integer.class);
         verify(llmClient).complete(systemCaptor.capture(), userPromptCaptor.capture(), maxTokensCaptor.capture());
-        assertThat(systemCaptor.getValue()).contains("한국어 JSON만 출력");
+        assertThat(systemCaptor.getValue()).contains("JSON-only output assistant for Korean users");
         assertThat(systemCaptor.getValue()).contains("coachConversationCandidates.userMemos");
-        assertThat(systemCaptor.getValue()).contains("입력에 없는 URL, 책, 강의, 프로젝트명, 수치 성과를 새로 만들지 않습니다");
-        assertThat(systemCaptor.getValue()).contains("각 content는 700~1000자");
-        assertThat(systemCaptor.getValue()).contains("draftPayload/data wrapper를 출력하지 않습니다");
+        assertThat(systemCaptor.getValue()).contains("Do not invent URLs");
+        assertThat(systemCaptor.getValue()).contains("sectionsByVariant");
+        assertThat(systemCaptor.getValue()).contains("Do not output fields named variants");
         assertThat(maxTokensCaptor.getValue()).isEqualTo(6000);
 
         String prompt = userPromptCaptor.getValue();
+        assertThat(prompt).contains("sectionsByVariant");
         assertThat(prompt).contains("Redis 공식 문서 정리 완료");
         assertThat(prompt).contains("캐시 예제 진행 중");
         assertThat(prompt).contains("장애 대응 회고 작성");
@@ -131,6 +132,20 @@ class PortfolioDraftServiceIntegrationTest {
         assertThat(prompt).contains("Coach가 추천한 다음 프로젝트 후보");
         assertThat(prompt).contains("최신 Spring API 개선 요약");
         assertThat(prompt).doesNotContain("오래된 Spring API 요약");
+
+        String doneContent = response.draftPayload().variants().get(0).content();
+        String inProgressContent = response.draftPayload().variants().get(1).content();
+        String allContent = response.draftPayload().variants().get(2).content();
+        assertThat(doneContent)
+                .contains("## 개요", "## 진행한 학습과 구현", "Redis 공식 문서 정리 완료")
+                .doesNotContain("캐시 예제 진행 중")
+                .doesNotContain("아직 시작하지 않은 모니터링 개선");
+        assertThat(inProgressContent)
+                .contains("캐시 예제 진행 중")
+                .doesNotContain("아직 시작하지 않은 모니터링 개선");
+        assertThat(allContent)
+                .contains("아직 시작하지 않은 모니터링 개선")
+                .contains("Coach가 추천한 다음 프로젝트 후보");
     }
 
     @Test
@@ -190,6 +205,23 @@ class PortfolioDraftServiceIntegrationTest {
         assertThat(response.draftPayload().variants().get(2).content())
                 .contains("아직 시작하지 않은 모니터링 개선")
                 .contains("Coach가 추천한 다음 프로젝트 후보");
+    }
+
+    @Test
+    @DisplayName("createDraft: LLM section 일부가 비어도 markdown 섹션을 안전하게 조립한다")
+    void createDraftRendersEmptySectionsWithPlaceholder() {
+        Long userId = createUser();
+        seedPortfolioFixture(userId);
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(partialSectionsResponse());
+
+        PortfolioDraftDetailResponse response = portfolioDraftService.createDraft(userId);
+
+        assertThat(response.draftPayload().variants())
+                .extracting(PortfolioDraftVariant::key)
+                .containsExactly("DONE", "DONE_IN_PROGRESS", "ALL");
+        assertThat(response.draftPayload().variants().get(0).content())
+                .contains("## 개요", "- 완료한 Redis 문서 정리를 중심으로 기술합니다.")
+                .contains("## 문제/목표", "- 작성 가능한 근거가 없습니다.");
     }
 
     @Test
@@ -438,23 +470,60 @@ class PortfolioDraftServiceIntegrationTest {
         return """
                 {
                   "title": "백엔드 성장 포트폴리오 초안",
-                  "variants": [
-                    {
-                      "key": "DONE",
-                      "label": "완료 기반",
-                      "content": "## 개요\\n완료한 학습만 기반으로 작성"
+                  "sectionsByVariant": {
+                    "DONE": {
+                      "overview": ["완료한 Redis 공식 문서 정리를 중심으로 작성합니다."],
+                      "problemGoal": ["캐시 설계 기반을 포트폴리오 근거로 정리하는 것이 목표입니다."],
+                      "studyAndImplementation": ["Redis 공식 문서 정리 완료"],
+                      "techStack": ["Java", "Spring Boot"],
+                      "lessons": ["최신 Spring API 개선 요약"],
+                      "nextImprovements": ["완료 근거만 포함하므로 예정 작업은 제외합니다."],
+                      "memoCandidates": ["사용자가 직접 말한 학습 메모 후보"],
+                      "recommendationCandidates": ["완료 기반 버전에서는 추천 후보를 완료 사실로 쓰지 않습니다."],
+                      "sourceSummary": ["progress_logs와 github_analyses를 근거로 사용했습니다."]
                     },
-                    {
-                      "key": "DONE_IN_PROGRESS",
-                      "label": "완료 + 진행 중",
-                      "content": "## 개요\\n진행 중 작업까지 포함"
+                    "DONE_IN_PROGRESS": {
+                      "overview": ["완료한 Redis 정리와 진행 중인 Spring 캐시 적용을 함께 작성합니다."],
+                      "problemGoal": ["문서 정리에서 실제 API 적용으로 확장하는 것이 목표입니다."],
+                      "studyAndImplementation": ["Redis 공식 문서 정리 완료", "캐시 예제 진행 중"],
+                      "techStack": ["Java", "Spring Boot"],
+                      "lessons": ["Controller와 Service 계층 구현 근거"],
+                      "nextImprovements": ["진행 중 작업을 마무리한 뒤 회고로 연결합니다."],
+                      "memoCandidates": ["사용자가 직접 말한 학습 메모 후보"],
+                      "recommendationCandidates": ["진행 중 버전에서는 예정 후보를 완료 사실로 쓰지 않습니다."],
+                      "sourceSummary": ["progress_logs의 DONE과 IN_PROGRESS를 근거로 사용했습니다."]
                     },
-                    {
-                      "key": "ALL",
-                      "label": "전체 계획 포함",
-                      "content": "## 개요\\n예정 후보까지 포함"
+                    "ALL": {
+                      "overview": ["완료, 진행 중, 예정 후보를 전체 계획으로 묶어 작성합니다."],
+                      "problemGoal": ["운영 백엔드 역량을 포트폴리오 산출물로 연결하는 것이 목표입니다."],
+                      "studyAndImplementation": ["Redis 공식 문서 정리 완료", "캐시 예제 진행 중"],
+                      "techStack": ["Java", "Spring Boot", "Redis"],
+                      "lessons": ["최신 Spring API 개선 요약"],
+                      "nextImprovements": ["아직 시작하지 않은 모니터링 개선"],
+                      "memoCandidates": ["사용자가 직접 말한 학습 메모 후보"],
+                      "recommendationCandidates": ["Coach가 추천한 다음 프로젝트 후보"],
+                      "sourceSummary": ["로드맵 진도, GitHub 분석, Coach 후보를 근거로 사용했습니다."]
                     }
-                  ]
+                  }
+                }
+                """;
+    }
+
+    private String partialSectionsResponse() {
+        return """
+                {
+                  "title": "부분 section 포트폴리오 초안",
+                  "sectionsByVariant": {
+                    "DONE": {
+                      "overview": ["완료한 Redis 문서 정리를 중심으로 기술합니다."]
+                    },
+                    "DONE_IN_PROGRESS": {
+                      "overview": ["진행 중인 캐시 예제를 함께 기술합니다."]
+                    },
+                    "ALL": {
+                      "overview": ["예정 후보까지 전체 계획으로 기술합니다."]
+                    }
+                  }
                 }
                 """;
     }
