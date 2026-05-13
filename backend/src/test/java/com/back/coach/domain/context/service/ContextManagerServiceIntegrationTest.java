@@ -94,6 +94,24 @@ class ContextManagerServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("Tier 1: 고정 PLAN snapshot의 주차 topic/tasks/materials가 프롬프트에 포함된다")
+    void tier1IncludesPinnedPlanWeekTasksAndMaterials() {
+        seedSnapshot(ContextType.PROFILE, 1, "{\"job\":\"BACKEND\"}");
+        seedSnapshot(ContextType.PLAN, 1, planPayloadWithWeekDetails("plan-pinned"));
+        ChatSession session = startSession(1, 1);
+
+        AssembledContext ctx = contextManagerService.assemble(
+                session, CoachTemplate.COACH_LIGHTWEIGHT, "Java 기초를 배우려면 어떻게 해야 해?"
+        );
+
+        assertThat(ctx.systemPrompt()).contains("plan-pinned");
+        assertThat(ctx.systemPrompt()).contains("Java 기초 문법");
+        assertThat(ctx.systemPrompt()).contains("Optional 예제 구현");
+        assertThat(ctx.systemPrompt()).contains("Oracle Java Tutorial");
+        assertThat(ctx.systemPrompt()).contains("https://docs.oracle.com/javase/tutorial/");
+    }
+
+    @Test
     @DisplayName("Tier 3: Tier 1 + 활성 신호 섹션 포함")
     void tier3IncludesActiveSignals() {
         seedSnapshot(ContextType.PROFILE, 2, "{}");
@@ -314,5 +332,39 @@ class ContextManagerServiceIntegrationTest {
                   }
                 }
                 """.formatted(type.code(), marker, marker);
+    }
+
+    private static String planPayloadWithWeekDetails(String marker) {
+        return """
+                {
+                  "contextType": "PLAN",
+                  "sourceRefs": {
+                    "marker": "%s"
+                  },
+                  "roadmap": {
+                    "summary": "Java 기초와 Spring 입문",
+                    "weeks": [
+                      {
+                        "weekNumber": 1,
+                        "topic": "Java 기초 문법",
+                        "reason": "Spring 학습 전 문법 기반 확보",
+                        "tasks": [
+                          {
+                            "title": "Optional 예제 구현",
+                            "type": "example"
+                          }
+                        ],
+                        "materials": [
+                          {
+                            "title": "Oracle Java Tutorial",
+                            "type": "docs",
+                            "url": "https://docs.oracle.com/javase/tutorial/"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+                """.formatted(marker);
     }
 }

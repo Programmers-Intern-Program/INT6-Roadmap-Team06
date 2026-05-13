@@ -109,9 +109,15 @@ class CoachMessageServiceIntegrationTest {
         assertThat(coachMessage.getMessageText()).contains("Redis");
 
         ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
-        verify(llmClient).complete(systemCaptor.capture(), anyString(), anyInt());
+        ArgumentCaptor<Integer> maxTokensCaptor = ArgumentCaptor.forClass(Integer.class);
+        verify(llmClient).complete(systemCaptor.capture(), anyString(), maxTokensCaptor.capture());
         assertThat(systemCaptor.getValue()).contains("Write all user-visible natural-language values in Korean");
         assertThat(systemCaptor.getValue()).contains("responseText, replanReason, detectedIntent는 한국어로 작성");
+        assertThat(systemCaptor.getValue()).contains("roadmap.weeks[].topic/tasks/materials");
+        assertThat(systemCaptor.getValue()).contains("insight");
+        assertThat(systemCaptor.getValue()).contains("우선순위");
+        assertThat(systemCaptor.getValue()).contains("새 URL을 만들지 말 것");
+        assertThat(maxTokensCaptor.getValue()).isEqualTo(3000);
 
         List<CoachConversation> rows = coachConversationRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
         assertThat(rows).hasSize(2);

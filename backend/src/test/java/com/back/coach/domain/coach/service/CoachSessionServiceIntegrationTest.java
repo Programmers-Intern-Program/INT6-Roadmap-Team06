@@ -229,6 +229,24 @@ class CoachSessionServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("self-heal: legacy PLAN snapshot에 roadmap.weeks가 없으면 새 세션은 보강된 PLAN version에 pin된다")
+    void selfHealRefreshesLegacyPlanSnapshotWithoutRoadmapWeeks() {
+        seedSnapshot(ContextType.PROFILE, 1);
+        seedSnapshot(ContextType.PLAN, 1, legacyRichPlanPayloadWithoutWeeks());
+
+        ChatSession session = coachSessionService.startSession(userId);
+
+        assertThat(session.getProfileVersion()).isEqualTo(1);
+        assertThat(session.getRoadmapVersion()).isGreaterThan(1);
+        assertThat(contextSnapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PLAN))
+                .hasValueSatisfying(snapshot -> {
+                    assertThat(snapshot.getVersion()).isEqualTo(session.getRoadmapVersion());
+                    assertThat(snapshot.getPayload()).contains("\"roadmap\"");
+                    assertThat(snapshot.getPayload()).contains("\"weeks\"");
+                });
+    }
+
+    @Test
     @DisplayName("self-heal: 두 snapshot 모두 풍부하면 publisher가 호출되지 않고 기존 version에 pin")
     void noSelfHealWhenSnapshotsAlreadyRich() {
         seedSnapshot(ContextType.PROFILE, 7);
@@ -289,10 +307,16 @@ class CoachSessionServiceIntegrationTest {
 
     private static String paddedPayload(ContextType type) {
         // 500 bytes 이상이면 publisher self-heal이 트리거되지 않는다 (PLACEHOLDER_PAYLOAD_BYTES_THRESHOLD).
+        if (type == ContextType.PLAN) {
+            return planContextPayload("padded");
+        }
         return "{\"contextType\":\"" + type.name() + "\",\"_padding\":\"" + "x".repeat(600) + "\"}";
     }
 
     private static String contextPayload(ContextType type, String marker) {
+        if (type == ContextType.PLAN) {
+            return planContextPayload(marker);
+        }
         return """
                 {
                   "contextType": "%s",
@@ -305,5 +329,48 @@ class CoachSessionServiceIntegrationTest {
                   }
                 }
                 """.formatted(type.code(), marker, marker, "x".repeat(600));
+    }
+
+    private static String planContextPayload(String marker) {
+        return """
+                {
+                  "contextType": "PLAN",
+                  "sourceRefs": {
+                    "marker": "%s"
+                  },
+                  "roadmap": {
+                    "summary": "%s",
+                    "weeks": [
+                      {
+                        "weekNumber": 1,
+                        "topic": "%s Java 기초",
+                        "tasks": [
+                          {
+                            "title": "%s 예제 구현",
+                            "type": "example"
+                          }
+                        ],
+                        "materials": []
+                      }
+                    ]
+                  },
+                  "_padding": "%s"
+                }
+                """.formatted(marker, marker, marker, marker, "x".repeat(600));
+    }
+
+    private static String legacyRichPlanPayloadWithoutWeeks() {
+        return """
+                {
+                  "contextType": "PLAN",
+                  "sourceRefs": {
+                    "marker": "legacy"
+                  },
+                  "roadmap": {
+                    "summary": "legacy plan without weeks"
+                  },
+                  "_padding": "%s"
+                }
+                """.formatted("x".repeat(600));
     }
 }
