@@ -64,6 +64,9 @@ required_keys=(
   AI_GATEWAY_API_KEY
   AI_GATEWAY_BASE_URL
   AI_GATEWAY_MODEL
+)
+
+defaulted_keys=(
   AI_GATEWAY_TIMEOUT_CONNECT
   AI_GATEWAY_TIMEOUT_READ
   API_PROXY_CONNECT_TIMEOUT
@@ -103,9 +106,21 @@ for key in "${required_keys[@]}"; do
   fi
 done
 
+for key in "${defaulted_keys[@]}"; do
+  if [[ ! -v "values[$key]" ]]; then
+    echo "::warning::${key} is not set in $env_file; repository default will be used" >&2
+    continue
+  fi
+
+  if is_placeholder "${values[$key]}"; then
+    echo "::error::${key} must be set to a non-placeholder value or omitted to use the repository default" >&2
+    error_count=$((error_count + 1))
+  fi
+done
+
 if [ "$error_count" -gt 0 ]; then
   echo "::error::Deploy env validation failed with ${error_count} problem(s)" >&2
   exit 1
 fi
 
-echo "Deploy env validation passed (${#required_keys[@]} keys checked)."
+echo "Deploy env validation passed (${#required_keys[@]} required keys checked)."
