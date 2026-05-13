@@ -8,4 +8,6 @@ import java.util.List;
 public interface CoachConversationRepository extends JpaRepository<CoachConversation, Long> {
 
     List<CoachConversation> findBySessionIdOrderByCreatedAtAsc(Long sessionId);
+
+    List<CoachConversation> findTop20ByUserIdOrderByCreatedAtDesc(Long userId);
 }

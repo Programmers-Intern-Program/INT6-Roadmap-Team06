@@ -31,6 +31,8 @@ tags:
     description: Learning roadmap and progress APIs
   - name: Dashboard
     description: Current user dashboard summary APIs
+  - name: Portfolio
+    description: Portfolio draft generation and editing APIs
   - name: Jobs
     description: Long-running job status APIs
   - name: Coach
@@ -371,6 +373,90 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /api/portfolio/drafts:
+    post:
+      tags:
+        - Portfolio
+      summary: Generate portfolio draft from current learning evidence
+      operationId: createPortfolioDraft
+      x-implementation-status: implemented
+      responses:
+        '200':
+          description: Portfolio draft generated and saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioDraftDetailApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+    get:
+      tags:
+        - Portfolio
+      summary: List saved portfolio drafts
+      operationId: listPortfolioDrafts
+      x-implementation-status: implemented
+      responses:
+        '200':
+          description: Portfolio drafts sorted by createdAt descending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioDraftListApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/portfolio/drafts/{draftId}:
+    get:
+      tags:
+        - Portfolio
+      summary: Get portfolio draft detail
+      operationId: getPortfolioDraft
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/PortfolioDraftId'
+      responses:
+        '200':
+          description: Portfolio draft detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioDraftDetailApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+    patch:
+      tags:
+        - Portfolio
+      summary: Save edited portfolio draft
+      operationId: updatePortfolioDraft
+      x-implementation-status: implemented
+      parameters:
+        - $ref: '#/components/parameters/PortfolioDraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioDraftUpdateRequest'
+      responses:
+        '200':
+          description: Portfolio draft updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioDraftDetailApiResponse'
+        '400':
+          $ref: '#/components/responses/InvalidInput'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/ResourceNotFound'
+
   /api/jobs/{jobId}/status:
     get:
       tags:
@@ -594,6 +680,13 @@ components:
       schema:
         type: string
       example: '601'
+    PortfolioDraftId:
+      name: draftId
+      in: path
+      required: true
+      schema:
+        type: string
+      example: '9001'
     CoachSessionId:
       name: sessionId
       in: path
@@ -2053,5 +2146,129 @@ components:
       properties:
         data:
           $ref: '#/components/schemas/Dashboard'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    PortfolioDraftVariant:
+      type: object
+      required:
+        - key
+        - label
+        - content
+      properties:
+        key:
+          type: string
+          enum:
+            - DONE
+            - DONE_IN_PROGRESS
+            - ALL
+          example: DONE
+        label:
+          type: string
+          example: 완료 기반
+        content:
+          type: string
+          description: Markdown project write-up draft content.
+
+    PortfolioDraftPayload:
+      type: object
+      required:
+        - format
+        - variants
+      properties:
+        format:
+          type: string
+          enum:
+            - PROJECT_WRITEUP
+          example: PROJECT_WRITEUP
+        variants:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/PortfolioDraftVariant'
+
+    PortfolioDraftUpdateRequest:
+      type: object
+      required:
+        - title
+        - draftPayload
+      properties:
+        title:
+          type: string
+          maxLength: 255
+          example: 백엔드 성장 포트폴리오 초안
+        draftPayload:
+          $ref: '#/components/schemas/PortfolioDraftPayload'
+
+    PortfolioDraftSummary:
+      type: object
+      required:
+        - draftId
+        - title
+        - createdAt
+        - updatedAt
+      properties:
+        draftId:
+          type: string
+          example: '9001'
+        title:
+          type: string
+          example: 백엔드 성장 포트폴리오 초안
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PortfolioDraftDetail:
+      allOf:
+        - $ref: '#/components/schemas/PortfolioDraftSummary'
+        - type: object
+          required:
+            - draftPayload
+            - sourceRefs
+          properties:
+            draftPayload:
+              $ref: '#/components/schemas/PortfolioDraftPayload'
+            sourceRefs:
+              type: object
+              additionalProperties: true
+              description: Source IDs used for draft generation.
+              example:
+                roadmaps:
+                  - roadmapId: '601'
+                    roadmapVersion: 2
+                roadmapWeekIds:
+                  - '7001'
+                progressLogIds:
+                  - '8001'
+                githubAnalyses:
+                  - githubAnalysisId: '401'
+                    githubAnalysisVersion: 3
+                coachConversationIds:
+                  - '10001'
+
+    PortfolioDraftDetailApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/PortfolioDraftDetail'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    PortfolioDraftListApiResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioDraftSummary'
         meta:
           $ref: '#/components/schemas/ApiMeta'

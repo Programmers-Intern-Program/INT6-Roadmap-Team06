@@ -635,9 +635,90 @@ v1 처리 기준
 - 로드맵 진행률은 `progress_logs` 최신 row 기준으로 계산한다
 - 대시보드는 화면 편의용 snapshot이며, 각 결과의 원본 상세 조회를 대체하지 않는다
 
-## 3.7 JobStatus 조회 API
+## 3.7 포트폴리오 초안 API
 
-### 3.7.1 장시간 작업 상태 조회
+### 3.7.1 초안 생성
+
+- Method: `POST`
+- Path: `/api/portfolio/drafts`
+- 요청 body: 없음
+
+응답 body
+```json
+{
+  "data": {
+    "draftId": "9001",
+    "title": "백엔드 성장 포트폴리오 초안",
+    "draftPayload": {
+      "format": "PROJECT_WRITEUP",
+      "variants": [
+        {
+          "key": "DONE",
+          "label": "완료 기반",
+          "content": "## 개요\n완료한 학습과 구현만 기준으로 작성한 초안"
+        },
+        {
+          "key": "DONE_IN_PROGRESS",
+          "label": "완료 + 진행 중",
+          "content": "## 개요\n완료와 진행 중인 작업까지 포함한 초안"
+        },
+        {
+          "key": "ALL",
+          "label": "전체 계획 포함",
+          "content": "## 개요\n예정 후보까지 다음 개선으로 포함한 초안"
+        }
+      ]
+    },
+    "sourceRefs": {
+      "roadmaps": [{"roadmapId": "601", "roadmapVersion": 2}],
+      "roadmapWeekIds": ["7001"],
+      "progressLogIds": ["8001"],
+      "githubAnalyses": [{"githubAnalysisId": "401", "githubAnalysisVersion": 3}],
+      "coachConversationIds": ["10001"]
+    },
+    "createdAt": "2026-05-13T14:00:00Z",
+    "updatedAt": "2026-05-13T14:00:00Z"
+  },
+  "meta": {}
+}
+```
+
+생성 규칙
+- 공식 학습 근거는 `progress_logs + roadmap_weeks + learning_roadmaps`를 기준으로 한다
+- 최근 여러 `github_analyses`를 병합하되 같은 repo는 최신 분석 내용을 우선한다
+- Coach USER 발화는 학습 메모 후보로만, Coach 답변은 예정/추천 후보로만 사용한다
+- 저장된 근거에 없는 URL, 책, 강의, 프로젝트명은 생성하지 않는다
+
+### 3.7.2 초안 조회와 수정
+
+- 목록 조회: `GET /api/portfolio/drafts`
+- 상세 조회: `GET /api/portfolio/drafts/{draftId}`
+- 편집 저장: `PATCH /api/portfolio/drafts/{draftId}`
+
+수정 요청 body
+```json
+{
+  "title": "수정된 백엔드 성장 포트폴리오 초안",
+  "draftPayload": {
+    "format": "PROJECT_WRITEUP",
+    "variants": [
+      {
+        "key": "DONE",
+        "label": "완료 기반",
+        "content": "사용자가 편집한 초안"
+      }
+    ]
+  }
+}
+```
+
+조회/수정 규칙
+- 모든 조회와 수정은 현재 로그인 사용자의 `portfolio_drafts.user_id` 기준으로 제한한다
+- `draftPayload`는 사용자가 편집한 최종 내용을 저장하고, `sourceRefs`는 생성 시점 근거 ID를 보존한다
+
+## 3.8 JobStatus 조회 API
+
+### 3.8.1 장시간 작업 상태 조회
 
 - Method: `GET`
 - Path: `/api/jobs/{jobId}/status`
