@@ -62,7 +62,7 @@ export function DiagnosisCreateView({ githubAnalysisId }: Props) {
         }
         setState({ status: "error", message: getErrorMessage(err) });
       });
-  }, []);
+  }, [githubAnalysisId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

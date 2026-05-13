@@ -262,7 +262,7 @@ export function CoachChatView({ sessionId, mode = "page", onClose }: ChatViewPro
         toast.error(info.title, { description: info.detail });
       }
     },
-    [handleNewSession]
+    [handleNewSession, sessionId]
   );
 
   const handleKeyDown = useCallback(

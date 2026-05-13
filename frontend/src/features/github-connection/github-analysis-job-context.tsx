@@ -40,6 +40,26 @@ interface GithubAnalysisJobContextValue {
 const STORAGE_KEY = "github_analysis_job";
 const POLL_INTERVAL_MS = 3000;
 
+function saveToStorage(job: ActiveJob | null) {
+  if (typeof window === "undefined") return;
+  if (job) {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(job));
+  } else {
+    sessionStorage.removeItem(STORAGE_KEY);
+  }
+}
+
+function loadFromStorage(): ActiveJob | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as ActiveJob;
+  } catch {
+    return null;
+  }
+}
+
 // ── Context ───────────────────────────────────────────────────────────
 
 const GithubAnalysisJobContext = createContext<GithubAnalysisJobContextValue | null>(null);
@@ -47,34 +67,21 @@ const GithubAnalysisJobContext = createContext<GithubAnalysisJobContextValue | n
 // ── Provider ─────────────────────────────────────────────────────────
 
 export function GithubAnalysisJobProvider({ children }: { children: React.ReactNode }) {
-  const [activeJob, setActiveJob] = useState<ActiveJob | null>(null);
+  const [activeJob, setActiveJob] = useState<ActiveJob | null>(() => loadFromStorage());
   const [jobStatus, setJobStatus] = useState<AnalysisJobStatusResponse | null>(null);
   const [cacheInvalidateKey, setCacheInvalidateKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ── sessionStorage 직렬화/복원 ──
-
-  function saveToStorage(job: ActiveJob | null) {
-    if (job) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(job));
-    } else {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
-  }
-
-  function loadFromStorage(): ActiveJob | null {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw) as ActiveJob;
-    } catch {
-      return null;
-    }
-  }
-
   // ── 폴링 ──
+
+  const stopPoll = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
 
   const poll = useCallback(async (job: ActiveJob) => {
     try {
@@ -93,42 +100,26 @@ export function GithubAnalysisJobProvider({ children }: { children: React.ReactN
     } catch {
       // 개별 폴링 실패는 무시 (네트워크 일시적 오류)
     }
-  }, []);
+  }, [stopPoll]);
 
-  function startPoll(job: ActiveJob) {
+  const startPoll = useCallback((job: ActiveJob) => {
     stopPoll();
     pollRef.current = setInterval(() => poll(job), POLL_INTERVAL_MS);
-    // 즉시 1회 폴링
-    void poll(job);
-  }
-
-  function stopPoll() {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }
+    window.setTimeout(() => void poll(job), 0);
+  }, [poll, stopPoll]);
 
   // 폴링 설정: activeJob 변경 시
   useEffect(() => {
     if (!activeJob) return;
     startPoll(activeJob);
     return stopPoll;
-  }, [activeJob, poll]);
-
-  // ── 새로고침 복구 ──
-
-  useEffect(() => {
-    const stored = loadFromStorage();
-    if (!stored) return;
-    setActiveJob(stored);
-  }, []);
+  }, [activeJob, startPoll, stopPoll]);
 
   // ── cleanup ──
 
   useEffect(() => {
     return stopPoll;
-  }, []);
+  }, [stopPoll]);
 
   // ── 공개 API ──
 
@@ -163,7 +154,7 @@ export function GithubAnalysisJobProvider({ children }: { children: React.ReactN
     setJobStatus(null);
     setSubmitError(null);
     saveToStorage(null);
-  }, []);
+  }, [stopPoll]);
 
   return (
     <GithubAnalysisJobContext.Provider

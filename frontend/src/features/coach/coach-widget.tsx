@@ -14,6 +14,15 @@ import { isUnauthorizedError } from "@/lib/auth";
 
 const STORAGE_KEY = "coach-widget-open";
 
+function getInitialOpen() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 type SessionState =
   | { status: "idle" }
   | { status: "loading" }
@@ -22,19 +31,11 @@ type SessionState =
   | { status: "error"; message: string };
 
 export function CoachWidget() {
-  const [open, setOpen] = useState(false);
-  const [session, setSession] = useState<SessionState>({ status: "idle" });
+  const [open, setOpen] = useState(getInitialOpen);
+  const [session, setSession] = useState<SessionState>(() =>
+    getInitialOpen() ? { status: "loading" } : { status: "idle" }
+  );
   const pathname = usePathname();
-
-  // localStorage 복원
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored === "1") setOpen(true);
-    } catch {
-      // ignore
-    }
-  }, []);
 
   // /coach 경로에서는 위젯 숨김 (full-page 코치와 중복 방지)
   const onCoachPage = pathname?.startsWith("/coach") ?? false;
@@ -48,7 +49,6 @@ export function CoachWidget() {
 
     let cancelled = false;
     const controller = new AbortController();
-    setSession({ status: "loading" });
 
     (async () => {
       try {
@@ -91,6 +91,7 @@ export function CoachWidget() {
 
   const persistOpen = useCallback((next: boolean) => {
     setOpen(next);
+    setSession(next ? { status: "loading" } : { status: "idle" });
     try {
       window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
     } catch {
