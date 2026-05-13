@@ -44,7 +44,10 @@ export function CoachSessionsSidebar({ activeSessionId }: SidebarProps) {
   return (
     <aside className="coach-sidebar" aria-label="Coach 세션 목록">
       <header className="coach-sidebar-header">
-        <h3>세션</h3>
+        <div>
+          <h3>세션</h3>
+          <p className="coach-sidebar-note">세션 생성 시점의 스냅샷 기준</p>
+        </div>
         <button
           type="button"
           className="coach-sidebar-new"
@@ -90,12 +93,16 @@ export function CoachSessionsSidebar({ activeSessionId }: SidebarProps) {
                     <span className="coach-sidebar-label">
                       {isClosed ? "종료됨" : "활성"}
                     </span>
-                    <span className="coach-sidebar-version">
-                      v{session.profileVersion}/{session.roadmapVersion}
+                    <span className="coach-sidebar-date">
+                      {formatStartedAt(session.startedAt)}
                     </span>
                   </div>
-                  <div className="coach-sidebar-date">
-                    {formatStartedAt(session.startedAt)}
+                  <div
+                    className="coach-sidebar-snapshot"
+                    aria-label={`프로필 스냅샷 v${session.profileVersion}, 로드맵 스냅샷 v${session.roadmapVersion}`}
+                  >
+                    <span>프로필 스냅샷 v{session.profileVersion}</span>
+                    <span>로드맵 스냅샷 v{session.roadmapVersion}</span>
                   </div>
                 </Link>
               </li>
