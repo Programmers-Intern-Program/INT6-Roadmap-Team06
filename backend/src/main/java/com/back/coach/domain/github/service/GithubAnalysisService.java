@@ -100,11 +100,14 @@ public class GithubAnalysisService {
         // Slice 6: 선택된 repo에 한해 metadata를 분석 시점에 fetch한다.
         // #283 트랜잭션 분리 의도와 맞게 HTTP 호출은 트랜잭션 밖에서 수행하고,
         // 각 projectRepo.save 만 짧은 auto-tx로 들어간다.
-        fetchAndPersistMetadataForSelected(userId, githubConnectionId, selectedRepoIds);
+        MetadataFetchReport metadataFetchReport =
+                fetchAndPersistMetadataForSelected(userId, githubConnectionId, selectedRepoIds, coreRepoIds);
+        metadataFetchReport.throwIfAllCoreFetchesFailed();
 
         AnalysisInputs inputs = transactionTemplate.execute(status ->
-                loadInputs(userId, githubConnectionId, selectedRepoIds, coreRepoIds)
+                loadInputs(userId, githubConnectionId, selectedRepoIds, coreRepoIds, metadataFetchReport)
         );
+        validateCoreMetadataUsable(inputs.coreProjects());
 
         List<GithubAnalysisPayload.RepoSummary> repoSummaries = new ArrayList<>();
         long triageElapsedMs = 0, summaryElapsedMs = 0;
@@ -113,8 +116,8 @@ public class GithubAnalysisService {
         for (RepoAnalysisInput core : inputs.coreProjects()) {
             long repoStartMs = System.currentTimeMillis();
             RepoMetadata metadata = core.metadata();
-            if (isEmptyMetadata(metadata)) {
-                log.warn("분석 skip: 메타데이터 없음 repo={}", core.repoFullName());
+            if (!hasActivityMetadata(metadata)) {
+                log.warn("분석 skip: 활동 메타데이터 없음 repo={}", core.repoFullName());
                 continue;
             }
             ChampionTriageService.TriageResult triage;
@@ -141,6 +144,11 @@ public class GithubAnalysisService {
             long repoElapsedMs = System.currentTimeMillis() - repoStartMs;
             log.debug("Repo analysis completed: repo={}, totalElapsedMs={}",
                     core.repoFullName(), repoElapsedMs);
+        }
+
+        if (repoSummaries.isEmpty()) {
+            throw new ServiceException(ErrorCode.ANALYSIS_FAILED,
+                    "핵심 저장소 요약을 생성할 수 없습니다. GitHub 활동 데이터를 확인해주세요.");
         }
 
         long synthesisStartMs = System.currentTimeMillis();
@@ -184,11 +192,14 @@ public class GithubAnalysisService {
                 saved.getCreatedAt() == null ? Instant.now() : saved.getCreatedAt(), metrics);
     }
 
-    private void fetchAndPersistMetadataForSelected(Long userId, Long githubConnectionId, List<Long> selectedRepoIds) {
+    private MetadataFetchReport fetchAndPersistMetadataForSelected(Long userId, Long githubConnectionId,
+                                                                  List<Long> selectedRepoIds,
+                                                                  List<Long> coreRepoIds) {
         GithubConnection connection = connectionRepo.findByIdAndUserId(githubConnectionId, userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.FORBIDDEN));
 
         Set<Long> selectedIdSet = new HashSet<>(selectedRepoIds);
+        Set<Long> coreIdSet = new HashSet<>(coreRepoIds);
         List<GithubProject> selected = projectRepo
                 .findByUserIdAndGithubConnectionId(userId, githubConnectionId).stream()
                 .filter(p -> selectedIdSet.contains(p.getId()))
@@ -199,10 +210,14 @@ public class GithubAnalysisService {
 
         String token = connection.getAccessToken();
         String login = connection.getGithubLogin();
+        List<MetadataFetchResult> results = new ArrayList<>();
         for (GithubProject project : selected) {
+            boolean core = coreIdSet.contains(project.getId());
             String[] parts = project.getRepoFullName().split("/", 2);
             if (parts.length < 2) {
                 log.warn("repo_full_name 형식 비정상, metadata fetch skip: {}", project.getRepoFullName());
+                results.add(MetadataFetchResult.failure(project.getId(), project.getRepoFullName(), core,
+                        ErrorCode.INVALID_INPUT, "repo_full_name 형식이 올바르지 않습니다."));
                 continue;
             }
             String owner = parts[0];
@@ -212,17 +227,23 @@ public class GithubAnalysisService {
                 String json = METADATA_MAPPER.writeValueAsString(metadata);
                 project.updateMetadataPayload(json);
                 projectRepo.save(project);
+                results.add(MetadataFetchResult.success(project.getId(), project.getRepoFullName(), core));
             } catch (JsonProcessingException e) {
-                log.warn("metadata 직렬화 실패 repo={} reason={}", project.getRepoFullName(), e.getMessage());
+                results.add(MetadataFetchResult.failure(project.getId(), project.getRepoFullName(), core,
+                        ErrorCode.INTERNAL_SERVER_ERROR, "metadata 직렬화에 실패했습니다."));
             } catch (ServiceException e) {
-                log.warn("GitHub API 오류로 metadata fetch 실패 repo={} code={} message={}",
-                        project.getRepoFullName(), e.getErrorCode(), e.getMessage());
+                results.add(MetadataFetchResult.failure(project.getId(), project.getRepoFullName(), core,
+                        e.getErrorCode(), e.getMessage()));
             }
         }
+        MetadataFetchReport report = new MetadataFetchReport(results);
+        report.logFailures();
+        return report;
     }
 
     private AnalysisInputs loadInputs(Long userId, Long githubConnectionId,
-                                      List<Long> selectedRepoIds, List<Long> coreRepoIds) {
+                                      List<Long> selectedRepoIds, List<Long> coreRepoIds,
+                                      MetadataFetchReport metadataFetchReport) {
         if (!connectionRepo.existsByIdAndUserId(githubConnectionId, userId)) {
             throw new ServiceException(ErrorCode.FORBIDDEN);
         }
@@ -232,9 +253,11 @@ public class GithubAnalysisService {
                 .collect(Collectors.toMap(GithubProject::getId, p -> p));
 
         List<RepoAnalysisInput> selected = pickProjects(projectsById, selectedRepoIds).stream()
+                .filter(p -> metadataFetchReport.isSuccess(p.getId()))
                 .map(this::toRepoInput)
                 .toList();
         List<RepoAnalysisInput> coreProjects = pickProjects(projectsById, coreRepoIds).stream()
+                .filter(p -> metadataFetchReport.isSuccess(p.getId()))
                 .map(this::toRepoInput)
                 .toList();
 
@@ -259,8 +282,11 @@ public class GithubAnalysisService {
         if (selectedRepoIds == null || selectedRepoIds.isEmpty()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "selectedRepositoryIds 가 비어 있습니다.");
         }
+        if (coreRepoIds == null || coreRepoIds.isEmpty()) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT, "coreRepositoryIds 가 비어 있습니다.");
+        }
         Set<Long> selectedSet = new HashSet<>(selectedRepoIds);
-        if (coreRepoIds != null && !selectedSet.containsAll(coreRepoIds)) {
+        if (!selectedSet.containsAll(coreRepoIds)) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "coreRepositoryIds 는 selectedRepositoryIds 의 부분집합이어야 합니다.");
         }
     }
@@ -291,10 +317,26 @@ public class GithubAnalysisService {
         return new RepoMetadata(null, Map.of(), List.of(), List.of(), List.of(), List.of());
     }
 
-    private boolean isEmptyMetadata(RepoMetadata metadata) {
-        return (metadata.commits() == null || metadata.commits().isEmpty())
-                && (metadata.pullRequests() == null || metadata.pullRequests().isEmpty())
-                && (metadata.issues() == null || metadata.issues().isEmpty());
+    private void validateCoreMetadataUsable(List<RepoAnalysisInput> coreProjects) {
+        long usableCount = coreProjects.stream()
+                .filter(p -> hasUsableMetadata(p.metadata()))
+                .count();
+        if (usableCount == 0) {
+            log.warn("GitHub 분석 실패: 유효 metadata가 있는 core repo 없음 coreCount={}", coreProjects.size());
+            throw new ServiceException(ErrorCode.ANALYSIS_FAILED,
+                    "핵심 저장소에서 분석 가능한 GitHub 메타데이터를 찾지 못했습니다.");
+        }
+    }
+
+    private boolean hasUsableMetadata(RepoMetadata metadata) {
+        return hasActivityMetadata(metadata)
+                || (metadata.languageBytes() != null && !metadata.languageBytes().isEmpty());
+    }
+
+    private boolean hasActivityMetadata(RepoMetadata metadata) {
+        return (metadata.commits() != null && !metadata.commits().isEmpty())
+                || (metadata.pullRequests() != null && !metadata.pullRequests().isEmpty())
+                || (metadata.issues() != null && !metadata.issues().isEmpty());
     }
 
     private List<ResolvedChampion> resolveChampions(List<Champion> champions, RepoMetadata metadata) {
@@ -403,4 +445,77 @@ public class GithubAnalysisService {
             String primaryLanguage,
             RepoMetadata metadata
     ) {}
+
+    private record MetadataFetchReport(List<MetadataFetchResult> results) {
+
+        boolean isSuccess(Long repoId) {
+            return results.stream()
+                    .filter(result -> result.repoId().equals(repoId))
+                    .findFirst()
+                    .map(MetadataFetchResult::success)
+                    .orElse(false);
+        }
+
+        void throwIfAllCoreFetchesFailed() {
+            List<MetadataFetchResult> coreResults = results.stream()
+                    .filter(MetadataFetchResult::core)
+                    .toList();
+            if (coreResults.isEmpty()) {
+                throw new ServiceException(ErrorCode.ANALYSIS_FAILED,
+                        "핵심 저장소 metadata fetch 결과가 없습니다.");
+            }
+            long failureCount = coreResults.stream()
+                    .filter(result -> !result.success())
+                    .count();
+            if (failureCount != coreResults.size()) {
+                return;
+            }
+            MetadataFetchResult representative = coreResults.stream()
+                    .filter(result -> !result.success())
+                    .findFirst()
+                    .orElseThrow();
+            throw new ServiceException(representative.errorCode(),
+                    "핵심 저장소 GitHub metadata를 가져오지 못했습니다.");
+        }
+
+        void logFailures() {
+            List<MetadataFetchResult> failures = results.stream()
+                    .filter(result -> !result.success())
+                    .toList();
+            for (MetadataFetchResult failure : failures) {
+                log.warn("GitHub metadata fetch 실패 repo={} core={} code={} message={}",
+                        failure.repoFullName(), failure.core(), failure.errorCode(), failure.message());
+            }
+            if (!failures.isEmpty()) {
+                long coreFailures = failures.stream()
+                        .filter(MetadataFetchResult::core)
+                        .count();
+                long coreTotal = results.stream()
+                        .filter(MetadataFetchResult::core)
+                        .count();
+                log.warn("GitHub metadata fetch 실패 요약 selectedFailures={} coreFailures={} selectedTotal={} coreTotal={}",
+                        failures.size(), coreFailures, results.size(), coreTotal);
+            }
+        }
+    }
+
+    private record MetadataFetchResult(
+            Long repoId,
+            String repoFullName,
+            boolean core,
+            boolean success,
+            ErrorCode errorCode,
+            String message
+    ) {
+        static MetadataFetchResult success(Long repoId, String repoFullName, boolean core) {
+            return new MetadataFetchResult(repoId, repoFullName, core, true, null, null);
+        }
+
+        static MetadataFetchResult failure(Long repoId, String repoFullName, boolean core,
+                                           ErrorCode errorCode, String message) {
+            return new MetadataFetchResult(repoId, repoFullName, core, false,
+                    errorCode == null ? ErrorCode.ANALYSIS_FAILED : errorCode,
+                    message == null ? "" : message);
+        }
+    }
 }
