@@ -37,6 +37,7 @@ class GithubAnalysisPayloadJsonTest {
         GithubAnalysisPayload restored = json.fromJson(serialized);
 
         assertThat(restored).isEqualTo(original);
+        assertThat(restored.analysisTrace()).isNull();
     }
 
     @Test
@@ -58,5 +59,26 @@ class GithubAnalysisPayloadJsonTest {
         GithubAnalysisPayload restored = json.fromJson(jsonWithExtra);
 
         assertThat(restored.staticSignals().activeRepos()).isZero();
+    }
+
+    @Test
+    @DisplayName("analysisTrace가 없는 기존 payload도 역직렬화된다")
+    void deserialize_legacyPayloadWithoutTrace() {
+        String legacyPayload = """
+                {
+                  "staticSignals": {"primaryLanguages": [], "activeRepos": 1, "commitFrequency": "WEEKLY", "contributionPattern": "CONSISTENT"},
+                  "repoSummaries": [],
+                  "techTags": [],
+                  "depthEstimates": [],
+                  "evidences": [],
+                  "userCorrections": [],
+                  "finalTechProfile": {"confirmedSkills": ["Java"], "focusAreas": ["Backend"]}
+                }
+                """;
+
+        GithubAnalysisPayload restored = json.fromJson(legacyPayload);
+
+        assertThat(restored.finalTechProfile().confirmedSkills()).containsExactly("Java");
+        assertThat(restored.analysisTrace()).isNull();
     }
 }

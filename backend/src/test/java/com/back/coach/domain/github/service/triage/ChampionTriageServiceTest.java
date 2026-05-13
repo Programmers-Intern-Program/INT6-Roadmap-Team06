@@ -46,6 +46,7 @@ class ChampionTriageServiceTest {
         ChampionTriageService.TriageResult result = service.triage("user/r", "https://u", metadataWithCommits(10));
 
         assertThat(result.fallback()).isFalse();
+        assertThat(result.promptBytes()).isPositive();
         assertThat(result.champions()).hasSize(2);
         assertThat(result.champions().get(0).ref()).isEqualTo("abc");
     }
@@ -59,6 +60,7 @@ class ChampionTriageServiceTest {
         ChampionTriageService.TriageResult result = service.triage("r", "u", metadataWithCommits(10));
 
         assertThat(result.fallback()).isTrue();
+        assertThat(result.promptBytes()).isPositive();
         assertThat(result.champions()).hasSize(6);
         assertThat(result.champions()).allMatch(c -> c.kind() == Champion.Kind.COMMIT);
         // 가장 최신 (sha9, sha8, ..., sha4) 6개

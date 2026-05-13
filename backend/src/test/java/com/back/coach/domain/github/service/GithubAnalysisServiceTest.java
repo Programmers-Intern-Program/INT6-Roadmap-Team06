@@ -1,5 +1,6 @@
 package com.back.coach.domain.github.service;
 
+import com.back.coach.domain.github.dto.GithubAnalysisPayload;
 import com.back.coach.domain.github.entity.GithubAnalysis;
 import com.back.coach.domain.github.entity.GithubConnection;
 import com.back.coach.domain.github.entity.GithubProject;
@@ -127,6 +128,45 @@ class GithubAnalysisServiceTest {
         assertThat(result.version()).isEqualTo(1);
         assertThat(result.id()).isEqualTo(7L);
         assertThat(result.payload().finalTechProfile().confirmedSkills()).contains("Spring Boot");
+        GithubAnalysisPayload.AnalysisTrace trace = result.payload().analysisTrace();
+        assertThat(trace).isNotNull();
+        assertThat(trace.repositories()).singleElement().satisfies(repo -> {
+            assertThat(repo.repoId()).isEqualTo("1");
+            assertThat(repo.repoName()).isEqualTo("user/a");
+            assertThat(repo.core()).isTrue();
+            assertThat(repo.commitCount()).isEqualTo(1);
+            assertThat(repo.pullRequestCount()).isZero();
+            assertThat(repo.issueCount()).isZero();
+            assertThat(repo.languageCount()).isEqualTo(1);
+            assertThat(repo.dependencyFileCount()).isZero();
+        });
+        assertThat(trace.triage()).singleElement().satisfies(stage -> {
+            assertThat(stage.promptVersion()).isEqualTo(ChampionTriagePromptBuilder.VERSION);
+            assertThat(stage.promptBytes()).isPositive();
+            assertThat(stage.elapsedMs()).isNotNegative();
+            assertThat(stage.fallback()).isFalse();
+            assertThat(stage.champions()).singleElement().satisfies(champion -> {
+                assertThat(champion.kind()).isEqualTo("COMMIT");
+                assertThat(champion.ref()).isEqualTo("abc");
+                assertThat(champion.reason()).isEqualTo("OAuth");
+            });
+        });
+        assertThat(trace.repoSummaries()).singleElement().satisfies(stage -> {
+            assertThat(stage.promptVersion()).isEqualTo(RepoSummaryPromptBuilder.VERSION);
+            assertThat(stage.promptBytes()).isPositive();
+            assertThat(stage.elapsedMs()).isNotNegative();
+            assertThat(stage.highlightCount()).isEqualTo(1);
+            assertThat(stage.summaryLength()).isEqualTo("Spring Boot".length());
+        });
+        assertThat(trace.synthesis()).satisfies(stage -> {
+            assertThat(stage.promptVersion()).isEqualTo(SynthesisPromptBuilder.VERSION);
+            assertThat(stage.promptBytes()).isPositive();
+            assertThat(stage.elapsedMs()).isNotNegative();
+            assertThat(stage.techTagCount()).isEqualTo(1);
+            assertThat(stage.depthEstimateCount()).isEqualTo(1);
+            assertThat(stage.evidenceCount()).isEqualTo(1);
+            assertThat(stage.confirmedSkillCount()).isEqualTo(1);
+        });
     }
 
     @Test
@@ -160,6 +200,9 @@ class GithubAnalysisServiceTest {
 
         assertThat(result.version()).isEqualTo(1);
         assertThat(result.payload().finalTechProfile()).isNotNull();
+        assertThat(result.payload().analysisTrace().triage())
+                .singleElement()
+                .satisfies(stage -> assertThat(stage.fallback()).isTrue());
     }
 
     @Test
