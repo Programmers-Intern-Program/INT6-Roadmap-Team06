@@ -13,6 +13,12 @@ package com.back.coach.external.llm;
 public interface LlmClient {
 
     /**
+     * 호출 site별 cap을 명시하지 않을 때 적용되는 기본값.
+     * 5개 PromptBuilder(분석/진단/로드맵) 호출 경로는 이 값을 사용.
+     */
+    int DEFAULT_MAX_TOKENS = 16384;
+
+    /**
      * user role 단일 메시지로 동기 completion 호출. (legacy)
      *
      * @throws com.back.coach.global.exception.ServiceException
@@ -37,5 +43,18 @@ public interface LlmClient {
             return complete(userPrompt);
         }
         return complete(systemPrompt + "\n\n" + userPrompt);
+    }
+
+    /**
+     * system role + user role 분리 + 호출 site별 `max_tokens` 명시.
+     *
+     * <p>Coach 채팅처럼 reasoning loop 상한을 죄어 latency 분산을 줄이고 싶은 경로에서 사용.
+     * 분석/진단/로드맵 등 출력 크기가 큰 경로는 2-arg 오버로드로 기본 cap을 그대로 쓰면 됨.
+     *
+     * <p>기본 구현은 maxTokens를 무시하고 2-arg 호출로 위임 — 실제 HTTP 파라미터로 전달하려면
+     * 구현체에서 override 해야 함.
+     */
+    default String complete(String systemPrompt, String userPrompt, int maxTokens) {
+        return complete(systemPrompt, userPrompt);
     }
 }

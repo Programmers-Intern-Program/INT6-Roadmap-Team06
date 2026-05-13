@@ -29,6 +29,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -97,7 +98,7 @@ class CoachMessageServiceIntegrationTest {
     @Test
     @DisplayName("USER 메시지 전송 시 USER/COACH 두 행이 저장되고 COACH는 SIMPLE_GUIDE 라우트")
     void sendMessageStoresUserAndCoachRows() {
-        given(llmClient.complete(anyString(), anyString())).willReturn(
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(
                 "{\"route\":\"SIMPLE_GUIDE\",\"responseText\":\"이번 주는 Redis 캐시부터 학습하세요.\"}"
         );
 
@@ -108,7 +109,7 @@ class CoachMessageServiceIntegrationTest {
         assertThat(coachMessage.getMessageText()).contains("Redis");
 
         ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
-        verify(llmClient).complete(systemCaptor.capture(), anyString());
+        verify(llmClient).complete(systemCaptor.capture(), anyString(), anyInt());
         assertThat(systemCaptor.getValue()).contains("Write all user-visible natural-language values in Korean");
         assertThat(systemCaptor.getValue()).contains("responseText, replanReason, detectedIntent는 한국어로 작성");
 
@@ -151,7 +152,7 @@ class CoachMessageServiceIntegrationTest {
     @Test
     @DisplayName("LLM 실패 시 USER 메시지는 저장되지만 COACH 행은 생성되지 않음")
     void llmFailureLeavesOnlyUserMessage() {
-        given(llmClient.complete(anyString(), anyString())).willThrow(new ServiceException(ErrorCode.LLM_TIMEOUT));
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willThrow(new ServiceException(ErrorCode.LLM_TIMEOUT));
 
         assertThatThrownBy(() -> coachMessageService.sendMessage(userId, sessionId, "오늘 뭐 공부할까?"))
                 .isInstanceOf(ServiceException.class)
@@ -165,7 +166,7 @@ class CoachMessageServiceIntegrationTest {
     @Test
     @DisplayName("getMessages: 저장된 USER/COACH 메시지를 시간순으로 조회")
     void getMessagesReturnsStoredMessagesInTimeOrder() {
-        given(llmClient.complete(anyString(), anyString())).willReturn(
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(
                 "{\"route\":\"SIMPLE_GUIDE\",\"responseText\":\"이번 주는 Redis 캐시부터 학습하세요.\",\"detectedIntent\":\"CHECK_TODAY_PLAN\"}"
         );
         coachMessageService.sendMessage(userId, sessionId, "오늘 뭐 공부할까?");
@@ -183,7 +184,7 @@ class CoachMessageServiceIntegrationTest {
     @Test
     @DisplayName("getMessages: 닫힌 세션도 히스토리 조회 가능")
     void getMessagesAllowsClosedSession() {
-        given(llmClient.complete(anyString(), anyString())).willReturn(
+        given(llmClient.complete(anyString(), anyString(), anyInt())).willReturn(
                 "{\"route\":\"SIMPLE_GUIDE\",\"responseText\":\"이번 주는 Redis 캐시부터 학습하세요.\"}"
         );
         coachMessageService.sendMessage(userId, sessionId, "오늘 뭐 공부할까?");
