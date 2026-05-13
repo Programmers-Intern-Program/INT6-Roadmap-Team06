@@ -3611,6 +3611,32 @@ a {
   line-height: 1.6;
 }
 
+.portfolio-draft-empty-variant {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  min-height: 360px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 24px;
+  text-align: center;
+}
+
+.portfolio-draft-empty-variant p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.portfolio-draft-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
 .portfolio-draft-editor-footer {
   display: flex;
   align-items: center;
@@ -3677,7 +3703,8 @@ a {
   }
 
   .portfolio-draft-action-panel .action-link,
-  .portfolio-draft-editor-footer .action-link {
+  .portfolio-draft-editor-footer .action-link,
+  .portfolio-draft-empty-actions .action-link {
     width: 100%;
   }
 }

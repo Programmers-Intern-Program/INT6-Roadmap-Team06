@@ -58,4 +58,10 @@ public class PortfolioDraft extends BaseEntity {
         this.title = title;
         this.draftPayload = draftPayload;
     }
+
+    public void updateGeneratedContent(String title, String draftPayload, String sourceRefs) {
+        this.title = title;
+        this.draftPayload = draftPayload;
+        this.sourceRefs = sourceRefs;
+    }
 }
