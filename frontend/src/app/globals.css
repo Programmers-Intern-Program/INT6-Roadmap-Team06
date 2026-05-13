@@ -2218,9 +2218,16 @@ a {
   gap: 8px;
 }
 
-/* === Coach layout — widget mode adjustments === */
+/* === Coach layout — widget mode adjustments ===
+ *
+ * Selector is intentionally scoped under .coach-widget-panel to win
+ * specificity vs the base .coach-layout / .coach-screen rules that
+ * appear later in this stylesheet. Otherwise the base
+ * 'height: calc(100vh - 56px)' clobbers our 'height: 100%' and the
+ * coach screen overflows the 640px panel (input bar falls off-screen
+ * once messages accumulate). */
 
-.coach-layout--widget {
+.coach-widget-panel .coach-layout {
   height: 100%;
   max-width: none;
   margin: 0;
@@ -2229,35 +2236,44 @@ a {
   flex-direction: column;
 }
 
-.coach-layout--widget .coach-screen {
-  flex: 1;
+.coach-widget-panel .coach-screen {
+  flex: 1 1 0;
+  height: auto;
   min-height: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
   border: none;
   border-radius: 0;
 }
 
-.coach-layout--widget .coach-header {
+.coach-widget-panel .coach-header {
   padding: 12px 16px;
   min-height: auto;
+  flex-shrink: 0;
 }
 
-.coach-layout--widget .coach-title {
+.coach-widget-panel .coach-title {
   font-size: 15px;
 }
 
-.coach-layout--widget .coach-scroller {
+.coach-widget-panel .coach-scroller {
+  flex: 1 1 0;
+  min-height: 0;
   padding: 12px 16px;
 }
 
-.coach-layout--widget .coach-composer {
+.coach-widget-panel .coach-composer {
   padding: 10px 12px;
+  flex-shrink: 0;
 }
 
-.coach-layout--widget .coach-bubbles {
+.coach-widget-panel .coach-bubbles {
   gap: 10px;
 }
 
-.coach-layout--widget .coach-bubble {
+.coach-widget-panel .coach-bubble {
   font-size: 14px;
 }
 
