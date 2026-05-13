@@ -31,6 +31,8 @@ class RepoSummaryPromptBuilderTest {
         // RepoSummary JSON 응답 형식과 highlight status enum을 LLM에 알려주는 instruction이 있어야 함
         assertThat(prompt).contains("highlights[{text, status}]");
         assertThat(prompt).contains("ADOPTED").contains("EVOLVED").contains("REVERSED");
+        assertThat(prompt).contains("Write summary and highlights[].text in Korean");
+        assertThat(prompt).contains("Keep technical proper nouns");
     }
 
     @Test

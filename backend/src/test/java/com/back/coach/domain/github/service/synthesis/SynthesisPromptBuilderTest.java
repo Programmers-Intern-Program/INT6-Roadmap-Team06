@@ -47,6 +47,8 @@ class SynthesisPromptBuilderTest {
         // 출력 형식 / enum 값 안내
         assertThat(prompt).contains("INTRO").contains("APPLIED").contains("PRACTICAL").contains("DEEP");
         assertThat(prompt).contains("README").contains("CODE").contains("CONFIG").contains("REPO_METADATA").contains("COMMIT");
+        assertThat(prompt).contains("Write user-visible natural-language values in Korean");
+        assertThat(prompt).contains("techTags[].tagReason", "depthEstimates[].reason", "evidences[].summary", "finalTechProfile.focusAreas");
     }
 
     @Test

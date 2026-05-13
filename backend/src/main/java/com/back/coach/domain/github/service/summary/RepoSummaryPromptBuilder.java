@@ -39,6 +39,10 @@ public class RepoSummaryPromptBuilder {
         sb.append("Output a single JSON object {repoId, repoName, summary, highlights[{text, status}]}.\n");
         sb.append("Each highlight must have: text (string) and status (ADOPTED|EVOLVED|REVERSED).\n");
         sb.append("Use REVERSED if a subsequent activity shows the feature was reverted or abandoned.\n\n");
+        sb.append("Language rules:\n");
+        sb.append("- Write summary and highlights[].text in Korean.\n");
+        sb.append("- Keep technical proper nouns such as Java, Spring Boot, Redis, Docker, and GitHub Actions in their original form.\n");
+        sb.append("- Keep repoId, repoName, and status values unchanged.\n\n");
 
         int dropped = 0;
         Champion.Kind currentSection = null;

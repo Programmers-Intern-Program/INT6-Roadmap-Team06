@@ -22,6 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @IntegrationTest
 class CoachMessageServiceIntegrationTest {
@@ -104,6 +106,11 @@ class CoachMessageServiceIntegrationTest {
         assertThat(coachMessage.getRole()).isEqualTo(CoachMessageRole.COACH);
         assertThat(coachMessage.getRoute()).isEqualTo(CoachRoute.SIMPLE_GUIDE);
         assertThat(coachMessage.getMessageText()).contains("Redis");
+
+        ArgumentCaptor<String> systemCaptor = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).complete(systemCaptor.capture(), anyString());
+        assertThat(systemCaptor.getValue()).contains("Write all user-visible natural-language values in Korean");
+        assertThat(systemCaptor.getValue()).contains("responseText, replanReason, detectedIntent는 한국어로 작성");
 
         List<CoachConversation> rows = coachConversationRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
         assertThat(rows).hasSize(2);

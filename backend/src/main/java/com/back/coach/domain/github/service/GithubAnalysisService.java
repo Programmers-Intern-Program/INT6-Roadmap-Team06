@@ -135,7 +135,7 @@ public class GithubAnalysisService {
                     core.primaryLanguage(), resolved);
             summaryPromptBytes += summaryPrompt.getBytes().length;
             long summaryStartMs = System.currentTimeMillis();
-            String summaryResponse = llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, summaryPrompt);
+            String summaryResponse = llmClient.complete(PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY, summaryPrompt);
             summaryElapsedMs += System.currentTimeMillis() - summaryStartMs;
             repoSummaries.add(summaryResponseParser.parse(summaryResponse));
             long repoElapsedMs = System.currentTimeMillis() - repoStartMs;
@@ -147,7 +147,7 @@ public class GithubAnalysisService {
         String synthesisPrompt = synthesisPromptBuilder.build(inputs.signals(), repoSummaries);
         int synthesisPromptBytes = synthesisPrompt.getBytes().length;
         log.debug("Synthesis prompt built: bytes={}", synthesisPromptBytes);
-        String synthesisResponse = llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, synthesisPrompt);
+        String synthesisResponse = llmClient.complete(PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY, synthesisPrompt);
         SynthesisResponseParser.SynthesisResult synthesis = synthesisResponseParser.parse(synthesisResponse);
         long synthesisElapsedMs = System.currentTimeMillis() - synthesisStartMs;
         log.debug("Synthesis completed: elapsedMs={}", synthesisElapsedMs);

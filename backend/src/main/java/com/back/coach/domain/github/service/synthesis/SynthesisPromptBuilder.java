@@ -80,6 +80,8 @@ public class SynthesisPromptBuilder {
         sb.append("For evidences[].type, use ONLY one of: ").append(EVIDENCE_VALUES).append(".\n");
         sb.append("If evidence type is uncertain, use REPO_METADATA. Do NOT leave it blank and do NOT invent new values.\n");
         sb.append("Do NOT rename fields. Do NOT add extra fields.\n");
+        sb.append("Write user-visible natural-language values in Korean: techTags[].tagReason, depthEstimates[].reason, evidences[].summary, finalTechProfile.focusAreas.\n");
+        sb.append("Keep skillName, repoName, source, enum values, and technical proper nouns in their original form.\n");
         return sb.toString();
     }
 }

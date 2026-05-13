@@ -160,6 +160,8 @@ class DiagnosisCommandServiceTest {
         ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
         verify(llmClient).complete(systemCaptor.capture(), userCaptor.capture());
         assertThat(systemCaptor.getValue()).contains("JSON-only");
+        assertThat(systemCaptor.getValue()).contains("Korean users");
+        assertThat(systemCaptor.getValue()).contains("Write all user-visible natural-language values in Korean");
         assertThat(userCaptor.getValue()).contains("Spring Boot", "Redis", "BACKEND_DEVELOPER");
     }
 
