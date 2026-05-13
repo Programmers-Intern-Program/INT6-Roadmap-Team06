@@ -78,6 +78,14 @@ export default function DiagnosesPage() {
           시점별 진단 결과를 모아 봅니다. 최신 분석을 기반으로 다시 진단할 수 있어요.
         </p>
       </header>
+      <div className="action-row" aria-label="진단 다음 행동">
+        <Link className="action-link primary" href="/github/analysis">
+          + 새 진단 만들기
+        </Link>
+      </div>
+      <p className="screen-helper-note">
+        새 진단을 만들려면 먼저 GitHub 분석 결과 페이지에서 분석을 선택한 뒤 [진단 생성]을 눌러주세요.
+      </p>
       <ul className="card-grid">
         {state.items.map((item) => (
           <li key={item.diagnosisId} className="result-card">
@@ -103,6 +111,12 @@ export default function DiagnosesPage() {
                 </Link>
                 <Link
                   className="action-link primary"
+                  href={`/roadmaps/new?diagnosisId=${item.diagnosisId}`}
+                >
+                  로드맵 만들기
+                </Link>
+                <Link
+                  className="action-link"
                   href={`/diagnoses/new?githubAnalysisId=${item.githubAnalysisId}`}
                 >
                   재진단
