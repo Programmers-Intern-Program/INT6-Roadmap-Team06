@@ -9,6 +9,8 @@ import com.back.coach.global.code.ChatSessionStatus;
 import com.back.coach.global.code.ContextType;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,17 +33,20 @@ public class CoachSessionService {
     private final UserContextSnapshotRepository contextSnapshotRepository;
     private final ContextSnapshotPublisher contextSnapshotPublisher;
     private final TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper;
 
     public CoachSessionService(
             ChatSessionRepository chatSessionRepository,
             UserContextSnapshotRepository contextSnapshotRepository,
             ContextSnapshotPublisher contextSnapshotPublisher,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            ObjectMapper objectMapper
     ) {
         this.chatSessionRepository = chatSessionRepository;
         this.contextSnapshotRepository = contextSnapshotRepository;
         this.contextSnapshotPublisher = contextSnapshotPublisher;
         this.transactionTemplate = transactionTemplate;
+        this.objectMapper = objectMapper;
     }
 
     // 트랜잭션 밖에서 self-heal publish 먼저 실행 후, 짧은 auto-tx로 세션 생성.
@@ -77,7 +82,7 @@ public class CoachSessionService {
     }
 
     /**
-     * Placeholder snapshot이 이미 존재할 때만 publisher 호출 (self-heal).
+     * Placeholder snapshot 또는 legacy PLAN snapshot이 이미 존재할 때만 publisher 호출 (self-heal).
      * snapshot이 아예 없는 경우는 v1 입력 미완 = 사용자에게 SNAPSHOT_NOT_FOUND를 그대로 노출.
      * outer tx 밖에서 동기 실행되므로 새 active snapshot이 즉시 가시화된다.
      * payload가 풍부하면 skip → churn 0.
@@ -92,10 +97,11 @@ public class CoachSessionService {
                 });
 
         contextSnapshotRepository.findActiveByUserIdAndContextType(userId, ContextType.PLAN)
-                .filter(this::isPlaceholder)
+                .filter(this::needsPlanSelfHeal)
                 .ifPresent(stale -> {
-                    log.info("PLAN snapshot self-heal: publishing for userId={} (current bytes={})",
-                            userId, stale.getPayload() == null ? 0 : stale.getPayload().length());
+                    log.info("PLAN snapshot self-heal: publishing for userId={} (current bytes={}, hasWeeks={})",
+                            userId, stale.getPayload() == null ? 0 : stale.getPayload().length(),
+                            hasRoadmapWeeks(stale));
                     contextSnapshotPublisher.publishPlan(userId);
                 });
     }
@@ -103,6 +109,19 @@ public class CoachSessionService {
     private boolean isPlaceholder(UserContextSnapshot snapshot) {
         String payload = snapshot.getPayload();
         return payload == null || payload.length() < PLACEHOLDER_PAYLOAD_BYTES_THRESHOLD;
+    }
+
+    private boolean needsPlanSelfHeal(UserContextSnapshot snapshot) {
+        return isPlaceholder(snapshot) || !hasRoadmapWeeks(snapshot);
+    }
+
+    private boolean hasRoadmapWeeks(UserContextSnapshot snapshot) {
+        try {
+            JsonNode root = objectMapper.readTree(snapshot.getPayload());
+            return root.path("roadmap").path("weeks").isArray();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     @Transactional(readOnly = true)
