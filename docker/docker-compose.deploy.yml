@@ -2,6 +2,7 @@ name: coach-deploy
 
 x-backend-env: &backend-env
   SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod,oauth}
+  SERVER_FORWARD_HEADERS_STRATEGY: ${SERVER_FORWARD_HEADERS_STRATEGY:-framework}
   DATABASE_URL: ${DATABASE_URL:-jdbc:postgresql://postgres:5432/coachdb}
   DATABASE_USERNAME: ${DATABASE_USERNAME:-coach}
   DATABASE_PASSWORD: ${DATABASE_PASSWORD:-coach}
@@ -16,7 +17,7 @@ x-backend-env: &backend-env
   GITHUB_CONNECTION_CLIENT_SECRET: ${GITHUB_CONNECTION_CLIENT_SECRET:-}
   AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
   AI_GATEWAY_BASE_URL: ${AI_GATEWAY_BASE_URL:-https://aigw.alpha.grepp.co}
-  AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-glm-4.5-flash}
+  AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-glm-4.7}
 
 x-backend-depends-on: &backend-depends-on
   postgres:
@@ -66,6 +67,7 @@ services:
   backend-blue:
     image: ${BACKEND_IMAGE:-coach-backend:local}
     container_name: coach-deploy-backend-blue
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-768m}
     environment:
       <<: *backend-env
       DEPLOY_COLOR: blue
@@ -77,6 +79,7 @@ services:
   backend-green:
     image: ${BACKEND_IMAGE:-coach-backend:local}
     container_name: coach-deploy-backend-green
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-768m}
     environment:
       <<: *backend-env
       DEPLOY_COLOR: green

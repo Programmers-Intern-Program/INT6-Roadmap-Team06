@@ -142,6 +142,7 @@ jobs:
 
           cp docker/docker-compose.deploy.yml "$bundle_dir/docker/docker-compose.deploy.yml"
           printf '%s\n' "$DEPLOY_ENV_FILE" > "$bundle_dir/docker/.env.deploy"
+          sed -i 's/\r$//' "$bundle_dir/docker/.env.deploy"
           cp scripts/smoke/deploy-smoke.ps1 "$bundle_dir/scripts/smoke/deploy-smoke.ps1"
           cp scripts/deploy/*.sh "$bundle_dir/scripts/deploy/"
 
@@ -177,10 +178,30 @@ jobs:
             "GITHUB_ACTOR='$GITHUB_ACTOR' GHCR_TOKEN='$GHCR_TOKEN' BACKEND_IMAGE='$BACKEND_IMAGE' FRONTEND_IMAGE='$FRONTEND_IMAGE' TARGET_COLOR='$TARGET_COLOR' REMOTE_DIR='$REMOTE_DIR' bash -s" <<'REMOTE'
           set -euo pipefail
           cd "$REMOTE_DIR"
-          printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+          retry() {
+            local attempts="$1"
+            shift
+            local attempt
+            for attempt in $(seq 1 "$attempts"); do
+              if "$@"; then
+                return 0
+              fi
+              echo "command failed, retrying... attempt ${attempt}/${attempts}" >&2
+              sleep $((attempt * 10))
+            done
+            "$@"
+          }
+
+          docker_login() {
+            printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          }
+
+          retry 3 docker_login
           ./scripts/deploy/set-compose-images.sh "$BACKEND_IMAGE" "$FRONTEND_IMAGE"
           docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d postgres redis
-          docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml pull "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
+          docker container prune -f --filter "label=com.docker.compose.project=coach-deploy"
+          retry 3 docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml pull "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
           docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml up -d "backend-${TARGET_COLOR}" "frontend-${TARGET_COLOR}"
           docker image prune -f
           REMOTE

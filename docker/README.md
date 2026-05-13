@@ -10,6 +10,14 @@ Copy-Item docker/.env.deploy.example docker/.env.deploy
 
 `docker/.env.deploy`에는 운영 도메인, OAuth client id/secret, JWT secret, AI Gateway key를 채운다. 이 파일은 Git에 올리지 않는다.
 
+도메인 HTTPS 리허설에서는 다음 값을 함께 둔다.
+
+- `APP_DOMAIN`: scheme 없는 단일 도메인. 예: `coach.example.com`
+- `TLS_CERT_PATH`: 선택값. 비워두면 `/etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem`
+- `TLS_KEY_PATH`: 선택값. 비워두면 `/etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem`
+
+`scripts/deploy/switch-active-color.sh`는 인증서와 key 파일이 모두 있으면 HTTP active endpoint와 함께 HTTPS active endpoint를 생성한다.
+
 ## 이미지 빌드
 
 ```powershell
@@ -34,12 +42,13 @@ docker compose --env-file docker/.env.deploy -f docker/docker-compose.deploy.yml
 기본 포트는 다음과 같다.
 
 - nginx active endpoint: `80`
+- nginx HTTPS active endpoint: `443`
 - backend blue: `8081`
 - backend green: `8082`
 - frontend blue: `3001`
 - frontend green: `3002`
 
-inactive color 배포, smoke 검증, active switch는 #303 GitHub Actions CD workflow에서 수행한다. Nginx active switch는 `/opt/coach/ACTIVE_COLOR` 기준으로 현재 active color를 기록하고, `/api`, `/actuator`, `/oauth2`, `/login/oauth2`는 backend active color로, 나머지 요청은 frontend active color로 proxy한다.
+inactive color 배포, smoke 검증, active switch는 #303 GitHub Actions CD workflow에서 수행한다. Nginx active switch는 `/opt/coach/ACTIVE_COLOR` 기준으로 현재 active color를 기록하고, `/api`, `/actuator`, `/oauth2`, `/login/oauth2`는 backend active color로, 나머지 요청은 frontend active color로 proxy한다. HTTPS 설정은 인증서가 존재할 때만 추가되며 HTTP endpoint는 smoke와 인증서 갱신을 위해 유지한다.
 
 ## GHCR 기반 CD
 

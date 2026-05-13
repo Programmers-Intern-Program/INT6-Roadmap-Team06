@@ -114,3 +114,110 @@ Elastic IP HTTP 기준으로는 배포 파이프라인이 동작한다.
 - `DEPLOY_ENV_FILE`에 운영 OAuth/AI Gateway 값을 반영
 - SSH ingress 임시 공개 설정 정리
 - #304 기준 운영 도메인 full rehearsal 수행
+
+## 2차 진행 기록
+
+### 2차-1. HTTPS 준비 변경
+
+운영 도메인 full rehearsal을 위해 단일 EC2 demo 구성에 HTTPS 진입 경로를 추가했다.
+
+- Terraform Security Group에 Nginx HTTPS `443/tcp` ingress를 추가했다.
+- `switch-active-color.sh`가 `APP_DOMAIN`과 Let’s Encrypt 인증서 파일을 감지하면 443 HTTPS server block을 함께 생성하도록 보강했다.
+- 인증서가 없으면 기존처럼 HTTP active endpoint만 생성한다.
+- HTTP endpoint는 GitHub Actions deploy smoke와 인증서 갱신 경로를 위해 유지한다.
+
+검증:
+
+- `terraform fmt -check` 통과
+- `terraform validate` 통과
+- `bash -n scripts/deploy/switch-active-color.sh` 통과
+
+### 2차-2. Terraform 재생성
+
+비어 있던 local state 기준으로 Terraform apply를 다시 실행했다.
+
+- 실행 명령: `terraform apply -var-file="terraform.tfvars" -auto-approve`
+- 생성 결과: `Apply complete! Resources: 7 added, 0 changed, 0 destroyed.`
+- 새 Elastic IP: `13.209.241.224`
+- public HTTP URL: `http://13.209.241.224:80`
+- SSH target: `ubuntu@13.209.241.224`
+- EC2 instance: `i-0af2f6410b5817824`
+
+기존 HTTP smoke IP `3.39.160.175`는 계속 무효다.
+
+### 2차-3. GitHub Actions CD HTTP gate
+
+GitHub Actions secret/variable을 새 Elastic IP 기준으로 갱신한 뒤 CD workflow를 수동 실행했다.
+
+- 실행 ref: `test/deploy-domain-smoke-304`
+- 성공 run: https://github.com/Programmers-Intern-Program/INT6-Roadmap-Team06/actions/runs/25722638629
+
+성공 run에서 다음 단계가 모두 통과했다.
+
+- backend image build/push
+- frontend image build/push
+- EC2 SSH 연결
+- 배포 파일 동기화
+- inactive color 계산
+- inactive color container 배포
+- inactive backend health 대기
+- inactive color deploy smoke
+- Nginx active color switch
+- active endpoint post-switch smoke
+
+로컬에서도 추가 확인했다.
+
+- `powershell -ExecutionPolicy Bypass -File .\scripts\smoke\deploy-smoke.ps1 -AppBaseUrl http://13.209.241.224 -ApiBaseUrl http://13.209.241.224 -Origin http://13.209.241.224` 통과
+- EC2 active color는 `green`
+- `backend-green`, `frontend-green`, `postgres`, `redis` 모두 healthy
+- 현재 Nginx는 인증서가 없어 HTTP server block만 생성된 상태
+- EC2에 `certbot`, `python3-certbot-nginx` 설치 완료
+- `certbot --version` 결과: `certbot 2.9.0`
+
+### 2차 중 발생한 문제와 조치
+
+#### 1. 이전 IP 기준 CORS 설정
+
+첫 번째 2차 CD run `25721786607`은 inactive smoke CORS preflight에서 실패했다.
+
+원인:
+
+- `DEPLOY_ENV_FILE`이 이전 IP 기준 값을 포함하고 있어 direct backend port smoke의 `Origin: http://13.209.241.224`를 허용하지 않았다.
+
+조치:
+
+- HTTP gate용 `DEPLOY_ENV_FILE`을 새 Elastic IP 기준으로 재등록했다.
+- 이 env는 도메인 full rehearsal용 secret이 아니라 HTTP deploy smoke용 placeholder다.
+
+#### 2. Postgres volume password mismatch
+
+두 번째 2차 CD run `25722111113`은 inactive backend health 대기에서 timeout 됐다.
+
+원인:
+
+- 첫 run에서 생성된 Postgres volume은 이전 DB password로 초기화됐다.
+- 이후 새 smoke env의 DB password와 달라져 backend Flyway 초기화가 `FATAL: password authentication failed for user "coach"`로 실패했다.
+
+조치:
+
+- active switch 전이고 사용자 데이터가 없는 smoke 환경이므로 EC2에서 compose stack을 `down -v`로 정리했다.
+- 세 번째 run에서 Postgres/Redis volume을 새 env 기준으로 다시 생성했고 CD가 통과했다.
+
+### 2차 남은 항목
+
+아직 도메인 full rehearsal은 완료되지 않았다. 다음 값이 필요하다.
+
+- 실제 단일 도메인 `DOMAIN`
+- DNSZI A record를 `13.209.241.224`로 연결
+- 도메인용 GitHub OAuth App 2개
+  - 로그인 callback: `https://DOMAIN/login/oauth2/code/github`
+  - 저장소 연결 callback: `https://DOMAIN/github/callback`
+- 도메인용 `DEPLOY_ENV_FILE`
+  - `APP_DOMAIN=DOMAIN`
+  - `FRONTEND_URL=https://DOMAIN`
+  - `CORS_ALLOWED_ORIGINS=https://DOMAIN,http://13.209.241.224`
+  - 실제 OAuth client id/secret
+  - 실제 AI Gateway key
+  - 운영용 JWT secret
+
+도메인 값이 준비되면 GitHub Actions variables를 HTTPS 도메인 기준으로 다시 갱신하고, Certbot 발급 후 HTTPS smoke와 full rehearsal을 이어서 수행한다.
