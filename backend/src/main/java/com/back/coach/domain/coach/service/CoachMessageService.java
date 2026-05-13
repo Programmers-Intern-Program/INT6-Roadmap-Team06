@@ -48,8 +48,10 @@ public class CoachMessageService {
             - CONFIRMATION / STATUS_CHECK / SMALL_TALK: 1~2문장.
             - LEARNING_GUIDE / CONCEPT_EXPLAIN / TASK_BREAKDOWN: 4~6 단계의
               step-by-step. 각 단계는 "무엇을 / 왜 / 어떻게 (1줄 실행 미션)" 순.
-              마지막 줄에 "다음에 물어볼 만한 질문" 1개를 제안.
-              총 한국어 250~500자. 사용자의 현재 주차/로드맵 topic을 1번은 인용.
+              roadmap.weeks[].topic/tasks/materials와 관련 있으면 반드시 그 항목을 우선 근거로 사용.
+              중간에 짧은 insight(왜 이 순서가 중요한지 또는 초보자가 놓치기 쉬운 함정) 1개를 포함.
+              마지막 줄은 "우선순위: 1) ... 2) ... 3) ..."처럼 다음 행동 2~3개를 제안.
+              총 한국어 300~600자. 사용자의 현재 주차/로드맵 topic을 1번은 인용.
             - REPLAN_TRIGGER: 결정 근거 1~2문장 + REPLAN_SUGGEST.
             - OUT_OF_SCOPE (코드 실행, 진도 mutation, 외부 시스템 호출 등): 못 한다고
               솔직히 1문장으로 답하고 가능한 대안을 1줄 제시.
@@ -58,6 +60,8 @@ public class CoachMessageService {
             - 사용자가 이미 안다고 말한 내용(예: "자바 기본은 안다")은 다시 설명하지 말 것.
             - "공식 문서를 보세요" 같은 일반론으로 끝내지 말고, 한 단계라도 구체적인
               실습 미션(예: "Optional.ofNullable로 NPE 방어하는 메서드 1개 작성")을 포함.
+            - 로드맵에 tasks/materials가 있으면 문서 읽기, 예제 구현, 영상/강의, 작은 프로젝트 중
+              저장된 항목을 먼저 연결해 제안. 로드맵 근거 없이 새 URL을 만들지 말 것.
             - 학습 자료를 추천할 때는 카테고리(공식 docs / 한국어 인강 / 책 / 예제 repo)를
               구분해 1~2개씩만 제시. URL은 사용자가 명시한 출처가 아니면 만들지 말 것.
             - 코드를 보여줄 때는 4~10줄 스니펫으로 최소화. 긴 코드는 핵심 라인만.
