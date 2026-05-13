@@ -37,8 +37,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 class GithubAnalysisServiceTest {
 
@@ -181,17 +184,81 @@ class GithubAnalysisServiceTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT);
     }
 
+    @Test
+    @DisplayName("core repo metadata fetch가 전부 실패하면 성공 분석으로 저장하지 않는다")
+    void run_allCoreMetadataFetchFailed_throws() {
+        primeConnectionAndProjects(makeProject(1L, "user/a", "Java", "{}"));
+        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
+                .willThrow(new ServiceException(ErrorCode.GITHUB_API_ERROR));
+
+        assertThatThrownBy(() -> service.run(USER_ID, CONNECTION_ID, List.of(1L), List.of(1L)))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.GITHUB_API_ERROR);
+        verify(analysisRepo, never()).save(any(GithubAnalysis.class));
+    }
+
+    @Test
+    @DisplayName("core repo metadata가 전부 비어 있으면 성공 분석으로 저장하지 않는다")
+    void run_allCoreMetadataEmpty_throwsAnalysisFailed() {
+        primeConnectionAndProjects(makeProject(1L, "user/a", "Java", "{}"));
+        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(emptyMetadata());
+
+        assertThatThrownBy(() -> service.run(USER_ID, CONNECTION_ID, List.of(1L), List.of(1L)))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ANALYSIS_FAILED);
+        verify(analysisRepo, never()).save(any(GithubAnalysis.class));
+    }
+
+    @Test
+    @DisplayName("core repo 일부 fetch 실패 시 유효한 repo만으로 분석을 저장한다")
+    void run_partialCoreMetadataFetchFailure_analyzesSuccessfulCoreRepos() {
+        primeConnectionAndProjects(
+                makeProject(1L, "user/a", "Java", "{}"),
+                makeProject(2L, "user/b", "Java", "{}")
+        );
+        given(metadataFetcher.fetch(eq("token-abc"), eq("user"), eq("a"), eq("user")))
+                .willThrow(new ServiceException(ErrorCode.GITHUB_API_ERROR));
+        given(metadataFetcher.fetch(eq("token-abc"), eq("user"), eq("b"), eq("user")))
+                .willReturn(sampleMetadata());
+        given(analysisRepo.findMaxVersionByUserId(USER_ID)).willReturn(null);
+        given(analysisRepo.save(any(GithubAnalysis.class))).willAnswer(inv -> withId(inv.getArgument(0), 10L));
+        primeLlm();
+
+        GithubAnalysisService.GithubAnalysisResult result =
+                service.run(USER_ID, CONNECTION_ID, List.of(1L, 2L), List.of(1L, 2L));
+
+        assertThat(result.id()).isEqualTo(10L);
+        assertThat(result.payload().repoSummaries()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("metadata에 language만 있고 활동 근거가 없으면 repo summary 없이 성공 저장하지 않는다")
+    void run_noActivityMetadata_throwsAnalysisFailedBeforeSynthesis() {
+        primeConnectionAndProjects(makeProject(1L, "user/a", "Java", "{}"));
+        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(languageOnlyMetadata());
+
+        assertThatThrownBy(() -> service.run(USER_ID, CONNECTION_ID, List.of(1L), List.of(1L)))
+                .isInstanceOf(ServiceException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ANALYSIS_FAILED);
+        verify(analysisRepo, never()).save(any(GithubAnalysis.class));
+    }
+
     private void primeRepos() {
+        primeConnectionAndProjects(makeProject(1L, "user/a", "Java", "{}"));
+        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(sampleMetadata());
+    }
+
+    private void primeConnectionAndProjects(GithubProject... projects) {
         GithubConnection connection = GithubConnection.connect(
                 USER_ID, "42", "user", GithubAccessType.OAUTH, "token-abc");
         ReflectionTestUtils.setField(connection, "id", CONNECTION_ID);
         given(connectionRepo.findByIdAndUserId(CONNECTION_ID, USER_ID)).willReturn(Optional.of(connection));
         given(connectionRepo.existsByIdAndUserId(CONNECTION_ID, USER_ID)).willReturn(true);
-        GithubProject project = makeProject(1L, "user/a", "Java", "{}");
         given(projectRepo.findByUserIdAndGithubConnectionId(USER_ID, CONNECTION_ID))
-                .willReturn(List.of(project));
-        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
-                .willReturn(sampleMetadata());
+                .willReturn(List.of(projects));
     }
 
     private static RepoMetadata sampleMetadata() {
@@ -199,6 +266,14 @@ class GithubAnalysisServiceTest {
                 "abc", "feat: OAuth", "", List.of("X.java"), 10, 0, "diff body");
         return new RepoMetadata(null, Map.of("Java", 1000L), List.of(),
                 List.of(commit), List.of(), List.of());
+    }
+
+    private static RepoMetadata emptyMetadata() {
+        return new RepoMetadata(null, Map.of(), List.of(), List.of(), List.of(), List.of());
+    }
+
+    private static RepoMetadata languageOnlyMetadata() {
+        return new RepoMetadata(null, Map.of("Java", 1000L), List.of(), List.of(), List.of(), List.of());
     }
 
     private void primeLlm() {

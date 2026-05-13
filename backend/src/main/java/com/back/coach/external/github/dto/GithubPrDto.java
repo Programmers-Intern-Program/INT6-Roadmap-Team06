@@ -9,11 +9,16 @@ public record GithubPrDto(
         @JsonProperty("title") String title,
         @JsonProperty("body") String body,
         @JsonProperty("state") String state,
-        @JsonProperty("additions") int additions,
-        @JsonProperty("deletions") int deletions,
+        @JsonProperty("additions") Integer additions,
+        @JsonProperty("deletions") Integer deletions,
         @JsonProperty("created_at") String createdAt,
         @JsonProperty("user") User user
 ) {
+    public GithubPrDto {
+        additions = additions == null ? 0 : additions;
+        deletions = deletions == null ? 0 : deletions;
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record User(@JsonProperty("login") String login) {}
 }
