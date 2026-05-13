@@ -46,13 +46,21 @@ public class AiGatewayLlmClient implements LlmClient {
         if (prompt == null || prompt.isBlank()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "prompt is empty");
         }
-        return callApi(java.util.List.of(new Message("user", prompt)), prompt.getBytes().length);
+        return callApi(java.util.List.of(new Message("user", prompt)), prompt.getBytes().length, DEFAULT_MAX_TOKENS);
     }
 
     @Override
     public String complete(String systemPrompt, String userPrompt) {
+        return complete(systemPrompt, userPrompt, DEFAULT_MAX_TOKENS);
+    }
+
+    @Override
+    public String complete(String systemPrompt, String userPrompt, int maxTokens) {
         if (userPrompt == null || userPrompt.isBlank()) {
             throw new ServiceException(ErrorCode.INVALID_INPUT, "user prompt is empty");
+        }
+        if (maxTokens <= 0) {
+            throw new ServiceException(ErrorCode.INVALID_INPUT, "maxTokens must be positive");
         }
         java.util.List<Message> messages;
         int promptBytes;
@@ -66,13 +74,13 @@ public class AiGatewayLlmClient implements LlmClient {
             );
             promptBytes = systemPrompt.getBytes().length + userPrompt.getBytes().length;
         }
-        return callApi(messages, promptBytes);
+        return callApi(messages, promptBytes, maxTokens);
     }
 
-    private String callApi(java.util.List<Message> messages, int promptBytes) {
+    private String callApi(java.util.List<Message> messages, int promptBytes, int maxTokens) {
         long startNs = System.nanoTime();
-        log.debug("LLM request starting: model={}, promptBytes={}, messages={}",
-                properties.model(), promptBytes, messages.size());
+        log.debug("LLM request starting: model={}, promptBytes={}, messages={}, maxTokens={}",
+                properties.model(), promptBytes, messages.size(), maxTokens);
         try {
             ChatCompletionResponse response = restClient.post()
                     .uri("/v1/chat/completions")
@@ -82,7 +90,7 @@ public class AiGatewayLlmClient implements LlmClient {
                     .body(new ChatCompletionRequest(
                             properties.model(),
                             messages,
-                            16384,
+                            maxTokens,
                             false
                     ))
                     .retrieve()
