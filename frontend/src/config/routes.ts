@@ -43,6 +43,11 @@ export const navigationItems: NavigationItem[] = [
     href: "/roadmaps",
     label: "로드맵",
     activePrefix: "/roadmaps"
+  },
+  {
+    href: "/portfolio/drafts",
+    label: "포트폴리오",
+    activePrefix: "/portfolio"
   }
 ];
 
