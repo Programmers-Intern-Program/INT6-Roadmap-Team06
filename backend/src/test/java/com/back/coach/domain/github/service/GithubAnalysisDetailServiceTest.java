@@ -179,6 +179,19 @@ class GithubAnalysisDetailServiceTest {
                 .containsExactly("Java", "Spring Boot", "Redis", "PostgreSQL");
         assertThat(updatedPayload.finalTechProfile().focusAreas())
                 .containsExactly("백엔드", "성능 최적화");
+        assertThat(updatedPayload.analysisTrace()).isNotNull();
+        assertThat(updatedPayload.analysisTrace().repositories()).singleElement().satisfies(repo -> {
+            assertThat(repo.repoId()).isEqualTo("9001");
+            assertThat(repo.repoName()).isEqualTo("team06/ai-growth-coach");
+            assertThat(repo.core()).isTrue();
+            assertThat(repo.commitCount()).isEqualTo(5);
+        });
+        assertThat(updatedPayload.analysisTrace().triage()).singleElement().satisfies(stage -> {
+            assertThat(stage.promptVersion()).isEqualTo("triage-v1.0");
+            assertThat(stage.fallback()).isFalse();
+            assertThat(stage.champions()).singleElement().satisfies(champion ->
+                    assertThat(champion.ref()).isEqualTo("abc123"));
+        });
         assertThat(result.githubAnalysisId()).isEqualTo("40");
         assertThat(result.savedAt()).isEqualTo(FIXED_NOW);
         assertThat(result.finalTechProfile()).isEqualTo(request.finalTechProfile());
@@ -289,6 +302,53 @@ class GithubAnalysisDetailServiceTest {
                       "Backend",
                       "Performance"
                     ]
+                  },
+                  "analysisTrace": {
+                    "repositories": [
+                      {
+                        "repoId": "9001",
+                        "repoName": "team06/ai-growth-coach",
+                        "core": true,
+                        "commitCount": 5,
+                        "pullRequestCount": 3,
+                        "issueCount": 2,
+                        "languageCount": 2,
+                        "dependencyFileCount": 1
+                      }
+                    ],
+                    "triage": [
+                      {
+                        "repoId": "9001",
+                        "repoName": "team06/ai-growth-coach",
+                        "promptVersion": "triage-v1.0",
+                        "promptBytes": 1200,
+                        "elapsedMs": 30,
+                        "fallback": false,
+                        "champions": [
+                          {"kind": "COMMIT", "ref": "abc123", "reason": "OAuth2 handler"}
+                        ]
+                      }
+                    ],
+                    "repoSummaries": [
+                      {
+                        "repoId": "9001",
+                        "repoName": "team06/ai-growth-coach",
+                        "promptVersion": "repo-summary-v1.0",
+                        "promptBytes": 2300,
+                        "elapsedMs": 45,
+                        "highlightCount": 2,
+                        "summaryLength": 27
+                      }
+                    ],
+                    "synthesis": {
+                      "promptVersion": "synthesis-v1.0",
+                      "promptBytes": 980,
+                      "elapsedMs": 25,
+                      "techTagCount": 1,
+                      "depthEstimateCount": 1,
+                      "evidenceCount": 1,
+                      "confirmedSkillCount": 3
+                    }
                   }
                 }
                 """;

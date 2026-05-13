@@ -101,7 +101,8 @@ public class GithubAnalysisDetailService {
                 payload.depthEstimates(),
                 payload.evidences(),
                 request.userCorrections(),
-                request.finalTechProfile()
+                request.finalTechProfile(),
+                payload.analysisTrace()
         );
 
         githubAnalysis.updateAnalysisPayload(toJson(updatedPayload));

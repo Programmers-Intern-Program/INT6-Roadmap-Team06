@@ -13,8 +13,22 @@ public record GithubAnalysisPayload(
         List<DepthEstimate> depthEstimates,
         List<GithubEvidence> evidences,
         List<GithubUserCorrection> userCorrections,
-        FinalTechProfile finalTechProfile
+        FinalTechProfile finalTechProfile,
+        AnalysisTrace analysisTrace
 ) {
+
+    public GithubAnalysisPayload(
+            StaticSignals staticSignals,
+            List<RepoSummary> repoSummaries,
+            List<TechTag> techTags,
+            List<DepthEstimate> depthEstimates,
+            List<GithubEvidence> evidences,
+            List<GithubUserCorrection> userCorrections,
+            FinalTechProfile finalTechProfile
+    ) {
+        this(staticSignals, repoSummaries, techTags, depthEstimates, evidences,
+                userCorrections, finalTechProfile, null);
+    }
 
     public record StaticSignals(
             List<PrimaryLanguage> primaryLanguages,
@@ -74,6 +88,66 @@ public record GithubAnalysisPayload(
     public record FinalTechProfile(
             List<String> confirmedSkills,
             List<String> focusAreas
+    ) {
+    }
+
+    public record AnalysisTrace(
+            List<RepoMetadataTrace> repositories,
+            List<TriageTrace> triage,
+            List<RepoSummaryTrace> repoSummaries,
+            SynthesisTrace synthesis
+    ) {
+    }
+
+    public record RepoMetadataTrace(
+            String repoId,
+            String repoName,
+            Boolean core,
+            Integer commitCount,
+            Integer pullRequestCount,
+            Integer issueCount,
+            Integer languageCount,
+            Integer dependencyFileCount
+    ) {
+    }
+
+    public record TriageTrace(
+            String repoId,
+            String repoName,
+            String promptVersion,
+            Integer promptBytes,
+            Long elapsedMs,
+            Boolean fallback,
+            List<ChampionTrace> champions
+    ) {
+    }
+
+    public record ChampionTrace(
+            String kind,
+            String ref,
+            String reason
+    ) {
+    }
+
+    public record RepoSummaryTrace(
+            String repoId,
+            String repoName,
+            String promptVersion,
+            Integer promptBytes,
+            Long elapsedMs,
+            Integer highlightCount,
+            Integer summaryLength
+    ) {
+    }
+
+    public record SynthesisTrace(
+            String promptVersion,
+            Integer promptBytes,
+            Long elapsedMs,
+            Integer techTagCount,
+            Integer depthEstimateCount,
+            Integer evidenceCount,
+            Integer confirmedSkillCount
     ) {
     }
 }

@@ -15,6 +15,7 @@ import com.back.coach.domain.github.service.summary.RepoSummaryResponseParser;
 import com.back.coach.domain.github.service.summary.ResolvedChampion;
 import com.back.coach.domain.github.service.synthesis.SynthesisPromptBuilder;
 import com.back.coach.domain.github.service.synthesis.SynthesisResponseParser;
+import com.back.coach.domain.github.service.triage.ChampionTriagePromptBuilder;
 import com.back.coach.domain.github.service.triage.ChampionTriageService;
 import com.back.coach.external.llm.LlmClient;
 import com.back.coach.external.llm.PromptDirectives;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -110,6 +112,14 @@ public class GithubAnalysisService {
         validateCoreMetadataUsable(inputs.coreProjects());
 
         List<GithubAnalysisPayload.RepoSummary> repoSummaries = new ArrayList<>();
+        Set<Long> coreRepoIdSet = inputs.coreProjects().stream()
+                .map(RepoAnalysisInput::id)
+                .collect(Collectors.toSet());
+        List<GithubAnalysisPayload.RepoMetadataTrace> repoMetadataTraces = inputs.selectedProjects().stream()
+                .map(repo -> toRepoMetadataTrace(repo, coreRepoIdSet.contains(repo.id())))
+                .toList();
+        List<GithubAnalysisPayload.TriageTrace> triageTraces = new ArrayList<>();
+        List<GithubAnalysisPayload.RepoSummaryTrace> repoSummaryTraces = new ArrayList<>();
         long triageElapsedMs = 0, summaryElapsedMs = 0;
         int triagePromptBytes = 0, summaryPromptBytes = 0;
 
@@ -124,9 +134,20 @@ public class GithubAnalysisService {
             try {
                 long triageStartMs = System.currentTimeMillis();
                 triage = triageService.triage(core.repoFullName(), core.repoUrl(), metadata);
-                triageElapsedMs += System.currentTimeMillis() - triageStartMs;
+                long currentTriageElapsedMs = System.currentTimeMillis() - triageStartMs;
+                triageElapsedMs += currentTriageElapsedMs;
+                triagePromptBytes += triage.promptBytes();
+                triageTraces.add(new GithubAnalysisPayload.TriageTrace(
+                        String.valueOf(core.id()),
+                        core.repoFullName(),
+                        ChampionTriagePromptBuilder.VERSION,
+                        triage.promptBytes(),
+                        currentTriageElapsedMs,
+                        triage.fallback(),
+                        toChampionTraces(triage.champions())
+                ));
                 log.debug("Triage completed: repo={}, elapsedMs={}, champions={}",
-                        core.repoFullName(), triageElapsedMs, triage.champions().size());
+                        core.repoFullName(), currentTriageElapsedMs, triage.champions().size());
             } catch (ServiceException e) {
                 log.warn("분석 skip: 기여 커밋 없음 repo={}", core.repoFullName());
                 continue;
@@ -136,11 +157,23 @@ public class GithubAnalysisService {
             String summaryPrompt = summaryPromptBuilder.build(
                     String.valueOf(core.id()), core.repoFullName(),
                     core.primaryLanguage(), resolved);
-            summaryPromptBytes += summaryPrompt.getBytes().length;
+            int currentSummaryPromptBytes = byteSize(summaryPrompt);
+            summaryPromptBytes += currentSummaryPromptBytes;
             long summaryStartMs = System.currentTimeMillis();
             String summaryResponse = llmClient.complete(PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY, summaryPrompt);
-            summaryElapsedMs += System.currentTimeMillis() - summaryStartMs;
-            repoSummaries.add(summaryResponseParser.parse(summaryResponse));
+            long currentSummaryElapsedMs = System.currentTimeMillis() - summaryStartMs;
+            summaryElapsedMs += currentSummaryElapsedMs;
+            GithubAnalysisPayload.RepoSummary repoSummary = summaryResponseParser.parse(summaryResponse);
+            repoSummaries.add(repoSummary);
+            repoSummaryTraces.add(new GithubAnalysisPayload.RepoSummaryTrace(
+                    String.valueOf(core.id()),
+                    core.repoFullName(),
+                    RepoSummaryPromptBuilder.VERSION,
+                    currentSummaryPromptBytes,
+                    currentSummaryElapsedMs,
+                    size(repoSummary.highlights()),
+                    length(repoSummary.summary())
+            ));
             long repoElapsedMs = System.currentTimeMillis() - repoStartMs;
             log.debug("Repo analysis completed: repo={}, totalElapsedMs={}",
                     core.repoFullName(), repoElapsedMs);
@@ -153,17 +186,31 @@ public class GithubAnalysisService {
 
         long synthesisStartMs = System.currentTimeMillis();
         String synthesisPrompt = synthesisPromptBuilder.build(inputs.signals(), repoSummaries);
-        int synthesisPromptBytes = synthesisPrompt.getBytes().length;
+        int synthesisPromptBytes = byteSize(synthesisPrompt);
         log.debug("Synthesis prompt built: bytes={}", synthesisPromptBytes);
         String synthesisResponse = llmClient.complete(PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY, synthesisPrompt);
         SynthesisResponseParser.SynthesisResult synthesis = synthesisResponseParser.parse(synthesisResponse);
         long synthesisElapsedMs = System.currentTimeMillis() - synthesisStartMs;
         log.debug("Synthesis completed: elapsedMs={}", synthesisElapsedMs);
+        GithubAnalysisPayload.AnalysisTrace analysisTrace = new GithubAnalysisPayload.AnalysisTrace(
+                repoMetadataTraces,
+                triageTraces,
+                repoSummaryTraces,
+                new GithubAnalysisPayload.SynthesisTrace(
+                        SynthesisPromptBuilder.VERSION,
+                        synthesisPromptBytes,
+                        synthesisElapsedMs,
+                        size(synthesis.techTags()),
+                        size(synthesis.depthEstimates()),
+                        size(synthesis.evidences()),
+                        synthesis.finalTechProfile() == null ? 0 : size(synthesis.finalTechProfile().confirmedSkills())
+                )
+        );
 
         GithubAnalysisPayload payload = new GithubAnalysisPayload(
                 inputs.signals(), repoSummaries,
                 synthesis.techTags(), synthesis.depthEstimates(), synthesis.evidences(),
-                List.of(), synthesis.finalTechProfile()
+                List.of(), synthesis.finalTechProfile(), analysisTrace
         );
 
         GithubAnalysis saved = transactionTemplate.execute(status -> {
@@ -265,7 +312,7 @@ public class GithubAnalysisService {
                 .map(p -> new StaticSignalAggregator.RepoSignalInput(p.primaryLanguage(), p.metadata()))
                 .toList();
         GithubAnalysisPayload.StaticSignals signals = signalAggregator.aggregate(signalInputs);
-        return new AnalysisInputs(signals, coreProjects);
+        return new AnalysisInputs(signals, selected, coreProjects);
     }
 
     private RepoAnalysisInput toRepoInput(GithubProject project) {
@@ -337,6 +384,49 @@ public class GithubAnalysisService {
         return (metadata.commits() != null && !metadata.commits().isEmpty())
                 || (metadata.pullRequests() != null && !metadata.pullRequests().isEmpty())
                 || (metadata.issues() != null && !metadata.issues().isEmpty());
+    }
+
+    private GithubAnalysisPayload.RepoMetadataTrace toRepoMetadataTrace(RepoAnalysisInput input, boolean core) {
+        RepoMetadata metadata = input.metadata();
+        return new GithubAnalysisPayload.RepoMetadataTrace(
+                String.valueOf(input.id()),
+                input.repoFullName(),
+                core,
+                size(metadata.commits()),
+                size(metadata.pullRequests()),
+                size(metadata.issues()),
+                mapSize(metadata.languageBytes()),
+                size(metadata.dependencyFiles())
+        );
+    }
+
+    private List<GithubAnalysisPayload.ChampionTrace> toChampionTraces(List<Champion> champions) {
+        if (champions == null) {
+            return List.of();
+        }
+        return champions.stream()
+                .map(champion -> new GithubAnalysisPayload.ChampionTrace(
+                        champion.kind() == null ? null : champion.kind().name(),
+                        champion.ref(),
+                        champion.reason()
+                ))
+                .toList();
+    }
+
+    private static int byteSize(String value) {
+        return value == null ? 0 : value.getBytes(StandardCharsets.UTF_8).length;
+    }
+
+    private static int length(String value) {
+        return value == null ? 0 : value.length();
+    }
+
+    private static int size(List<?> values) {
+        return values == null ? 0 : values.size();
+    }
+
+    private static int mapSize(Map<?, ?> values) {
+        return values == null ? 0 : values.size();
     }
 
     private List<ResolvedChampion> resolveChampions(List<Champion> champions, RepoMetadata metadata) {
@@ -435,6 +525,7 @@ public class GithubAnalysisService {
 
     private record AnalysisInputs(
             GithubAnalysisPayload.StaticSignals signals,
+            List<RepoAnalysisInput> selectedProjects,
             List<RepoAnalysisInput> coreProjects
     ) {}
 
