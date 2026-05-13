@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 @Component
 public class SynthesisPromptBuilder {
 
+    public static final String VERSION = "synthesis-v1.0";
+
     private static final Logger log = LoggerFactory.getLogger(SynthesisPromptBuilder.class);
 
     public static final int MAX_PROMPT_BYTES = 16 * 1024;
@@ -29,11 +31,18 @@ public class SynthesisPromptBuilder {
 
     public String build(GithubAnalysisPayload.StaticSignals signals, List<GithubAnalysisPayload.RepoSummary> summaries) {
         String full = render(signals, summaries, /* compress */ false);
-        if (full.getBytes().length <= MAX_PROMPT_BYTES) return full;
+        if (full.getBytes().length <= MAX_PROMPT_BYTES) {
+            log.debug("Synthesis prompt built: builder=SynthesisPromptBuilder, version={}, bytes={}, compressed=false",
+                    VERSION, full.getBytes().length);
+            return full;
+        }
 
         log.warn("Synthesis prompt cap reached, compressing highlights to first {} per summary",
                 COMPRESSED_HIGHLIGHTS_PER_SUMMARY);
-        return render(signals, summaries, true);
+        String compressed = render(signals, summaries, true);
+        log.debug("Synthesis prompt built: builder=SynthesisPromptBuilder, version={}, bytes={}, compressed=true",
+                VERSION, compressed.getBytes().length);
+        return compressed;
     }
 
     private String render(GithubAnalysisPayload.StaticSignals signals, List<GithubAnalysisPayload.RepoSummary> summaries, boolean compress) {

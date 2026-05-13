@@ -13,6 +13,8 @@ import java.util.List;
 @Component
 public class ChampionTriagePromptBuilder {
 
+    public static final String VERSION = "triage-v1.0";
+
     private static final Logger log = LoggerFactory.getLogger(ChampionTriagePromptBuilder.class);
 
     public static final int MAX_PROMPT_BYTES = 20 * 1024;
@@ -35,8 +37,8 @@ public class ChampionTriagePromptBuilder {
         int commits = metadata.commits() == null ? 0 : metadata.commits().size();
         int prs = metadata.pullRequests() == null ? 0 : metadata.pullRequests().size();
         int issues = metadata.issues() == null ? 0 : metadata.issues().size();
-        log.debug("Triage prompt built: repo={}, promptBytes={}, candidates(C/P/I)={}/{}/{}, preview={}...",
-                repoName, promptBytes, commits, prs, issues,
+        log.debug("Triage prompt built: builder=ChampionTriagePromptBuilder, version={}, repo={}, promptBytes={}, candidates(C/P/I)={}/{}/{}, preview={}...",
+                VERSION, repoName, promptBytes, commits, prs, issues,
                 body.length() > 200 ? body.substring(0, 200).replace("\n", " ") : body);
         return body;
     }

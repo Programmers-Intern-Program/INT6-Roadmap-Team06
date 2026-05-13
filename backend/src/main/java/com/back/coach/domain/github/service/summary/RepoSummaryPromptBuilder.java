@@ -14,6 +14,8 @@ import java.util.Map;
 @Component
 public class RepoSummaryPromptBuilder {
 
+    public static final String VERSION = "repo-summary-v1.0";
+
     private static final Logger log = LoggerFactory.getLogger(RepoSummaryPromptBuilder.class);
 
     public static final int MAX_ITEM_BYTES = 8 * 1024;
@@ -61,7 +63,10 @@ public class RepoSummaryPromptBuilder {
         if (dropped > 0) {
             log.warn("RepoSummary prompt cap reached, dropped {} lower-priority champions", dropped);
         }
-        return sb.toString();
+        String result = sb.toString();
+        log.debug("RepoSummary prompt built: builder=RepoSummaryPromptBuilder, version={}, repo={}, bytes={}",
+                VERSION, repoName, result.getBytes().length);
+        return result;
     }
 
     private String renderItem(ResolvedChampion c) {
