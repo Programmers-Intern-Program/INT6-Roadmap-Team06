@@ -18,6 +18,8 @@ x-backend-env: &backend-env
   AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
   AI_GATEWAY_BASE_URL: ${AI_GATEWAY_BASE_URL:-https://aigw.alpha.grepp.co}
   AI_GATEWAY_MODEL: ${AI_GATEWAY_MODEL:-glm-4.7}
+  AI_GATEWAY_TIMEOUT_CONNECT: ${AI_GATEWAY_TIMEOUT_CONNECT:-5s}
+  AI_GATEWAY_TIMEOUT_READ: ${AI_GATEWAY_TIMEOUT_READ:-300s}
 
 x-backend-depends-on: &backend-depends-on
   postgres:
