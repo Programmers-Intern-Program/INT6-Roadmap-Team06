@@ -358,4 +358,23 @@ class RestGithubApiClientTest {
         assertThat(prs.get(0).title()).isEqualTo("Add OAuth");
         assertThat(prs.get(0).user().login()).isEqualTo("testuser");
     }
+
+    @Test
+    @DisplayName("listPullRequests — 목록 응답에 additions/deletions가 없어도 0으로 파싱")
+    void listPullRequests_whenListResponseOmitsStats_defaultsToZero() {
+        wireMock.stubFor(get(urlPathEqualTo("/repos/user/repo/pulls"))
+                .willReturn(aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                [
+                                  {"number":1,"title":"Add OAuth","body":"body","state":"closed","created_at":"2026-01-01T00:00:00Z","user":{"login":"testuser"}}
+                                ]
+                                """)));
+
+        List<GithubPrDto> prs = client.listPullRequests("token", "user", "repo");
+
+        assertThat(prs).hasSize(1);
+        assertThat(prs.get(0).additions()).isZero();
+        assertThat(prs.get(0).deletions()).isZero();
+    }
 }
