@@ -44,7 +44,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 public class PortfolioDraftService {
@@ -52,38 +51,59 @@ public class PortfolioDraftService {
     private static final int RECENT_GITHUB_ANALYSIS_LIMIT = 5;
     private static final int RECENT_CONVERSATION_LIMIT = 20;
     private static final int PORTFOLIO_DRAFT_MAX_TOKENS = 6000;
-    private static final Set<String> REQUIRED_VARIANT_KEYS = Set.of("DONE", "DONE_IN_PROGRESS", "ALL");
+    private static final List<SectionSpec> SECTION_SPECS = List.of(
+            new SectionSpec("overview", "개요", SectionRenderMode.PARAGRAPH),
+            new SectionSpec("problemGoal", "문제/목표", SectionRenderMode.PARAGRAPH),
+            new SectionSpec("studyAndImplementation", "구현 내용", SectionRenderMode.BULLET),
+            new SectionSpec("techStack", "사용 기술", SectionRenderMode.BULLET),
+            new SectionSpec("lessons", "기술적 판단과 배운 점", SectionRenderMode.PARAGRAPH),
+            new SectionSpec("nextImprovements", "다음 개선", SectionRenderMode.BULLET),
+            new SectionSpec("memoCandidates", "학습 메모 후보", SectionRenderMode.BULLET),
+            new SectionSpec("recommendationCandidates", "추천/예정 후보", SectionRenderMode.BULLET),
+            new SectionSpec("sourceSummary", "사용 근거", SectionRenderMode.BULLET)
+    );
 
     private static final String SYSTEM_PROMPT = """
-            당신은 개발자 포트폴리오 기술서 초안 작성 도우미입니다.
-            반드시 한국어 JSON만 출력합니다.
+            You create Korean project write-up draft sections from the provided source JSON.
+            The goal is a portfolio/project description draft, not a study checklist or simple learning summary.
+            Output exactly one JSON object. Do not output markdown, prose, code fences, or explanations.
 
-            원칙:
-            - 완료 사실은 officialStudyRecords.done에 있는 항목만 사용합니다.
-            - 진행 중 사실은 officialStudyRecords.inProgress에 있는 항목만 사용합니다.
-            - planned, coachRecommendations는 예정, 다음 개선, 확장 계획으로만 작성합니다.
-            - coachConversationCandidates.userMemos는 학습 메모 후보로만 표시하고 완료 사실로 확정하지 않습니다.
-            - 입력에 없는 URL, 책, 강의, 프로젝트명, 수치 성과를 새로 만들지 않습니다.
-            - GitHub 근거는 github.repoSummaries, github.evidences, github.skills에 있는 내용만 사용합니다.
+            Evidence rules:
+            - DONE may use only officialStudyRecords.done.
+            - DONE_IN_PROGRESS may use only officialStudyRecords.done and officialStudyRecords.inProgress.
+            - ALL may use done, inProgress, planned, and coachRecommendations, but planned and coachRecommendations must be written only as future plans.
+            - coachConversationCandidates.userMemos are memo candidates only, never completed facts.
+            - Use github.repoSummaries, github.evidences, and github.skills only as GitHub evidence.
+            - Do not invent URLs, books, courses, repository names, metrics, or project names.
+            - Never convert IN_PROGRESS or TODO/planned records into completed facts.
+            - Do not claim performance improvement, verification completion, production operation, or project completion unless a DONE progress note explicitly supports it.
 
-            응답 schema:
+            Writing rules:
+            - Reconstruct learning records as project experience candidates: problem, implementation context, technical decision, and next improvement.
+            - Do not write bare checklist fragments like "Redis 기본 명령어 학습 완료" unless the source only supports a candidate note.
+            - overview, problemGoal, and lessons must be paragraph strings that explain meaning and context.
+            - studyAndImplementation should describe what was implemented, organized, or prepared and why it matters for a project write-up.
+            - IN_PROGRESS work must use Korean expressions like "진행 중", "확인 중", "설계 중", or "적용 중"; never "완료", "검증했다", or "운영했다".
+            - TODO/planned work must appear only as next improvement or recommendation candidates, using future tense.
+            - If evidence is weak, phrase it as "초안 후보" or "다음 개선 후보"; never present it as completed work.
+
+            Required JSON schema:
             {
               "title": "프로젝트 기술서 초안 제목",
-              "variants": [
-                {"key": "DONE", "label": "완료 기반", "content": "markdown"},
-                {"key": "DONE_IN_PROGRESS", "label": "완료 + 진행 중", "content": "markdown"},
-                {"key": "ALL", "label": "전체 계획 포함", "content": "markdown"}
-              ]
+              "sectionsByVariant": {
+                "DONE": { "overview": [], "problemGoal": [], "studyAndImplementation": [], "techStack": [], "lessons": [], "nextImprovements": [], "memoCandidates": [], "recommendationCandidates": [], "sourceSummary": [] },
+                "DONE_IN_PROGRESS": { "overview": [], "problemGoal": [], "studyAndImplementation": [], "techStack": [], "lessons": [], "nextImprovements": [], "memoCandidates": [], "recommendationCandidates": [], "sourceSummary": [] },
+                "ALL": { "overview": [], "problemGoal": [], "studyAndImplementation": [], "techStack": [], "lessons": [], "nextImprovements": [], "memoCandidates": [], "recommendationCandidates": [], "sourceSummary": [] }
+              }
             }
 
-            출력 길이:
-            - variants는 정확히 3개만 출력합니다.
-            - 각 content는 700~1000자 안에서 작성합니다.
-            - 세 content 전체를 합쳐 3500자를 넘기지 않습니다.
-            - JSON 밖 설명, markdown fence, 중첩된 draftPayload/data wrapper를 출력하지 않습니다.
-
-            각 content에는 개요, 문제/목표, 진행한 학습과 구현, 사용 기술, 배운 점,
-            다음 개선, 학습 메모 후보, 추천/예정 후보, 사용 근거 섹션을 포함합니다.
+            Hard output constraints:
+            - Top-level fields must be exactly title and sectionsByVariant.
+            - Do not output fields named variants, content, draftPayload, data, markdown, or responseText.
+            - sectionsByVariant must contain exactly DONE, DONE_IN_PROGRESS, and ALL.
+            - Every section field value must be an array of Korean strings. Never use objects or nested arrays.
+            - Each array must contain 1 to 3 strings. Each string must be 260 Korean characters or fewer.
+            - Do not include markdown headings such as ##. The server will render markdown later.
             """;
 
     private final PortfolioDraftRepository portfolioDraftRepository;
@@ -395,12 +415,12 @@ public class PortfolioDraftService {
 
     private String buildUserPrompt(ObjectNode sourcePayload) {
         return """
-                아래 source JSON만 근거로 프로젝트 기술서 초안 3개 버전을 작성하세요.
-                DONE 버전은 done만 사용하세요.
-                DONE_IN_PROGRESS 버전은 done과 inProgress만 사용하세요.
-                ALL 버전은 done, inProgress, planned, coachRecommendations를 사용하되 planned와 coachRecommendations는 예정으로만 쓰세요.
+                Create the required sectionsByVariant JSON from this source JSON only.
+                Write for a Korean project write-up draft, not a study checklist.
+                The server renders markdown later, so return section arrays only.
+                Repeat: do not return variants[].content and do not write markdown.
 
-                source:
+                Source JSON:
                 %s
                 """.formatted(sourcePayload.toPrettyString());
     }
@@ -417,26 +437,80 @@ public class PortfolioDraftService {
             title = "포트폴리오 기술서 초안";
         }
 
-        JsonNode variantsNode = root.path("variants");
-        if (!variantsNode.isArray()) {
+        JsonNode sectionsByVariant = root.path("sectionsByVariant");
+        if (!sectionsByVariant.isObject()) {
             throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
         }
         List<PortfolioDraftVariant> variants = new ArrayList<>();
-        Set<String> seenKeys = new LinkedHashSet<>();
-        for (JsonNode node : variantsNode) {
-            String key = text(node, "key");
-            String label = text(node, "label");
-            String content = text(node, "content");
-            if (key == null || label == null || content == null || content.isBlank()) {
+        for (String key : List.of("DONE", "DONE_IN_PROGRESS", "ALL")) {
+            JsonNode sectionNode = sectionsByVariant.path(key);
+            if (!sectionNode.isObject()) {
                 throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
             }
-            variants.add(new PortfolioDraftVariant(key, label, content));
-            seenKeys.add(key);
-        }
-        if (!seenKeys.containsAll(REQUIRED_VARIANT_KEYS)) {
-            throw new ServiceException(ErrorCode.LLM_INVALID_RESPONSE);
+            variants.add(new PortfolioDraftVariant(key, variantLabel(key), renderSections(sectionNode)));
         }
         return new PortfolioDraftGenerationResult(title, new PortfolioDraftPayload("PROJECT_WRITEUP", variants));
+    }
+
+    private String renderSections(JsonNode sectionNode) {
+        StringBuilder sb = new StringBuilder();
+        for (SectionSpec section : SECTION_SPECS) {
+            appendSection(sb, section.title());
+            if (section.renderMode() == SectionRenderMode.PARAGRAPH) {
+                appendParagraphValues(sb, sectionNode.path(section.fieldName()));
+            } else {
+                appendBulletValues(sb, sectionNode.path(section.fieldName()));
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private void appendParagraphValues(StringBuilder sb, JsonNode values) {
+        if (!values.isArray() || values.isEmpty()) {
+            appendLine(sb, "작성 가능한 근거가 없습니다.");
+            return;
+        }
+        int appended = 0;
+        for (JsonNode value : values) {
+            String text = value.isTextual() ? value.asText() : null;
+            if (text != null && !text.isBlank()) {
+                if (appended > 0) {
+                    sb.append('\n');
+                }
+                appendLine(sb, text);
+                appended++;
+            }
+        }
+        if (appended == 0) {
+            appendLine(sb, "작성 가능한 근거가 없습니다.");
+        }
+    }
+
+    private void appendBulletValues(StringBuilder sb, JsonNode values) {
+        if (!values.isArray() || values.isEmpty()) {
+            appendLine(sb, "- 작성 가능한 근거가 없습니다.");
+            return;
+        }
+        int appended = 0;
+        for (JsonNode value : values) {
+            String text = value.isTextual() ? value.asText() : null;
+            if (text != null && !text.isBlank()) {
+                appendLine(sb, "- " + text);
+                appended++;
+            }
+        }
+        if (appended == 0) {
+            appendLine(sb, "- 작성 가능한 근거가 없습니다.");
+        }
+    }
+
+    private String variantLabel(String key) {
+        return switch (key) {
+            case "DONE" -> "완료 기반";
+            case "DONE_IN_PROGRESS" -> "완료 + 진행 중";
+            case "ALL" -> "전체 계획 포함";
+            default -> key;
+        };
     }
 
     private PortfolioDraftGenerationResult buildFallbackDraft(ObjectNode sourcePayload) {
@@ -475,12 +549,12 @@ public class PortfolioDraftService {
         JsonNode coach = sourcePayload.path("coachConversationCandidates");
 
         appendSection(sb, "개요");
-        appendLine(sb, "저장된 로드맵 진도와 GitHub 분석 근거를 바탕으로 정리한 프로젝트 기술서 초안입니다.");
+        appendLine(sb, "저장된 로드맵 진도와 GitHub 분석 근거를 프로젝트 기술서 초안으로 연결한 문서입니다. 확인된 완료 기록은 구현 경험의 후보로, 진행 중이거나 예정인 기록은 다음 개선 후보로 분리했습니다.");
 
         appendSection(sb, "문제/목표");
-        appendLine(sb, "학습 로드맵에서 확인된 보완 주제를 실제 구현 경험과 정리 가능한 산출물로 연결하는 것이 목표입니다.");
+        appendLine(sb, "로드맵에 흩어진 학습 기록을 구현 맥락, 기술 선택 이유, 다음 개선 계획으로 재구성하는 것이 목표입니다. 근거가 부족한 항목은 완료 사실로 확정하지 않고 초안 후보로만 남깁니다.");
 
-        appendSection(sb, "진행한 학습과 구현");
+        appendSection(sb, "구현 내용");
         if (includeDone) {
             appendWeekList(sb, "완료", official.path("done"));
         }
@@ -490,14 +564,14 @@ public class PortfolioDraftService {
         if (includePlanned) {
             appendWeekList(sb, "예정", official.path("planned"));
         }
-        if (sb.charAt(sb.length() - 1) == '\n' && sb.toString().endsWith("진행한 학습과 구현\n")) {
+        if (sb.charAt(sb.length() - 1) == '\n' && sb.toString().endsWith("구현 내용\n")) {
             appendLine(sb, "- 아직 확정된 학습 진도 근거가 없습니다.");
         }
 
         appendSection(sb, "사용 기술");
         appendTextValues(sb, github.path("skills"), "- ");
 
-        appendSection(sb, "배운 점");
+        appendSection(sb, "기술적 판단과 배운 점");
         appendGithubEvidence(sb, github);
 
         appendSection(sb, "다음 개선");
@@ -677,5 +751,13 @@ public class PortfolioDraftService {
     }
 
     private record PortfolioSource(ObjectNode sourcePayload, ObjectNode sourceRefs) {
+    }
+
+    private enum SectionRenderMode {
+        PARAGRAPH,
+        BULLET
+    }
+
+    private record SectionSpec(String fieldName, String title, SectionRenderMode renderMode) {
     }
 }
