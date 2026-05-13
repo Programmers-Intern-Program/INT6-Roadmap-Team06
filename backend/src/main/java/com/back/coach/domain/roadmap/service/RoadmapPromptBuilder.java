@@ -48,16 +48,19 @@ public class RoadmapPromptBuilder {
                 Rules:
                 - Return JSON only.
                 - Do not wrap JSON in Markdown code fences.
+                - Write user-visible natural-language values in Korean: summary, weeks[].topic, weeks[].reason, tasks[].title, materials[].title.
+                - Keep technical proper nouns such as Java, Spring Boot, Redis, Docker, and GitHub Actions in their original form.
+                - Keep JSON field names and enum values unchanged.
                 - The JSON must match this shape:
                   {
-                    "summary": "short roadmap summary",
+                    "summary": "백엔드 취업 준비를 위한 8주 학습 로드맵 요약",
                     "weeks": [
                       {
                         "weekNumber": 1,
-                        "topic": "topic",
-                        "reason": "why this week matters",
-                        "tasks": [{"type": "READ_DOCS", "title": "task title"}],
-                        "materials": [{"type": "DOCS", "title": "material title", "url": "https://example.com"}],
+                        "topic": "Redis 캐시 기초",
+                        "reason": "백엔드 서비스의 성능 개선 역량을 보완하기 위해 필요합니다.",
+                        "tasks": [{"type": "READ_DOCS", "title": "Redis 공식 문서 핵심 개념 읽기"}],
+                        "materials": [{"type": "DOCS", "title": "Redis Documentation", "url": "https://example.com"}],
                         "estimatedHours": 8.0
                       }
                     ]

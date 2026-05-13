@@ -30,6 +30,10 @@ public class DiagnosisPromptBuilder {
         prompt.append("You are an AI developer growth diagnosis engine.\n");
         prompt.append("Compare the user's profile and GitHub final tech profile against the target job role requirements.\n");
         prompt.append("Return only one JSON object with summary, missingSkills, strengths, recommendations.\n\n");
+        prompt.append("## Language Rules\n");
+        prompt.append("Write user-visible natural-language values in Korean: summary, missingSkills[].reason, strengths[], recommendations[].\n");
+        prompt.append("Keep technical proper nouns such as Java, Spring Boot, Redis, Docker, and GitHub Actions in their original form.\n");
+        prompt.append("Keep JSON field names and enum values such as HIGH, MEDIUM, LOW unchanged.\n\n");
 
         prompt.append("## Target Role\n");
         prompt.append("roleCode: ").append(input.jobRole().getRoleCode()).append("\n");
@@ -70,17 +74,17 @@ public class DiagnosisPromptBuilder {
         prompt.append("Return exactly this JSON shape; use these field names only:\n");
         prompt.append("""
                 {
-                  "summary": "short diagnosis summary",
+                  "summary": "백엔드 개발자 목표 대비 Redis와 운영 경험 보완이 필요합니다.",
                   "missingSkills": [
                     {
-                      "skillName": "skill name",
+                      "skillName": "Redis",
                       "severity": "HIGH",
-                      "reason": "why this skill is missing based on user input, GitHub final profile, or job requirements",
+                      "reason": "GitHub 분석과 사용자 입력에서 캐시 설계 경험이 충분히 확인되지 않았습니다.",
                       "priorityOrder": 1
                     }
                   ],
-                  "strengths": ["skill or strength supported by user input or GitHub confirmed skills"],
-                  "recommendations": ["concrete next learning priority"]
+                  "strengths": ["Spring Boot 기반 API 구현 경험이 확인됩니다."],
+                  "recommendations": ["Redis 캐시와 TTL 기반 설계를 우선 학습하세요."]
                 }
                 """);
         prompt.append("Do not add any fields other than summary, missingSkills, strengths, recommendations.\n");
@@ -91,6 +95,7 @@ public class DiagnosisPromptBuilder {
         prompt.append("missingSkills[].reason must be a non-empty explanation tied to the input evidence.\n");
         prompt.append("strengths should include skills supported by user input or GitHub confirmed skills.\n");
         prompt.append("recommendations should be concrete next learning priorities.\n");
+        prompt.append("summary, missingSkills[].reason, strengths[], and recommendations[] must be written in Korean.\n");
         prompt.append("Do not wrap JSON in Markdown code fences.\n");
         String result = prompt.toString();
         log.debug("Prompt built: builder=DiagnosisPromptBuilder, version={}, bytes={}", VERSION, result.getBytes().length);

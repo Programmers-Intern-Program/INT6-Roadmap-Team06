@@ -107,7 +107,7 @@ public class DiagnosisCommandService {
         ));
         DiagnosisResponseParser.DiagnosisResult diagnosisResult =
                 diagnosisResponseParser.parse(
-                        llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, prompt));
+                        llmClient.complete(PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY, prompt));
         DiagnosisPayload diagnosisPayload = new DiagnosisPayload(
                 diagnosisResult.missingSkills(),
                 diagnosisResult.strengths(),

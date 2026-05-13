@@ -9,6 +9,7 @@ import com.back.coach.domain.coach.repository.ReplanProposalRepository;
 import com.back.coach.domain.context.service.AssembledContext;
 import com.back.coach.domain.context.service.ContextManagerService;
 import com.back.coach.external.llm.LlmClient;
+import com.back.coach.external.llm.PromptDirectives;
 import com.back.coach.global.code.CoachRoute;
 import com.back.coach.global.exception.ErrorCode;
 import com.back.coach.global.exception.ServiceException;
@@ -48,6 +49,8 @@ public class CoachMessageService {
             - JSON 외 텍스트(설명, 추론, 코드펜스 ```) 절대 출력 금지
             - markdown으로 JSON을 감싸지 마세요
             - 모든 필드명은 위 스키마와 정확히 일치해야 함
+            - responseText, replanReason, detectedIntent는 한국어로 작성
+            - 기술명, 제품명, 프레임워크명, enum 값은 원문 유지
             """;
 
     private final ChatSessionRepository chatSessionRepository;
@@ -103,7 +106,10 @@ public class CoachMessageService {
         coachConversationRepository.save(CoachConversation.user(sessionId, userId, userMessage));
 
         AssembledContext context = contextManagerService.assembleAuto(session, userMessage);
-        String llmRaw = llmClient.complete(SYSTEM_PROMPT, context.systemPrompt());
+        String llmRaw = llmClient.complete(
+                PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY + "\n\n" + SYSTEM_PROMPT,
+                context.systemPrompt()
+        );
         CoachResponseParser.ParsedCoachResponse parsed = responseParser.parse(llmRaw);
 
         CoachConversation coachMessage = CoachConversation.coach(

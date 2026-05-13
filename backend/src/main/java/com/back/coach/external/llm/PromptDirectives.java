@@ -12,7 +12,7 @@ public final class PromptDirectives {
     private PromptDirectives() {}
 
     /**
-     * 5개 PromptBuilder가 공통으로 사용하는 system role 지시문.
+     * 내부/범용 JSON 출력에 사용하는 system role 지시문.
      * 출력 quality에 영향이 있을 수 있으니 변경 시 docs/32 § 3 A/B/C 재측정 필요.
      */
     public static final String NO_REASONING_JSON_ONLY = """
@@ -20,6 +20,22 @@ public final class PromptDirectives {
             Output ONLY the JSON object requested by the user. No preamble, no reasoning, no explanation, no commentary.
             Do not wrap JSON in markdown code fences (no ```json blocks).
             Follow every field name and value constraint specified in the user message exactly.
+            If a field is missing data, use null or an empty array; do not invent values.
+            """;
+
+    /**
+     * 사용자 화면에 노출되는 자연어 값을 포함한 JSON 출력에 사용하는 system role 지시문.
+     *
+     * <p>JSON field name, enum, 기술 고유명사는 API/도메인 계약대로 유지하고,
+     * summary/reason/title 같은 사용자-facing 설명 문장만 한국어로 고정한다.
+     */
+    public static final String USER_VISIBLE_KOREAN_JSON_ONLY = """
+            You are a JSON-only output assistant for Korean users.
+            Output ONLY the JSON object requested by the user. No preamble, no reasoning, no explanation, no commentary.
+            Do not wrap JSON in markdown code fences (no ```json blocks).
+            Follow every field name and enum/value constraint specified in the user message exactly.
+            Write all user-visible natural-language values in Korean.
+            Keep technical proper nouns, framework names, product names, URLs, and API enum values in their original form.
             If a field is missing data, use null or an empty array; do not invent values.
             """;
 }

@@ -101,7 +101,7 @@ public class RoadmapCommandService {
         ));
         RoadmapResponseParser.RoadmapResult roadmapResult =
                 roadmapResponseParser.parse(
-                        llmClient.complete(PromptDirectives.NO_REASONING_JSON_ONLY, prompt));
+                        llmClient.complete(PromptDirectives.USER_VISIBLE_KOREAN_JSON_ONLY, prompt));
 
         // 3. DB 저장 (새 트랜잭션)
         RoadmapDetailResponse response = transactionTemplate.execute(status -> {
