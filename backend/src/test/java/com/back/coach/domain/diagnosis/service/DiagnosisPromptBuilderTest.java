@@ -45,6 +45,9 @@ class DiagnosisPromptBuilderTest {
         assertThat(prompt).contains("Do not use alias field names like skill, name, description, priority, rationale");
         assertThat(prompt).contains("missingSkills[].reason must be a non-empty explanation");
         assertThat(prompt).contains("LOW, MEDIUM, HIGH");
+        assertThat(prompt).contains("Write user-visible natural-language values in Korean");
+        assertThat(prompt).contains("summary, missingSkills[].reason, strengths[], and recommendations[] must be written in Korean");
+        assertThat(prompt).contains("Redis 캐시와 TTL 기반 설계를 우선 학습하세요.");
         assertThat(prompt).contains("Do not wrap JSON in Markdown code fences.");
     }
 

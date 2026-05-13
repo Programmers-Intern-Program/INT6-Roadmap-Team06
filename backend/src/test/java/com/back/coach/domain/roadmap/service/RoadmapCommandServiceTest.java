@@ -157,7 +157,10 @@ class RoadmapCommandServiceTest {
         ArgumentCaptor<String> userCaptor = ArgumentCaptor.forClass(String.class);
         verify(llmClient).complete(systemCaptor.capture(), userCaptor.capture());
         assertThat(systemCaptor.getValue()).contains("JSON-only");
+        assertThat(systemCaptor.getValue()).contains("Korean users");
+        assertThat(systemCaptor.getValue()).contains("Write all user-visible natural-language values in Korean");
         assertThat(userCaptor.getValue()).contains("BACKEND_DEVELOPER", "Redis", "weeklyStudyHours: 8");
+        assertThat(userCaptor.getValue()).contains("weeks[].topic", "tasks[].title", "materials[].title");
     }
 
     @Test
