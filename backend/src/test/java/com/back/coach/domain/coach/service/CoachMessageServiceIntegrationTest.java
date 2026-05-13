@@ -114,9 +114,12 @@ class CoachMessageServiceIntegrationTest {
         assertThat(systemCaptor.getValue()).contains("Write all user-visible natural-language values in Korean");
         assertThat(systemCaptor.getValue()).contains("responseText, replanReason, detectedIntent는 한국어로 작성");
         assertThat(systemCaptor.getValue()).contains("roadmap.weeks[].topic/tasks/materials");
+        assertThat(systemCaptor.getValue()).contains("title을 그대로 인용");
+        assertThat(systemCaptor.getValue()).contains("없는 주차, topic, task, material, 책 제목, URL은 새로 만들지 말 것");
         assertThat(systemCaptor.getValue()).contains("insight");
         assertThat(systemCaptor.getValue()).contains("우선순위");
         assertThat(systemCaptor.getValue()).contains("새 URL을 만들지 말 것");
+        assertThat(systemCaptor.getValue()).doesNotContain("·");
         assertThat(maxTokensCaptor.getValue()).isEqualTo(3000);
 
         List<CoachConversation> rows = coachConversationRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
