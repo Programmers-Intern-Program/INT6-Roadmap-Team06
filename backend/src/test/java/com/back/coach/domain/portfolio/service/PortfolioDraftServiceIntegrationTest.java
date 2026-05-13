@@ -120,10 +120,17 @@ class PortfolioDraftServiceIntegrationTest {
         assertThat(systemCaptor.getValue()).contains("Do not invent URLs");
         assertThat(systemCaptor.getValue()).contains("sectionsByVariant");
         assertThat(systemCaptor.getValue()).contains("Do not output fields named variants");
+        assertThat(systemCaptor.getValue()).contains("project write-up");
+        assertThat(systemCaptor.getValue()).contains("not a study checklist");
+        assertThat(systemCaptor.getValue()).contains("paragraph strings");
+        assertThat(systemCaptor.getValue()).contains("Never convert IN_PROGRESS or TODO/planned records into completed facts");
+        assertThat(systemCaptor.getValue()).contains("Do not claim performance improvement");
         assertThat(maxTokensCaptor.getValue()).isEqualTo(6000);
 
         String prompt = userPromptCaptor.getValue();
         assertThat(prompt).contains("sectionsByVariant");
+        assertThat(prompt).contains("project write-up draft");
+        assertThat(prompt).contains("not a study checklist");
         assertThat(prompt).contains("Redis 공식 문서 정리 완료");
         assertThat(prompt).contains("캐시 예제 진행 중");
         assertThat(prompt).contains("장애 대응 회고 작성");
@@ -137,7 +144,9 @@ class PortfolioDraftServiceIntegrationTest {
         String inProgressContent = response.draftPayload().variants().get(1).content();
         String allContent = response.draftPayload().variants().get(2).content();
         assertThat(doneContent)
-                .contains("## 개요", "## 진행한 학습과 구현", "Redis 공식 문서 정리 완료")
+                .contains("## 개요\nRedis 공식 문서 정리를 통해", "## 구현 내용", "## 기술적 판단과 배운 점", "Redis 공식 문서 정리 완료")
+                .doesNotContain("## 개요\n-")
+                .doesNotContain("## 진행한 학습과 구현")
                 .doesNotContain("캐시 예제 진행 중")
                 .doesNotContain("아직 시작하지 않은 모니터링 개선");
         assertThat(inProgressContent)
@@ -197,7 +206,10 @@ class PortfolioDraftServiceIntegrationTest {
                 .extracting(PortfolioDraftVariant::key)
                 .containsExactly("DONE", "DONE_IN_PROGRESS", "ALL");
         assertThat(response.draftPayload().variants().get(0).content())
+                .contains("## 구현 내용", "## 기술적 판단과 배운 점")
                 .contains("Redis 공식 문서 정리 완료")
+                .doesNotContain("## 진행한 학습과 구현")
+                .doesNotContain("## 배운 점")
                 .doesNotContain("캐시 예제 진행 중");
         assertThat(response.draftPayload().variants().get(1).content())
                 .contains("캐시 예제 진행 중")
@@ -220,8 +232,10 @@ class PortfolioDraftServiceIntegrationTest {
                 .extracting(PortfolioDraftVariant::key)
                 .containsExactly("DONE", "DONE_IN_PROGRESS", "ALL");
         assertThat(response.draftPayload().variants().get(0).content())
-                .contains("## 개요", "- 완료한 Redis 문서 정리를 중심으로 기술합니다.")
-                .contains("## 문제/목표", "- 작성 가능한 근거가 없습니다.");
+                .contains("## 개요\n완료한 Redis 문서 정리를 중심으로 기술합니다.")
+                .contains("## 문제/목표\n작성 가능한 근거가 없습니다.")
+                .contains("## 구현 내용\n- 작성 가능한 근거가 없습니다.")
+                .doesNotContain("## 개요\n-");
     }
 
     @Test
@@ -472,34 +486,34 @@ class PortfolioDraftServiceIntegrationTest {
                   "title": "백엔드 성장 포트폴리오 초안",
                   "sectionsByVariant": {
                     "DONE": {
-                      "overview": ["완료한 Redis 공식 문서 정리를 중심으로 작성합니다."],
-                      "problemGoal": ["캐시 설계 기반을 포트폴리오 근거로 정리하는 것이 목표입니다."],
-                      "studyAndImplementation": ["Redis 공식 문서 정리 완료"],
+                      "overview": ["Redis 공식 문서 정리를 통해 캐시 적용 전 필요한 명령어와 데이터 만료 기준을 정리하고, 이를 백엔드 API 개선 후보로 연결한 프로젝트 기술서 초안입니다."],
+                      "problemGoal": ["캐시 설계 기반이 부족했던 문제를 공식 문서 기반으로 보완하고, 이후 실제 API 적용 단계에서 판단 기준으로 사용할 수 있게 정리하는 것이 목표입니다."],
+                      "studyAndImplementation": ["Redis 공식 문서 정리 완료를 바탕으로 캐시 적용 전 데이터 구조와 명령어 사용 기준을 정리했습니다."],
                       "techStack": ["Java", "Spring Boot"],
-                      "lessons": ["최신 Spring API 개선 요약"],
+                      "lessons": ["최신 Spring API 개선 요약을 GitHub 근거로 확인했으며, 캐시를 적용하기 전에는 저장된 코드 구조와 데이터 흐름을 먼저 설명할 수 있어야 한다는 점을 정리했습니다."],
                       "nextImprovements": ["완료 근거만 포함하므로 예정 작업은 제외합니다."],
                       "memoCandidates": ["사용자가 직접 말한 학습 메모 후보"],
                       "recommendationCandidates": ["완료 기반 버전에서는 추천 후보를 완료 사실로 쓰지 않습니다."],
                       "sourceSummary": ["progress_logs와 github_analyses를 근거로 사용했습니다."]
                     },
                     "DONE_IN_PROGRESS": {
-                      "overview": ["완료한 Redis 정리와 진행 중인 Spring 캐시 적용을 함께 작성합니다."],
-                      "problemGoal": ["문서 정리에서 실제 API 적용으로 확장하는 것이 목표입니다."],
-                      "studyAndImplementation": ["Redis 공식 문서 정리 완료", "캐시 예제 진행 중"],
+                      "overview": ["완료한 Redis 정리와 캐시 예제 진행 중 기록을 연결해 문서 학습에서 실제 API 적용으로 확장하는 과정을 프로젝트 경험 후보로 작성합니다."],
+                      "problemGoal": ["문서로 정리한 캐시 개념을 Spring Boot API에 적용하며 동작 확인과 구현 기준을 함께 남기는 것이 목표입니다."],
+                      "studyAndImplementation": ["Redis 공식 문서 정리 완료 내용을 기준으로 캐시 예제 진행 중인 작업을 API 개선 후보로 연결했습니다."],
                       "techStack": ["Java", "Spring Boot"],
-                      "lessons": ["Controller와 Service 계층 구현 근거"],
+                      "lessons": ["Controller와 Service 계층 구현 근거를 함께 보면 캐시 적용은 단순 명령어 사용보다 요청 흐름과 책임 분리를 먼저 확인해야 한다는 점이 드러납니다."],
                       "nextImprovements": ["진행 중 작업을 마무리한 뒤 회고로 연결합니다."],
                       "memoCandidates": ["사용자가 직접 말한 학습 메모 후보"],
                       "recommendationCandidates": ["진행 중 버전에서는 예정 후보를 완료 사실로 쓰지 않습니다."],
                       "sourceSummary": ["progress_logs의 DONE과 IN_PROGRESS를 근거로 사용했습니다."]
                     },
                     "ALL": {
-                      "overview": ["완료, 진행 중, 예정 후보를 전체 계획으로 묶어 작성합니다."],
-                      "problemGoal": ["운영 백엔드 역량을 포트폴리오 산출물로 연결하는 것이 목표입니다."],
-                      "studyAndImplementation": ["Redis 공식 문서 정리 완료", "캐시 예제 진행 중"],
+                      "overview": ["완료, 진행 중, 예정 후보를 한 문서에 묶되 완료 사실과 다음 개선 후보를 구분해 운영 백엔드 성장 흐름으로 작성합니다."],
+                      "problemGoal": ["캐시 적용 경험을 운영 안정성 관점의 포트폴리오 산출물로 확장하고, 아직 시작하지 않은 항목은 다음 개선 후보로 분리하는 것이 목표입니다."],
+                      "studyAndImplementation": ["Redis 공식 문서 정리 완료와 캐시 예제 진행 중 기록을 현재 구현 근거로 사용합니다."],
                       "techStack": ["Java", "Spring Boot", "Redis"],
-                      "lessons": ["최신 Spring API 개선 요약"],
-                      "nextImprovements": ["아직 시작하지 않은 모니터링 개선"],
+                      "lessons": ["최신 Spring API 개선 요약을 기준으로 캐시 적용과 모니터링 개선은 별도 단계로 관리해야 한다는 기술적 판단을 남깁니다."],
+                      "nextImprovements": ["아직 시작하지 않은 모니터링 개선은 완료 사실이 아니라 다음 개선 후보로 정리합니다."],
                       "memoCandidates": ["사용자가 직접 말한 학습 메모 후보"],
                       "recommendationCandidates": ["Coach가 추천한 다음 프로젝트 후보"],
                       "sourceSummary": ["로드맵 진도, GitHub 분석, Coach 후보를 근거로 사용했습니다."]
