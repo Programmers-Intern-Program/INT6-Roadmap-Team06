@@ -36,6 +36,7 @@
 기본 데이터
 - `PROFILE` snapshot의 `profile`, `skills`, `diagnosisSummary.topMissingSkills`
 - `PLAN` snapshot의 `currentWeek`, 최근 progress 상태
+- 학습 가이드 질문이면 `PLAN.roadmap.weeks[]`의 현재/관련 주차 `topic`, `tasks`, `materials`
 
 무효화 기준
 - 프로필 저장
@@ -51,7 +52,7 @@
 
 기본 데이터
 - Tier 1 전체
-- `PLAN` snapshot의 `roadmap`, `weeks`, `progressSummary`
+- `PLAN` snapshot의 `roadmap`, `roadmap.weeks[]`, `weeks`, `progressSummary`
 - `PROFILE` snapshot의 `diagnosisSummary`
 
 무효화 기준

@@ -115,7 +115,28 @@ Pattern Detector 저장 원본과 `CONVERSATION.activeSignals` 요약 관계는 
   "roadmap": {
     "title": "백엔드 Redis 역량 보강 로드맵",
     "totalWeeks": 12,
-    "summary": "Redis 캐시 설계부터 프로젝트 적용까지 진행"
+    "summary": "Redis 캐시 설계부터 프로젝트 적용까지 진행",
+    "weeks": [
+      {
+        "weekNumber": 1,
+        "topic": "Redis 기초",
+        "reason": "캐시 패턴 학습 전 자료구조와 TTL 개념을 먼저 확인",
+        "estimatedHours": 4.5,
+        "tasks": [
+          {
+            "title": "TTL 캐시 예제 구현",
+            "type": "example"
+          }
+        ],
+        "materials": [
+          {
+            "title": "Redis 공식 문서",
+            "type": "docs",
+            "url": "https://redis.io/docs/latest/"
+          }
+        ]
+      }
+    ]
   },
   "currentWeek": {
     "roadmapWeekId": "21",
@@ -145,6 +166,8 @@ Pattern Detector 저장 원본과 `CONVERSATION.activeSignals` 요약 관계는 
 규칙
 - 로드맵 원본은 `learning_roadmaps + roadmap_weeks + progress_logs`다.
 - `roadmap_payload`는 보조 결과로만 사용하고, `roadmap_weeks`와 불일치하면 `roadmap_weeks`를 우선한다.
+- Coach가 실행형 학습 가이드를 만들 때 쓰는 주차별 학습 항목은 `roadmap.weeks[]`에 둔다.
+- `roadmap.weeks[].tasks`, `roadmap.weeks[].materials`는 `roadmap_weeks.tasks_json`, `materials_json`의 구조를 유지하며, 파싱할 수 없으면 빈 배열로 둘 수 있다.
 - 진도 상태는 `progress_logs` 최신 row 기준으로 계산한다.
 - `progressAsOf`는 진도 snapshot을 조립한 기준 시각이다.
 - 로드맵이 없으면 `roadmap`, `currentWeek`는 `null`, `weeks`는 빈 배열로 둘 수 있다.
