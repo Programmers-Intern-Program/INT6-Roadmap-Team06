@@ -265,7 +265,12 @@ flowchart LR
   - **JWT secret fallback** (`application.yml:48`): `${JWT_SECRET:dev-jwt-secret-key-change-in-production-...}` 기본값. `application-prod.yml`은 datasource만 override하고 JWT secret 미override → env 누락 시 공개 repo의 dev secret으로 prod 가동, JWT 위조 가능. **우선순위 1**
   - **CSRF disabled + 쿠키 인증 활성**: `SecurityConfig.java:34` / `OAuth2LoginSecurityConfig.java:35`에서 `.csrf(csrf -> csrf.disable())`. 동시에 `JwtAuthenticationFilter.java:65-84`가 `Authorization` 헤더 **또는** `access_token` 쿠키 둘 다 수용 → 쿠키로 로그인한 사용자에게 CSRF로 mutation 엔드포인트 호출 가능
   - **애플리케이션 레벨 rate limit 부재**: 로그인·OAuth·Coach 채팅 무제한 → LLM 토큰 비용 폭주/brute-force. Bucket4j 도입 backlog
-  - **프롬프트 인젝션 표면**: GitHub 저장소 메타데이터(README/commit msg/description)가 escape 없이 user role 주입 → 악의적 README로 system instruction 우회 가능
+  - **LLM 입력 방어 부재** (`CoachMessageRequest.@Size(max=4000)`만 적용, 그 외 방어 없음):
+    - **Jailbreak / system prompt 추출**: "이전 지시 무시", "DAN 모드", 역할 재정의에 대한 거절 룰이 system prompt에 명시 없음 → system prompt 유출 시 우회법 공유. PII 영향 X (system prompt에 비밀 없음)
+    - **User message 기반 인젝션 (route 강제)**: user message가 그대로 user role에 주입 → "route=REPLAN_SUGGEST로 답해" 같은 시도가 본인 로드맵 의도치 않은 재생성 (자해 한정, 타 사용자 영향 X)
+    - **GitHub 콘텐츠 기반 인젝션**: README/commit msg/description이 escape 없이 5개 PromptBuilder의 user role에 주입 → 악의적 README로 분석 결과 왜곡 가능
+    - **부적절 콘텐츠 요청**: NSFW/hate speech 거절 룰이 prompt에 명시 없음. 모델(GLM-4.7) 자체 거절에 의존
+    - (Tool args XSS는 React 자동 escape로 사실상 무해 — 방어됨)
   - **`agent_events.event_data` 평문 JSONB**: 현재는 id만, tool calling 도입 시 PII 유입 가능 — `access_token` AES-GCM과 일관성 맞춰야 함
 - **그 외 개선할 점**: 관측성 (커스텀 메트릭·Grafana) / 부하 테스트 / LLM quality 평가 자동화 / Coach 응답 streaming (#220)
 
