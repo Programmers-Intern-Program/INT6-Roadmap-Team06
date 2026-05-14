@@ -52,6 +52,11 @@ security:
     secure: false
   oauth2:
     frontend-redirect-url: ${FRONTEND_URL:http://localhost:3000}
+  access-token-encryption:
+    # AES-256 key, Base64 인코딩된 정확히 32 바이트. 운영 환경은 반드시 env 로 주입.
+    # 로컬은 application-secret.yml 또는 .env 에서 ACCESS_TOKEN_ENCRYPTION_KEY 설정.
+    # 미설정 시 앱 기동 실패 (fail-fast).
+    key: ${ACCESS_TOKEN_ENCRYPTION_KEY:}
 
 ai:
   gateway:
@@ -62,7 +67,10 @@ ai:
       connect: 5s
       read: 120s
     retry:
-      max-attempts: 1
+      # 기본 1회 = 재시도 없음 (안전 기본). 운영에서 활성화하려면 env 로 오버라이드.
+      # 화이트리스트(LLM_INVALID_RESPONSE / ANALYSIS_FAILED) 에 한해 적용. 자세한 정책은 AiGatewayLlmClient 참고.
+      max-attempts: ${AI_GATEWAY_RETRY_MAX_ATTEMPTS:1}
+      backoff: ${AI_GATEWAY_RETRY_BACKOFF:200ms}
   concurrency:
     max-concurrent-calls: 4
     queue-timeout-seconds: 180

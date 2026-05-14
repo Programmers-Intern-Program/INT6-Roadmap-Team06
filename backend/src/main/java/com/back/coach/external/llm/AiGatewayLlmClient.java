@@ -77,7 +77,40 @@ public class AiGatewayLlmClient implements LlmClient {
         return callApi(messages, promptBytes, maxTokens);
     }
 
+    // LLM은 stochastic → 같은 prompt에도 일회성으로 헛소리/빈 응답이 나올 수 있다.
+    // 에러코드 중 화이트리스트에 한해서만 재시도. 그 외 (rate limit / timeout / invalid input) 는 즉시 throw.
+    private static final java.util.Set<ErrorCode> RETRYABLE = java.util.Set.of(
+            ErrorCode.ANALYSIS_FAILED,
+            ErrorCode.LLM_INVALID_RESPONSE
+    );
+
     private String callApi(java.util.List<Message> messages, int promptBytes, int maxTokens) {
+        int maxAttempts = Math.max(1, properties.retry().maxAttempts());
+        long backoffMs = properties.retry().backoff().toMillis();
+        ServiceException last = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return callApiOnce(messages, promptBytes, maxTokens);
+            } catch (ServiceException e) {
+                last = e;
+                if (attempt < maxAttempts && RETRYABLE.contains(e.getErrorCode())) {
+                    log.warn("LLM retry scheduled: attempt={}/{}, code={}, backoffMs={}",
+                            attempt, maxAttempts, e.getErrorCode(), backoffMs);
+                    try {
+                        Thread.sleep(backoffMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
+                    continue;
+                }
+                throw e;
+            }
+        }
+        throw last; // 도달 불가 — 루프는 return 또는 throw 로만 빠져나감.
+    }
+
+    private String callApiOnce(java.util.List<Message> messages, int promptBytes, int maxTokens) {
         long startNs = System.nanoTime();
         log.debug("LLM request starting: model={}, promptBytes={}, messages={}, maxTokens={}",
                 properties.model(), promptBytes, messages.size(), maxTokens);
