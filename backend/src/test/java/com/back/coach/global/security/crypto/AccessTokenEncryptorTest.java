@@ -63,8 +63,11 @@ class AccessTokenEncryptorTest {
     void tampered_ciphertext_throws() {
         String plain = "ghp_token";
         String db = sut.convertToDatabaseColumn(plain);
-        // 마지막 글자를 살짝 바꾸면 GCM auth tag 검증 실패
-        String tampered = db.substring(0, db.length() - 1) + (db.endsWith("A") ? "B" : "A");
+        // ciphertext base64 의 첫 글자(패딩 아님)를 변조 → GCM auth tag 검증 실패.
+        // 마지막 글자를 변조하면 base64 padding 위치에 걸려 디코더가 silent truncation 할 수 있음.
+        int ctStart = db.indexOf(':', AccessTokenEncryptor.PREFIX.length()) + 1;
+        char orig = db.charAt(ctStart);
+        String tampered = db.substring(0, ctStart) + (orig == 'A' ? 'B' : 'A') + db.substring(ctStart + 1);
 
         assertThatThrownBy(() -> sut.convertToEntityAttribute(tampered))
                 .isInstanceOf(IllegalStateException.class)
