@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -224,8 +224,7 @@ class GithubAnalysisE2eTest extends ApiTestBase {
     private void stubLlm(String promptContains, String content) {
         wireMock.stubFor(com.github.tomakehurst.wiremock.client.WireMock.post("/v1/chat/completions")
                 .atPriority(5)
-                .withRequestBody(matchingJsonPath("$.messages[0].content",
-                        new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*" + promptContains + ".*")))
+                .withRequestBody(containing(promptContains))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody(chatResponse(content))));
