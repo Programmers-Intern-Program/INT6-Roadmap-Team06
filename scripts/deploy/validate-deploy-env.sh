@@ -57,6 +57,7 @@ required_keys=(
   CORS_ALLOWED_ORIGINS
   FRONTEND_URL
   JWT_SECRET
+  ACCESS_TOKEN_ENCRYPTION_KEY
   GITHUB_CLIENT_ID
   GITHUB_CLIENT_SECRET
   GITHUB_CONNECTION_CLIENT_ID
@@ -91,6 +92,22 @@ is_placeholder() {
     [[ "$normalized" == todo ]]
 }
 
+validate_access_token_encryption_key() {
+  local value="$1"
+  local decoded_bytes
+
+  if ! decoded_bytes="$(printf '%s' "$value" | base64 --decode 2>/dev/null | wc -c | tr -d '[:space:]')"; then
+    echo "::error::ACCESS_TOKEN_ENCRYPTION_KEY must be valid Base64" >&2
+    error_count=$((error_count + 1))
+    return
+  fi
+
+  if [ "$decoded_bytes" != "32" ]; then
+    echo "::error::ACCESS_TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes; got ${decoded_bytes}" >&2
+    error_count=$((error_count + 1))
+  fi
+}
+
 error_count=0
 
 for key in "${required_keys[@]}"; do
@@ -105,6 +122,11 @@ for key in "${required_keys[@]}"; do
     error_count=$((error_count + 1))
   fi
 done
+
+if [[ -v "values[ACCESS_TOKEN_ENCRYPTION_KEY]" ]] &&
+  ! is_placeholder "${values[ACCESS_TOKEN_ENCRYPTION_KEY]}"; then
+  validate_access_token_encryption_key "${values[ACCESS_TOKEN_ENCRYPTION_KEY]}"
+fi
 
 for key in "${defaulted_keys[@]}"; do
   if [[ ! -v "values[$key]" ]]; then

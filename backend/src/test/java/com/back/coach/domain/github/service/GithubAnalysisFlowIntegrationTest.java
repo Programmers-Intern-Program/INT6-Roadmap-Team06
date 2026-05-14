@@ -6,6 +6,7 @@ import com.back.coach.domain.github.entity.GithubConnection;
 import com.back.coach.domain.github.repository.GithubAnalysisRepository;
 import com.back.coach.domain.github.repository.GithubConnectionRepository;
 import com.back.coach.domain.github.repository.GithubProjectRepository;
+import com.back.coach.domain.github.service.fetcher.GithubMetadataFetcher;
 import com.back.coach.domain.user.entity.User;
 import com.back.coach.domain.user.repository.UserRepository;
 import com.back.coach.global.code.AuthProvider;
@@ -22,15 +23,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
 
 @IntegrationTest
 @DirtiesContext
@@ -61,6 +66,8 @@ class GithubAnalysisFlowIntegrationTest {
     @Autowired GithubAnalysisService analysisService;
     @Autowired GithubAnalysisPayloadJson payloadJson;
 
+    @MockitoBean GithubMetadataFetcher metadataFetcher;
+
     @PersistenceContext EntityManager em;
 
     @Test
@@ -70,17 +77,17 @@ class GithubAnalysisFlowIntegrationTest {
         wireMock.resetAll();
         // Triage: 프롬프트에 "Candidates" 포함 → champion 1개 반환
         wireMock.stubFor(post("/v1/chat/completions")
-                .withRequestBody(matchingJsonPath("$.messages[0].content", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*Candidates.*")))
+                .withRequestBody(containing("Candidates"))
                 .willReturn(aResponse().withHeader("Content-Type", "application/json")
                         .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"champions\\\":[{\\\"kind\\\":\\\"COMMIT\\\",\\\"ref\\\":\\\"abc\\\",\\\"reason\\\":\\\"OAuth\\\"}]}\"}}]}")));
         // Per-repo summary: 프롬프트에 "repoId" 포함
         wireMock.stubFor(post("/v1/chat/completions")
-                .withRequestBody(matchingJsonPath("$.messages[0].content", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*repoId:.*")))
+                .withRequestBody(containing("repoId:"))
                 .willReturn(aResponse().withHeader("Content-Type", "application/json")
                         .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"repoId\\\":\\\"PROJECT_ID\\\",\\\"repoName\\\":\\\"user/cool\\\",\\\"summary\\\":\\\"Spring Boot\\\",\\\"highlights\\\":[{\\\"text\\\":\\\"OAuth\\\",\\\"status\\\":\\\"ADOPTED\\\"}]}\"}}]}")));
         // Synthesis: 프롬프트에 "Static Signals" 포함
         wireMock.stubFor(post("/v1/chat/completions")
-                .withRequestBody(matchingJsonPath("$.messages[0].content", new com.github.tomakehurst.wiremock.matching.RegexPattern("(?s).*Static Signals.*")))
+                .withRequestBody(containing("Static Signals"))
                 .willReturn(aResponse().withHeader("Content-Type", "application/json")
                         .withBody("{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"{\\\"techTags\\\":[{\\\"skillName\\\":\\\"Spring Boot\\\",\\\"tagReason\\\":\\\"백엔드\\\"}],\\\"depthEstimates\\\":[{\\\"skillName\\\":\\\"Spring Boot\\\",\\\"level\\\":\\\"PRACTICAL\\\",\\\"reason\\\":\\\"r\\\"}],\\\"evidences\\\":[{\\\"repoName\\\":\\\"user/cool\\\",\\\"type\\\":\\\"COMMIT\\\",\\\"source\\\":\\\"abc\\\",\\\"summary\\\":\\\"x\\\"}],\\\"finalTechProfile\\\":{\\\"confirmedSkills\\\":[\\\"Spring Boot\\\"],\\\"focusAreas\\\":[]}}\"}}]}")));
 
@@ -92,6 +99,23 @@ class GithubAnalysisFlowIntegrationTest {
                 "{\"languageBytes\":{\"Java\":1000},\"commits\":[{\"sha\":\"abc\",\"subject\":\"feat: OAuth\",\"bodyExcerpt\":\"\",\"paths\":[\"X.java\"],\"additions\":10,\"deletions\":0,\"diffExcerpt\":\"diff body\"}],\"pullRequests\":[],\"issues\":[]}");
         projectRepository.save(project);
         em.flush();
+        given(metadataFetcher.fetch(anyString(), anyString(), anyString(), anyString()))
+                .willReturn(new RepoMetadata(
+                        "",
+                        Map.of("Java", 1000L),
+                        List.of(),
+                        List.of(new RepoMetadata.CommitItem(
+                                "abc",
+                                "feat: OAuth",
+                                "",
+                                List.of("X.java"),
+                                10,
+                                0,
+                                "diff body"
+                        )),
+                        List.of(),
+                        List.of()
+                ));
 
         GithubAnalysisService.GithubAnalysisResult result = analysisService.run(
                 user.getId(), connection.getId(),
