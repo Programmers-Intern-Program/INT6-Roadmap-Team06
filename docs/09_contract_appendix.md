@@ -76,10 +76,17 @@
 | 코드명 | 허용값 | 설명 |
 | --- | --- | --- |
 | context_type | PROFILE, PLAN, CONVERSATION | snapshot 종류 |
-| message_type | USER, ASSISTANT, SYSTEM | 대화 메시지 종류 |
-| detected_intent | CHECK_TODAY_PLAN, CHECK_PROGRESS, REQUEST_REPLAN, REQUEST_REANALYSIS, ASK_EXPLANATION, GENERAL_CHAT | 코치 의도 분류 |
-| pattern_type | CONSECUTIVE_INCOMPLETE, REPEATED_FAILURE, INTEREST_SHIFT | 감지 패턴 |
+| chat_session_status | ACTIVE, CLOSED | Coach 세션 상태 |
+| coach_message_role | USER, COACH, SUMMARY | Coach 대화 메시지 종류 |
+| coach_route | SIMPLE_GUIDE, REPLAN_SUGGEST, REPLAN_EXECUTE, DISMISS | Coach 처리 경로 |
+| replan_proposal_status | PENDING, CONFIRMED, DISMISSED, EXPIRED | 재계획 제안 상태 |
+| detected_intent | 문자열, 권장 라벨: CHECK_TODAY_PLAN, CHECK_PROGRESS, REQUEST_REPLAN, REQUEST_REANALYSIS, ASK_EXPLANATION, GENERAL_CHAT | Coach가 저장하는 의도 라벨 |
+| pattern_type | REPEATED_INCOMPLETE, CONSECUTIVE_DELAY, SKILL_REPEATED_FAILURE, GOAL_DRIFT_CANDIDATE | 감지 패턴 |
 | pattern_severity | LOW, MEDIUM, HIGH | 패턴 심각도 |
+
+계약 기준
+- `coach_conversations.detected_intent`는 현재 DB check constraint가 없는 문자열 필드다. 표시와 분석 편의를 위해 권장 라벨을 쓰되 enum constraint로 간주하지 않는다.
+- `pattern_type`은 구현 enum과 DB check constraint 기준 값을 따른다.
 
 ## 4. JSONB shape 정의
 
@@ -281,7 +288,69 @@ shape
 - `url`은 선택
 - `type`은 각각 `roadmap_task_type`, `material_type` enum 사용
 
-## 4.6 v2 JSONB 최소 shape
+## 4.6 portfolio_drafts.draft_payload / source_refs
+
+### draft_payload
+```json
+{
+  "format": "PROJECT_WRITEUP",
+  "variants": [
+    {
+      "key": "DONE",
+      "label": "완료 기반",
+      "content": "완료된 기록만 기준으로 작성한 초안",
+      "generated": true
+    },
+    {
+      "key": "DONE_IN_PROGRESS",
+      "label": "완료 + 진행 중",
+      "content": "완료와 진행 중 기록을 구분해 작성한 초안",
+      "generated": true
+    },
+    {
+      "key": "ALL",
+      "label": "전체 계획 포함",
+      "content": "예정 항목을 다음 계획으로만 작성한 초안",
+      "generated": true
+    }
+  ]
+}
+```
+
+규칙
+- `format`은 현재 `PROJECT_WRITEUP`을 사용한다.
+- variant key는 `DONE`, `DONE_IN_PROGRESS`, `ALL`을 기본으로 한다.
+- `DONE`은 완료된 진도 기록만 공식 학습 근거로 사용한다.
+- `DONE_IN_PROGRESS`는 진행 중 항목을 완료 사실처럼 표현하지 않는다.
+- `ALL`은 예정 항목과 Coach 추천을 미래 계획 또는 개선 후보로만 표현한다.
+- 저장된 근거에 없는 URL, 책, 강의, 프로젝트명, 완료 사실, 성과 수치는 생성하지 않는다.
+
+### source_refs
+```json
+{
+  "roadmaps": [
+    {
+      "roadmapId": "601",
+      "roadmapVersion": 2
+    }
+  ],
+  "roadmapWeekIds": ["7001"],
+  "progressLogIds": ["8001"],
+  "githubAnalyses": [
+    {
+      "githubAnalysisId": "401",
+      "githubAnalysisVersion": 3
+    }
+  ],
+  "coachConversationIds": ["10001"]
+}
+```
+
+규칙
+- `source_refs`는 초안 생성 시점의 근거 ID를 보존한다.
+- 사용자가 초안을 편집해도 `source_refs`는 생성 시점 근거 추적용으로 유지한다.
+
+## 4.7 v2 JSONB 최소 shape
 
 ### user_context_snapshots.payload
 상세 계약은 `docs/16_v2_context_snapshot_contract.md`를 따른다.
@@ -324,6 +393,10 @@ shape
 ```
 
 `detected_patterns`는 Pattern Detector의 공식 원본 저장소다. Coach 대화용 신호는 Context Manager가 미처리 row(`processed_at IS NULL`)를 `CONVERSATION.activeSignals`로 요약해 전달한다.
+
+규칙
+- `idempotency_key`는 같은 사용자, 같은 패턴 타입, 같은 감지 근거의 미처리 row 중복 생성을 막기 위해 사용한다.
+- `processed_at`은 Coach 또는 Context Manager가 해당 패턴을 대화 판단에 반영했거나 dismiss 처리한 시각이다.
 
 ## 5. validation 규칙
 
@@ -386,6 +459,18 @@ shape
 | note | 선택, 최대 1000자 |
 | completedAt | status가 DONE일 때만 저장 |
 
+## 5.7 포트폴리오 초안 저장
+
+| 항목 | 규칙 |
+| --- | --- |
+| title | 필수, 최대 255자 |
+| draftPayload.format | 필수 |
+| draftPayload.variants | 최소 1개 |
+| variants[].key | 필수, 기본 variant는 DONE, DONE_IN_PROGRESS, ALL |
+| variants[].label | 필수 |
+| variants[].content | null 불가, 빈 문자열 허용 |
+| sourceRefs | 생성 시점 근거 ID 보존 |
+
 ## 6. state transition
 
 ## 6.1 분석 작업 상태
@@ -428,9 +513,11 @@ shape
 - `capability_diagnoses`
 - `github_analyses`
 - `learning_roadmaps`
+- `user_context_snapshots`
 
 규칙
 - 같은 사용자, 같은 결과 종류 내에서 `version`을 1씩 증가
+- `user_context_snapshots`는 같은 사용자와 `context_type` 기준으로 `version`을 1씩 증가
 - 새 실행 결과는 기존 row update가 아니라 새 row insert
 - 기본 snapshot/latest 조회는 `version desc, created_at desc` 순서의 최신 결과를 반환
 - 상세 조회는 `id` 기준으로 고정하며 latest 기준으로 다른 결과를 대신 반환하지 않는다
@@ -446,6 +533,8 @@ shape
 - `roadmap_payload`와 `roadmap_weeks` 내용이 불일치하면 `roadmap_weeks`를 우선한다
 - progress 최신 상태 조회 규칙을 팀 전체가 동일하게 사용해야 한다
 - GitHub 분석에서 AI 후보와 사용자 보정값은 구분해 취급해야 한다
+- 포트폴리오 초안은 `source_refs`에 없는 사실을 완료 근거로 생성하지 않는다
+- Pattern Detector의 `pattern_type` 값은 구현 enum과 DB check constraint를 우선한다
 
 ## 8. 최종 요약
 
