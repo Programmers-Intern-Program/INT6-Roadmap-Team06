@@ -27,10 +27,6 @@
 <!-- TODO: 핵심 user journey GIF (GitHub 연결 → 분석 진행 → 로드맵 → 코치 채팅), 약 20초 -->
 ![데모 GIF 자리](docs/assets/demo.gif)
 
-| 대시보드 | 로드맵 | 코치 위젯 |
-|---|---|---|
-| ![dashboard](docs/assets/dashboard.png) | ![roadmap](docs/assets/roadmap.png) | ![coach](docs/assets/coach.png) |
-
 ---
 
 ## 시스템 구조
