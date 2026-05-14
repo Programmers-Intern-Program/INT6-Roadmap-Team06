@@ -198,7 +198,27 @@
 - 연결 방식은 OAuth만 허용한다
 - 이미 연결된 계정이면 기존 연결을 재사용할 수 있다
 
-### 3.2.2 연결된 저장소 목록 조회
+### 3.2.2 최신 GitHub 연결 조회
+
+- Method: `GET`
+- Path: `/api/github/connections/latest`
+
+응답 body
+```json
+{
+  "data": {
+    "githubConnectionId": "201",
+    "githubLogin": "example-user",
+    "connectedAt": "2026-04-24T14:15:00Z"
+  }
+}
+```
+
+규칙
+- 현재 로그인 사용자의 최신 GitHub 연결을 반환한다
+- 연결이 없으면 `RESOURCE_NOT_FOUND`로 응답한다
+
+### 3.2.3 연결된 저장소 목록 조회
 
 - Method: `GET`
 - Path: `/api/github/repositories?githubConnectionId={id}`
@@ -242,11 +262,11 @@
 필드 규칙
 - `githubConnectionId`: 필수
 - `selectedRepositoryIds`: 필수, 최소 1개
-- `coreRepositoryIds`: 선택, `selectedRepositoryIds`의 부분집합
+- `coreRepositoryIds`: 필수 배열, `selectedRepositoryIds`의 부분집합
 
 v1 처리 기준
 - 현재 명세의 기본 외부 계약은 동기 응답이다
-- 추후 장시간 작업으로 확장할 경우 `job_status` 상태 모델을 따른다
+- 장시간 작업 모드에서는 `POST /api/github-analyses/async`와 `job_status` 상태 모델을 사용한다
 - GitHub 분석 실행은 새 결과 생성이므로 기존 row를 덮어쓰지 않고 사용자별 다음 `version` row를 생성한다
 - 최초 분석 결과의 `userCorrections`는 빈 배열일 수 있고, `finalTechProfile`은 AI 추정 결과 기반 초기값이다
 
@@ -306,7 +326,40 @@ v1 처리 기준
 }
 ```
 
-### 3.3.2 GitHub 분석 보정 저장
+### 3.3.2 GitHub 분석 비동기 실행
+
+- Method: `POST`
+- Path: `/api/github-analyses/async`
+
+요청 body
+- `POST /api/github-analyses`와 동일
+
+응답 body
+```json
+{
+  "data": {
+    "jobId": "f5c0b0c1-7c7a-4d58-9f1e-111111111111"
+  }
+}
+```
+
+처리 규칙
+- 요청을 접수하면 `REQUESTED` 상태의 job을 만들고 HTTP 202로 응답한다
+- 실제 분석은 worker에서 수행하고 `RUNNING`, `SUCCEEDED`, `FAILED` 상태로 갱신한다
+- 성공 시 job 상태 payload에는 생성된 `githubAnalysisId`를 결과 ID로 남긴다
+- 상태 조회는 `GET /api/jobs/{jobId}/status`를 사용한다
+
+### 3.3.3 GitHub 분석 목록 조회
+
+- Method: `GET`
+- Path: `/api/github-analyses`
+
+조회 규칙
+- 현재 로그인 사용자의 GitHub 분석 요약 목록을 반환한다
+- 목록은 최신 생성 시각 기준으로 정렬한다
+- 상세 payload 전체가 필요한 경우 개별 상세 조회를 사용한다
+
+### 3.3.4 GitHub 분석 보정 저장
 
 - Method: `PATCH`
 - Path: `/api/github-analyses/{githubAnalysisId}/corrections`
@@ -348,7 +401,7 @@ v1 처리 기준
 - 이 저장은 기존 결과 row의 사용자 확정값 갱신이므로 latest 조회 기준의 `version` 값에는 영향을 주지 않는다.
 - 응답의 `savedAt`은 보정 저장 처리 시각이다.
 
-### 3.3.3 GitHub 분석 결과 조회
+### 3.3.5 GitHub 분석 결과 조회
 
 - Method: `GET`
 - Path: `/api/github-analyses/{githubAnalysisId}`
@@ -419,11 +472,38 @@ v1 처리 기준
 응답 body
 - `POST /api/diagnoses`의 `data`와 동일 구조
 
+### 3.4.3 역량 진단 목록 조회
+
+- Method: `GET`
+- Path: `/api/diagnoses`
+
+조회 규칙
+- 현재 로그인 사용자의 진단 요약 목록을 반환한다
+- 상세 결과는 `diagnosisId` 기준 상세 조회로 확인한다
+
 ---
 
 ## 3.5 학습 로드맵 API
 
-### 3.5.1 로드맵 생성
+### 3.5.1 로드맵 생성 제약 조회
+
+- Method: `GET`
+- Path: `/api/roadmaps/constraints`
+
+응답 body
+```json
+{
+  "data": {
+    "maxWeeks": 24
+  }
+}
+```
+
+규칙
+- 프론트 로드맵 생성 화면은 서버의 최대 주차 제약을 이 API로 확인한다
+- 실제 생성 요청의 상세 validation은 서버가 최종 기준이다
+
+### 3.5.2 로드맵 생성
 
 - Method: `POST`
 - Path: `/api/roadmaps`
@@ -491,7 +571,7 @@ v1 처리 기준
 - 저장과 진도 추적은 `roadmapWeekId`를 기준으로 한다
 - 원본 데이터는 `learning_roadmaps + roadmap_weeks + progress_logs`다
 
-### 3.5.2 로드맵 조회
+### 3.5.3 로드맵 조회
 
 - Method: `GET`
 - Path: `/api/roadmaps/{roadmapId}`
@@ -538,7 +618,16 @@ v1 처리 기준
 - `progressStatus`, `progressNote`, `progressUpdatedAt`는 `progress_logs` 최신 row 기준으로 계산한다
 - `roadmap_payload`만 보고 진도 상태를 계산하지 않는다
 
-### 3.5.3 진도 체크 저장
+### 3.5.4 로드맵 목록 조회
+
+- Method: `GET`
+- Path: `/api/roadmaps`
+
+조회 규칙
+- 현재 로그인 사용자의 로드맵 요약 목록을 반환한다
+- 개별 로드맵의 주차와 진도 상태는 상세 조회에서 확인한다
+
+### 3.5.5 진도 체크 저장
 
 - Method: `POST`
 - Path: `/api/roadmaps/{roadmapId}/progress`
@@ -740,7 +829,17 @@ v1 처리 기준
 - 현재 로그인 사용자 기준으로 `job:status:{userId}:{jobId}` Redis 값을 조회한다
 - 없는 `jobId`와 다른 사용자 job은 모두 `RESOURCE_NOT_FOUND`로 응답한다
 - 응답의 `status`는 `job_status` 공식 enum만 사용한다
-- GitHub 분석 submit 202 전환과 bulk 조회는 후속 API에서 다룬다
+- GitHub 분석 submit 202 전환은 `POST /api/github-analyses/async`를 사용한다
+
+### 3.8.2 장시간 작업 이력 조회
+
+- Method: `GET`
+- Path: `/api/jobs/history?limit={limit}`
+
+조회 규칙
+- 현재 로그인 사용자의 완료된 작업 이력을 최신순으로 반환한다
+- 이력 저장 대상은 `SUCCEEDED`, `FAILED` 상태의 finalized job이다
+- `limit`은 서버가 허용 범위로 보정한다
 
 ---
 
@@ -774,6 +873,24 @@ Coach API의 상세 계약은 `docs/20_v2_coach_api_contract.md`를 기준으로
 - 이후 대화 중 새 결과가 생성되어도 현재 세션의 기준 버전은 바뀌지 않는다
 - active `PROFILE` 또는 `PLAN` snapshot이 없으면 `SNAPSHOT_NOT_FOUND`를 반환한다
 
+### 4.1.1 활성 코치 세션 조회
+
+- Method: `GET`
+- Path: `/api/coach/sessions/active`
+
+규칙
+- 현재 로그인 사용자의 최신 `ACTIVE` 세션을 반환한다
+- 활성 세션이 없으면 `SESSION_NOT_FOUND` 계열 오류로 처리한다
+
+### 4.1.2 코치 세션 목록 조회
+
+- Method: `GET`
+- Path: `/api/coach/sessions`
+
+규칙
+- 현재 로그인 사용자의 세션 목록을 시작 시각 내림차순으로 반환한다
+- `ACTIVE`, `CLOSED` 세션을 모두 포함한다
+
 ## 4.2 코치 메시지 전송
 
 - Method: `POST`
@@ -799,6 +916,16 @@ Coach API의 상세 계약은 `docs/20_v2_coach_api_contract.md`를 기준으로
 ```
 
 재계획 제안이 필요한 경우 `route`는 `REPLAN_SUGGEST`이고 `replanProposal`에 `proposalId`, `reason`, `expiresAt`을 포함한다.
+
+### 4.2.1 코치 메시지 히스토리 조회
+
+- Method: `GET`
+- Path: `/api/coach/sessions/{sessionId}/messages`
+
+규칙
+- 현재 로그인 사용자의 세션 메시지만 조회할 수 있다
+- 종료된 세션도 히스토리 조회는 허용한다
+- 메시지는 생성 시각 오름차순으로 반환한다
 
 ## 4.3 코치 재계획 확인
 
@@ -922,12 +1049,14 @@ data: {"messageId":"9001","route":"SIMPLE_GUIDE","replanProposal":null}
 - 로드맵 생성은 `diagnosisId` 중심으로 처리한다
 - `roadmap_payload`는 보조 결과이고, 진도 원본은 `progress_logs`다
 - v2 코치 API는 세션 생성 후 메시지 전송 순서를 따른다
+- SSE 스트리밍은 후속/선택 계약이며 구현 완료 API로 간주하지 않는다
 
 ## 7. 이번 정렬본에서 핵심 수정한 부분
 
 - GitHub 연결 입력을 OAuth 기반 계약으로 변경
+- 최신 GitHub 연결 조회, GitHub 분석 비동기 실행, 분석/진단/로드맵 목록 조회, Job 이력 조회를 구현 계약에 맞게 보강
 - GitHub 분석 결과 구조를 `staticSignals`, `repoSummaries`, `techTags`, `depthEstimates`, `evidences`, `userCorrections`, `finalTechProfile` 기준으로 정리
 - 역량 진단 입력을 `profileId + githubAnalysisId`로 변경
-- 로드맵 생성 입력을 `diagnosisId` 중심으로 단순화
-- 코치 세션 응답 버전 필드를 `roadmapVersion` 기준으로 정리
+- 로드맵 생성 입력을 `diagnosisId` 중심으로 단순화하고 생성 제약 조회를 추가
+- 코치 세션 응답 버전 필드를 `roadmapVersion` 기준으로 정리하고 active/session list/message history 조회를 보강
 - 코딩테스트 API를 현재 v1 공식 계약 범위에서 제거
