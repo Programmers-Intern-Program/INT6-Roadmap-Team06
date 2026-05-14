@@ -37,15 +37,6 @@
 
 깃길의 핵심은 *느린 LLM 호출을 사용자가 기다리지 않게* 하고, *대화가 길어져도 처음 본 진단과 일관성*을 유지하는 것입니다. 이 두 가지가 아키텍처 전반의 결정 기준이었습니다.
 
-```mermaid
-graph LR
-    U["사용자 브라우저"] -->|HTTPS · Nginx| FE["Next.js 16<br/>App Router · RSC<br/>플로팅 코치 위젯"]
-    FE -->|REST · JWT 쿠키| BE["Spring Boot 4<br/>Hexagonal<br/>(domain · application · adapter)"]
-    BE --> PG[("PostgreSQL 16<br/>Flyway V1–V7")]
-    BE --> R[("Redis<br/>잡 상태 · 3초 폴링")]
-    BE -->|OAuth · REST · GraphQL| GH["GitHub"]
-    BE -->|@Async · AFTER_COMMIT| AI["Grepp AI Gateway<br/>LiteLLM proxy<br/>→ Zhipu GLM-4.7"]
-```
 
 ### 1) 분석은 끝까지 비동기로
 
