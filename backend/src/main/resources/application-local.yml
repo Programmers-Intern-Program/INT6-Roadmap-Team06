@@ -19,6 +19,11 @@ ai:
   gateway:
     timeout:
       read: 300s  # 로컬 LLM 응답 지연 대비 길게 유지
+    retry:
+      # 로컬에서 retry 발동을 눈으로 확인하려면 scripts/dev/llm-stub-server.py 와 함께 사용.
+      # 운영 기본값은 application.yml 의 max-attempts: 1 (재시도 없음).
+      max-attempts: ${AI_GATEWAY_RETRY_MAX_ATTEMPTS:3}
+      backoff: ${AI_GATEWAY_RETRY_BACKOFF:300ms}
 
 logging:
   level:

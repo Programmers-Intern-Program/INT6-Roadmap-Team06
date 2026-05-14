@@ -67,7 +67,10 @@ ai:
       connect: 5s
       read: 120s
     retry:
-      max-attempts: 1
+      # 기본 1회 = 재시도 없음 (안전 기본). 운영에서 활성화하려면 env 로 오버라이드.
+      # 화이트리스트(LLM_INVALID_RESPONSE / ANALYSIS_FAILED) 에 한해 적용. 자세한 정책은 AiGatewayLlmClient 참고.
+      max-attempts: ${AI_GATEWAY_RETRY_MAX_ATTEMPTS:1}
+      backoff: ${AI_GATEWAY_RETRY_BACKOFF:200ms}
   concurrency:
     max-concurrent-calls: 4
     queue-timeout-seconds: 180
